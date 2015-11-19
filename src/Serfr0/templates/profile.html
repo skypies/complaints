@@ -1,0 +1,89 @@
+{{define "profile-edit"}}
+
+<html>
+  {{template "header"}}
+  <body>
+    <h1>Make them count&nbsp;!</h1>
+
+    <form action="/profile-update" method="post" onkeypress="return event.keyCode != 13;">
+      
+      <div class="stack">
+        <!-- Google autocomplete magic will populate these. -->
+        <input type="hidden" name="AddrNumber"  id="street_number" />
+        <input type="hidden" name="AddrStreet"  id="route" />
+        <input type="hidden" name="AddrCity"    id="locality" />
+        <input type="hidden" name="AddrState"   id="administrative_area_level_1"/>
+        <input type="hidden" name="AddrZip"     id="postal_code" />
+        <input type="hidden" name="AddrCountry" id="country"  />
+        
+        {{if .Message}}<div class="message">{{.Message}}</div>{{end}}
+
+        <p><b>Enter your name, and then start typing your address</b>,
+        clicking on yours when it shows up in the list. We'll work
+        out your lat/long for you. <b>Don't worry if you don't have a
+        Caller Code</b>; everything works fine without one.</p>
+
+        <div class="box">
+          <table border="0">
+            <tr><td>Your email</td><td><code>{{.Profile.EmailAddress}}</code></td></tr>
+            <tr>
+              <td>Full Name</td>
+              <td><input type="text" size="20" name="FullName"
+                         value="{{.Profile.FullName}}" autofocus="1"/></td>
+            </tr>
+
+            <tr>
+              <td valign="top">Full Address</td>
+              <td>
+                <input type="text"
+                       size="27"
+                       id="autocomplete"
+                       placeholder="Enter your address"
+                       onFocus="geolocate()"
+                       name="AutoCompletingMagic"
+                       value="{{.Profile.Address}}"/>
+                <br/>
+
+                <input class="disabled" id="mylat" type="text" size="9" readonly="1"
+                       name="Lat" value="{{.Profile.Lat}}"/>, 
+                <input class="disabled" id="mylong" type="text" size="10" readonly="1"
+                       name="Long" value="{{.Profile.Long}}"/>
+            </tr>
+            
+            <tr>
+              <td>CallerCode</td>
+              <td><input type="text" size="8" name="CallerCode"
+              value="{{.Profile.CallerCode}}"/></td>
+            </tr>
+          </table>
+        </div>
+
+
+        <p> Your complaints will be automatically sent off
+          to <code>sfo.noise</code>. If you don't want to report them,
+          untick this box:</p>
+
+        <div class="box">
+            <p>Auto-complain to SFO ?
+                <input type="checkbox" name="CcSfo" {{if .Profile.CcSfo}}checked="yes"{{end}}></p>
+        </div>
+
+        <br/>
+        <br/>
+        
+        <p style="text-align:center"><input class="button" type="submit" value="SAVE PROFILE"/></p>
+
+      </div>      
+    </form>
+
+    <script>
+      {{template "js-address-lookup"}}
+    </script>
+    <script async defer
+            src="https://maps.googleapis.com/maps/api/js?key={{.MapsAPIKey}}&libraries=places&callback=initAutocomplete">
+    </script>
+
+  </body>
+</html>
+
+{{end}}

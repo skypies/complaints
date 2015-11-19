@@ -1,0 +1,20 @@
+{{define "fdb-scan"}}
+
+<html>
+  {{template "header"}}
+  <body>
+    <div>
+      <h1> Scan </h1>
+      <h3>New</h3>
+      <div class="box">
+        {{range .New}}<code>{{.}}</code><br/>{{end}}
+      </div>
+      <h3>All</h3>
+      <div class="box">
+        {{range .Flights}}<code>{{.}}</code><br/>{{end}}
+      </div>
+    </div>
+  </body>
+</html>
+
+{{end}}

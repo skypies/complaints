@@ -1,0 +1,43 @@
+{{define "landing"}}
+
+<html>
+  {{template "header"}}
+  <body>
+    <div class="stack">
+
+      <h1>Start reporting !</h1>
+
+      <p> Official disturbance reports are the only proof that our elected
+      officials have that something is wrong. <b>Give them that
+      proof.</b> And tell your neighbors - the number of affected
+      households is as important as the overall number of reports.
+      One report a month from a new person makes a huge difference
+      !</p>
+      
+      <div class="stack">
+        <div><a href="{{.google}}"><img width="300" src="/static/google-signin.png"/></a></div>
+        <div><a href="{{.facebook}}"><img width="290" src="/static/fb-signin.png"/></a></div>
+      </div>
+
+      <p><i>(Not on facebook ? Or gmail ? Then
+          <a target="_blank" href="https://accounts.google.com/SignUpWithoutGmail">
+        create a new google account</a> to use with this website - it's super easy !)</i></p>
+      
+      <p> Login just once, enter your name & address, and then
+      make <b>one-click reports</b> that get submitted
+      to <b>sfo.noise</b>. Don't worry, we can't see your password or
+      email or vacation photos - all we can see is your email
+      address.</p>
+
+      <p>If you're using a phone, use <b>Add To Home Screen</b> to put
+      an app button right where you need it.</p>
+
+      <p>(PS: if you're a Google power-user with multiple accounts,
+      <a href="{{.googlefromscratch}}">click here</a> to re-select
+      which account to use.)</p>
+      
+    </div>
+  </body>
+</html>
+
+{{end}}

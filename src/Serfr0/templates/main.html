@@ -1,0 +1,78 @@
+{{define "main"}}
+{{ $modes := .Modes }}
+
+<html>
+  {{template "header"}}
+
+  <body>
+    <div class="allstack">
+      {{if .Modes.debug}}<h1>DEBUG</h1>{{end}}
+      <p>{{if .Message}}
+        <b> {{.Message}} </b>
+        {{else}}Hello, <code>{{.Cap.Profile.EmailAddress}}</code>.
+        {{end}}
+        <br/>It is {{.Now.Format "15:04:05 PM on Mon, Jan 2"}}.
+      </p>
+
+      <div class="box" style="background-color: #eeffee;">
+        {{template "complaint-form" .ComplaintDefaults}}
+      </div>
+      <p/>
+
+      <div class="box">
+      {{if (len .Complaints | eq 0)}}
+        <div><i>No reports so far today !</i></div>
+      {{else}}
+        <div class="complaintheader">
+          <i>Today's {{len .Complaints}} report{{if (len .Complaints | ne 1)}}s{{end}}</i>
+        </div>
+        <form action="/delete-complaints" method="post">
+        <div style="text-align:left">
+          {{if $modes.edit}}
+          <input id="deletebutton" class="button" type="submit" name="act" value="DELETE">
+          <input id="editbutton"   class="button" type="submit" name="act" value="CANCEL">
+          {{else}}
+            {{if not $modes.expanded}}
+            <input id="editbutton"   class="button" type="submit" name="act" value="UPDATE/EDIT LIST">
+            {{end}}
+          {{end}}
+        </div>
+        {{range .Complaints}}
+          {{template "complaint" dict "Complaint" . "Modes" $modes}}
+        {{end}}
+        </form>
+        {{if $modes.expanded}}<div class="complaintfooter">[<a href="/">Collapse</a>]</div>{{end}}
+
+      {{end}}
+      </div>
+      
+      {{if not $modes.expanded}}
+        {{if (len .Cap.Counts | ne 0)}}
+      <p/>
+      <div class="box">
+        {{range .Cap.Counts}}
+          <div style="text-align:left">{{.Key}}: <b>{{.Count}}</b> reports
+            {{if ne .TotalComplaints 0 }}({{.TotalComplaints}} reports by {{.TotalComplainers}} users){{end}}
+          </div>
+        {{end}}
+          {{if not $modes.expanded}}<div class="complaintfooter">
+            <!--<a href="/full">ShowAll</a>,-->
+            [<a href="/download-complaints">DownloadCSV</a>]</div>{{end}}
+      </div>
+        {{end}}
+      {{end}}
+
+      <p><a href="/profile">EditProfile</a>,
+        <a href="/logout">Logout</a>,
+        <a target="_blank" href="/faq">About</a>
+        {{if $modes.superuser}}<br/><a href="/debug">debug</a>{{end}}{{if $modes.admin}},
+        <a href="/email">email</a>,
+        <a href="/">root</a>
+        {{end}}
+      </p>
+      
+    </div> <!-- stack -->
+  </body>
+</html>
+
+{{end}}

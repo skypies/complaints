@@ -1,0 +1,44 @@
+{{define "email-debug"}}
+
+<html>
+  {{template "header"}}
+  <body>
+    <div>
+      <div class="box">
+        <p><code>
+            To: {{.EmailBundle.To}} <br/>
+            Bcc: {{.EmailBundle.Bcc}} <br/>
+            Sender: {{.EmailBundle.Sender}} <br/>
+            ReplyTo: {{.EmailBundle.ReplyTo}} <br/>
+            Subject: {{.EmailBundle.Subject}} <br/>        
+        </code></p>
+      </div>
+
+      <div>
+        {{.EmailBundleBody}}
+      </div>
+    </div>
+
+    <hr/>
+
+    <div>
+      <div class="box">
+        <p><code>
+            To: {{.EmailSingle.To}} <br/>
+            Bcc: {{.EmailSingle.Bcc}} <br/>
+            Sender: {{.EmailSingle.Sender}} <br/>
+            ReplyTo: {{.EmailSingle.ReplyTo}} <br/>
+            Subject: {{.EmailSingle.Subject}} <br/>        
+        </code></p>
+      </div>
+      <div>
+        {{.EmailSingleBody}}
+      </div>
+    </div>
+    <div>
+
+    </div>
+  </body>
+</html>
+
+{{end}}

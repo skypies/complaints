@@ -1,0 +1,61 @@
+{{define "complaint-form"}}
+
+<form action="{{if .NewForm}}/add-complaint{{else}}/update-complaint{{end}}" method="post">
+  <div>
+    {{if .NewForm}}
+    Jet noise overhead ? <input id="complain" class="button" type="submit" value="REPORT IT"/><br/><br/>
+    {{end}}
+    <div>
+      {{if .NewForm}}<hr/>
+      <p style="margin:1em"><i>Optional info - please report speedbrakes!</i></p>
+      {{end}}
+      <table>
+        {{if not .NewForm}}
+
+        <tr><td>Time of report</td>
+          <td><input type="text" name="manualtimestring" size="8"
+          value="{{.DefaultTimestamp.Format "15:04:05"}}"> (HH:MM:SS,
+          24-hour clock)</td></tr>
+        
+        <input type="hidden" name="datastorekey" value="{{.C.DatastoreKey}}"/>
+        <tr><td>Flight Number</td>
+          <td> <input type="text" value="{{.DefaultFlightNumber}}"
+                      name="manualflightnumber" size="8"/> </td></tr>
+        <tr><td colspan="2"><hr/></td></tr>
+        {{end}}
+        <tr><td>Speedbrakes</td>
+          <td><input type="checkbox"
+                     {{if .DefaultSpeedbrakes}}checked="yes"{{end}}
+                     name="speedbrakes"> <i>(Whiny/whooshy noise)</i></td></tr>
+        
+        <tr><td>Your notes</td>
+          <td> <input type="text" value="{{.DefaultDescription}}"
+                      name="content" size="20"/> </td></tr>
+        
+        <tr><td>I was ...</td>
+          <td> <select name="activity">
+              {{ $la := .DefaultActivity }}
+              {{range .ActivityList}}
+              <option value="{{.}}" {{if eq $la .}} selected="1"{{end}}>{{.}}</option>
+              {{end}}
+          </select></td></tr>
+        <tr><td>Volume</td><td>            
+            <input type="radio" name="loudness" value="1" {{if eq .DefaultLoudness 1}}checked="yes"{{end}}>loud,
+            <input type="radio" name="loudness" value="2" {{if eq .DefaultLoudness 2}}checked="yes"{{end}}>LOUD,
+            <input type="radio" name="loudness" value="3" {{if eq .DefaultLoudness 3}}checked="yes"{{end}}><b>INSANE</b>
+        </td></tr>
+
+      </table>
+
+    </div>
+
+    {{if not .NewForm}}
+    <br/>
+    <p style="text-align:center"><input class="button" type="submit" value="UPDATE REPORT"/></p>
+    <br/>
+    {{end}}
+
+  </div>
+</form>
+
+{{end}}

@@ -1,0 +1,84 @@
+{{define "report-form"}}
+
+<html>
+  {{template "header"}}
+  <body>
+    <h1>Reports</h1><p/>
+
+    <form action="/report" method="post">
+      <div class="stack">
+        <div class="box">
+        <table border="0">
+          <tr>
+            <td>Date range</td>
+            <td>
+              <input type="radio" name="date" value="today"/>Today<br/>
+              <input type="radio" name="date" value="yesterday"/>Yesterday<br/>
+              <input type="radio" name="date" value="range" checked="checked"/>Range:
+
+              <input type="text" size="10" name="range_from"
+                     value="{{.Yesterday.Format "2006/01/02"}}"/> to
+              <input type="text" size="10" name="range_to"
+                     value="{{.Yesterday.Format "2006/01/02"}}"/>
+            </td>
+
+          </tr>
+          <tr><td>&nbsp;</td></tr>
+
+          <tr>
+            <td>Report type</td>
+            <td><select name="reportname">
+                <option value="serfr1">All SERFR1 flights</option>
+                <option value="brixx1">All BRIXX1 flights</option>
+                <option value="classb" selected="1">Class B Violations</option>
+                <option value="brixxviolations">BRIXX1 violations</option>
+                <option value="skimmer">Level flight on SERFR1 at 6000, 8000</option>
+                <option value="serfr1complaints">SERFR1 flights vs. complaints</option>
+            </select></td>
+          </tr>
+          <tr><td>&nbsp;</td></tr>
+          
+          <tr>
+            <td>Result format</td>
+            <td>
+              <input type="radio" name="resultformat" value="list" checked="yes"/>web page,
+              <input type="radio" name="resultformat" value="csv"/>downloadCSV.
+            </td>
+          </tr>
+
+          <tr><td colspan="2"><hr/></td></tr>
+
+          <tr>
+            <td>Options, Class B: </td>
+            <td><input type="checkbox" checked="yes" name="classb_oneperflight"/>
+              just one per flight (pick worst)</td>
+          </tr>
+          <tr><td>&nbsp;</td></tr>
+
+          <tr>
+            <td>Options, Skimmers: </td>
+            <td><input type="text" name="skimmer_altitude_tolerance"
+              size="6" value="100"/>
+              altitude tolerance (feet)</td>
+          </tr>
+          <tr>
+            <td/>
+            <td><input type="text" name="skimmer_min_duration_nm"
+              size="6" value="3"/>
+              min length of skim (in NM)</td>
+          </tr>
+
+        </table>
+
+        <br/>
+        <p style="text-align:center"><input class="button" type="submit" value="GENERATE"/></p>
+        <br/>
+        </div>
+        <p>Please note: we have no Class B data before 11:30am on Wed Sep 23.</p>
+
+      </div>
+    </form>
+  </body>
+</html>
+
+{{end}}

@@ -1,0 +1,20 @@
+{{define "fdb-addflight"}}
+
+<html>
+  {{template "header"}}
+  <body>
+    <div>
+      <h1>Add Flight</h1>
+      <div class="box">
+        Asked to add <code>{{.Flight}}</code>
+      </div>
+      <div class="box">
+        {{range $k,$v := .Params}}
+        <code>{{$k}}</code>:{{$v}}
+        {{end}}
+      </div>
+    </div>
+  </body>
+</html>
+
+{{end}}

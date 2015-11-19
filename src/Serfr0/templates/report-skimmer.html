@@ -1,0 +1,41 @@
+{{define "report-skimmer"}}
+
+<html>
+  {{template "header"}}
+
+  <body>
+    <div class="allstack">
+      <h1> Skimmers report:
+        {{.Start.Format "Mon 01/02"}} - {{.End.Format "Mon 01/02"}} : 
+        {{len .Rows}} flights
+      </h1><br/>
+      <div class="box">
+        <table>
+          {{range $k,$v := .Metadata}}
+          <tr><td>{{$k}} : </td><td><b>{{$v}}</b></td></tr>{{end}}
+        </table>
+      </div>
+      <p/>
+
+      <div class="box">
+        <table>
+          {{range .Rows}}
+          <tr>
+            <td>[<a href="{{.Url}}" target="_blank">view map</a>]</td>
+            <td>{{.F.Id.Designator}}</td>
+            <td>[{{.F.Id.Origin}}-{{.F.Id.Destination}}]</td>
+            <td>{{.Source}}</td>
+            <td>{{formatPdt .F.EnterUTC "01/02 15:04:05 MST"}}; </td>
+            <td><pre>{{range .A.Events}}{{.String}}<br/>{{end}}</pre></td>
+          </tr>
+          {{end}}
+        </table>
+      </div>
+      <div class="stack">
+        {{template "faq-maps"}}
+      </div>
+    </div>
+  </body>
+</html>
+
+{{end}}

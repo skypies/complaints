@@ -1,0 +1,66 @@
+{{define "email-bundle"}}
+<html>
+  <body>
+    <p>Hello, {{.Profile.FullName}} !</p>
+
+    {{if not .Profile.CcSfo}}<p>[Reminder: these disturbance reports
+    were <b>not submitted</b> to sfo.noise. If you'd like these
+    reports to be submitted automatically every day, go to
+    <a href="http://complaints.serfr1.org/profile">your profile</a>
+    and tick the tickbox.]</p>
+    {{end}}
+    
+    <p>This is a {{if len .Complaints | ge 1}}single
+    report{{else}}list of {{ len .Complaints }} reports{{end}}
+    relating to jets on the new <b>NextGen</b> flight paths for SFO,
+    SJC and OAK. Where possible, the aircraft {{if len .Complaints | ne 1}}were{{else}}was{{end}}
+    identified via flightradar24.com.</p>
+
+    <p>My details:</p>
+
+    <div style="padding: 10px; display:inline-block; background-color: #f8ffff; border:1px solid black">
+      <table>
+        <tr><td>Caller code : </td><td><b>{{.Profile.CallerCode}}</b></td></tr>
+        <tr><td>Name : </td><td><b>{{.Profile.FullName}}</b></td></tr>
+        <tr><td>Address : </td><td><b>{{.Profile.Address}}</b></td></tr>
+      </table>
+    </div>
+
+    <p>The {{if len .Complaints | ne 1}}{{len .Complaints}} reports{{else}}report{{end}}:</p>
+
+    <div style="padding: 10px; display:inline-block; background-color: #f8ffff; border:1px solid black">
+      <table>{{range $i, $v := .Complaints}}
+        <tr>
+          <td><b>{{with $v.Timestamp}}{{.Format "Mon, Jan 02, 03:04 PM"}}{{end}}</b></td>
+
+          {{if .AircraftOverhead.BestIdent }}
+          <td>Flight: {{spacify .AircraftOverhead.BestIdent}}
+            {{if .AircraftOverhead.EquipType}}
+            ({{.AircraftOverhead.EquipType}}: {{.AircraftOverhead.Speed}} knots,
+            {{.AircraftOverhead.Altitude}} ft)
+            {{end}}
+          </td>
+          {{end}}
+        </tr>
+        
+        <tr><td colspan="2">
+        {{if .Description}}Personal notes: {{.Description}}<br/>{{end}}
+
+        {{if ge .Version 2}}        
+        {{if .Activity}}"{{.Activity}}" was disturbed.<br/> {{end}}
+        {{if ge .Loudness 2}}Volume was "{{if eq .Loudness 1}}loud{{else if eq .Loudness 2}}very loud{{else}}TOO LOUD{{end}}".{{end}}
+        {{if .HeardSpeedbreaks}} <b>Speedbrakes</b> were heard !<br/>{{end}}
+        {{end}}
+        </td></tr>
+
+        
+        {{end}}
+      </table>
+    </div>
+
+    <p>Thank you.</p>
+  </body>
+</html>
+{{end}}
+
+

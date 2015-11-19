@@ -1,0 +1,48 @@
+{{define "complaint"}}
+
+<div class="complaint">
+{{if .Modes.edit}}
+  <input class="deletebox" type="checkbox" name="{{.Complaint.C.DatastoreKey}}"/>&nbsp;
+  <a id="changebutton" class="fakebutton" href="/complaint-updateform?k={{.Complaint.C.DatastoreKey}}">UPDATE</a>
+{{end}}
+  
+{{.Complaint.C.Timestamp.Format "Jan _2, 15:04:05"}}
+
+{{if .Complaint.BestIdent }}
+  <span class="flightnumber">
+  {{if .Complaint.C.AircraftOverhead.Fr24Url}}
+    <a rel="noreferrer" target="_blank" href="{{.Complaint.C.AircraftOverhead.Fr24Url}}">
+      {{spacify .Complaint.BestIdent}}</a>
+  {{else}}
+    {{spacify .Complaint.BestIdent}}
+  {{end}}
+  </span>
+
+  <span class="flightdetails">
+    {{if not .Complaint.C.AircraftOverhead.EquipType}}<i>(manually entered)</i>
+    {{else}}({{.Complaint.C.AircraftOverhead.EquipType}}
+    <span>
+      {{.Complaint.C.AircraftOverhead.Speed}}k, {{.Complaint.C.AircraftOverhead.Altitude}}ft
+    </span>
+    {{.Complaint.C.AircraftOverhead.VerticalSpeed}}/m)
+    {{end}}
+  </span>
+
+{{else}}
+  <span class="flightdetails"><i>(could not decide which flight)</i></span>
+{{end}}
+  
+{{if .Modes.debug}}
+  <br/><pre>{{.Complaint.C.Debug}}</pre>
+{{end}}
+
+{{if (len .Complaint.Notes | ne 0)}}
+  <div class="{{if .Modes.edit}}editboxindent{{end}}">
+    <ul class="details">{{range .Complaint.Notes}}
+      <li>{{.}}</li>{{end}}
+    </ul>
+  </div>
+{{end}}
+
+</div>
+{{end}}

@@ -1,0 +1,43 @@
+{{define "report-adsbclassb"}}
+
+<html>
+  {{template "header"}}
+
+  <body>
+    <div class="allstack">
+      <h1> ADSB comparison report: {{.Start.Format "Mon 01/02"}} - {{.End.Format "Mon 01/02"}}</h1><br/>
+
+      <div class="box">
+        <table>
+          {{range $k,$v := .Metadata}}
+          <tr><td>{{$k}} : </td><td><b>{{$v}}</b></td></tr>{{end}}
+        </table>
+      </div>
+      <p/>
+
+      <div class="box">
+        <table>
+          {{range .Rows}}
+          <tr>
+            <td>{{if .Seq | eq 0}}<a href="{{.Url}}" target="_blank">
+                {{.F.Id.Designator}} / {{.F.Id.Registration}} /
+                {{.F.Id.ModeS}}</a>{{end}}
+            </td>
+
+            <td>detected by FA: {{if .FAViolation}}<b>yes</b>{{else}}no{{end}}</td>
+            <td>detected by receiver: {{if .LocalViolation}}<b>yes</b>{{else}}no{{end}}</td>
+            <td>increase in violation: {{.IncreasedViolationBy}}</td>
+            <td>(FA belowby: {{if .FAViolation}}{{.FAAnalysis.BelowBy}}{{end}})</td>
+            <td>(receiver belowby: {{if .LocalViolation}}{{.LocalAnalysis.BelowBy}}{{end}})</td>
+          </tr>
+          {{end}}
+        </table>
+      </div>
+      
+      <div class="stack">
+      </div>
+    </div>
+  </body>
+</html>
+
+{{end}}

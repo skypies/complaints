@@ -1,0 +1,28 @@
+{{define "fdb-decodetrack"}}
+
+<html>
+  {{template "header"}}
+  <body>
+    <div class="allstack">
+      <h1> Track fragments for {{.Callsign}}, {{.Icao24}} </h1><br/>
+
+      {{range .Tracks}}
+      <div class="box">
+        <p>A track from {{.LongSource}}</p>
+        <table>{{range .}}
+          <tr>
+            <td>{{formatPdt .TimestampUTC "01/02 15:04:05 MST"}}</td>
+            <td>{{.AltitudeFeet}} feet, </td>
+            <td>{{.SpeedKnots}} knots, </td>
+            <td>{{.Heading}} degrees, </td>
+            <td>({{.Latlong.Lat}}, {{.Latlong.Long}})</td>
+          </tr>{{end}}
+        </table>
+      </div><hr/>
+      {{end}}
+      
+    </div>
+  </body>
+</html>
+
+{{end}}

@@ -1,0 +1,21 @@
+{{define "faq-maps"}}
+
+        <h3>Flight maps</h3>
+        <p> If you view the map for a flight, you'll see a trail of colored dots. Each is
+          a specific Trackpoint from a data service; click it to see details about that point.</p>
+        <p>
+          <b>Blue dots</b>: data source was FlightAware (radar or ADS-B).<br/>
+          <b>Yellow dots</b>: data source was a privately operated ADS-B receiver.<br/>
+          <b>Big red dots</b>: this particular point (from any source)
+          was interpreted as
+          a Class B violation. Click on it to learn why.<br/>
+<!--          <b>Red dots</b>: A class B violation based on Flightradar24 data. Not usable in
+          reporting, and often a false positive; but useful to compare against.          
+          <b>Green dots</b>: data source was Flightradar24. For
+          comparison.<br/> -->
+        </p>
+
+        <p> The ClassB detection logic uses a conservative/simplifed view of class B space
+        that is only appropriate for flights flying in on SERFR1.</p>
+
+{{end}}

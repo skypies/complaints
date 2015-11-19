@@ -1,0 +1,37 @@
+{{define "email-single"}}
+
+<html><table>
+ <tr><td width='200px' align='right'>First Time to report noise :</td><td>NO</td></tr> 
+
+ <tr><td colspan=2><b>Personal Information:</b></td></tr> 
+ <tr><td width='200px' align='right'>Name Prefix :</td> <td></td></tr> 
+ <tr><td width='200px' align='right'>First Name :</td>  <td>{{.Profile.FullName}}</td></tr> 
+ <tr><td width='200px' align='right'>Last Name :</td>   <td></td></tr> 
+ <tr><td width='200px' align='right'>Name Suffix :</td> <td></td></tr> 
+ <tr><td width='200px' align='right'>Caller Code :</td> <td>{{.Profile.CallerCode}}</td></tr> 
+ <tr><td width='200px' align='right'>Address 1 :</td>   <td>{{.Profile.Address}}</td></tr> 
+ <tr><td width='200px' align='right'>Address 2 :</td>   <td>{{.Profile.Lat}}, {{.Profile.Long}}</td></tr> 
+ <tr><td width='200px' align='right'>City :</td>        <td></td></tr> 
+ <tr><td width='200px' align='right'>Zip Code :</td>    <td>{{.Zip}}</td></tr> 
+ <tr><td width='200px' align='right'>Cross Street :</td><td></td></tr> 
+ <tr><td width='200px' align='right'>Home Phone :</td>  <td></td></tr> 
+ <tr><td width='200px' align='right'>Work Number :</td> <td></td></tr> 
+ <tr><td width='200px' align='right'>Cell Number :</td> <td></td></tr> 
+ <tr><td width='200px' align='right'>Email :</td>       <td>{{.Profile.EmailAddress}}</td></tr> 
+
+ <tr><td colspan=2><b>Noise Event Information:</b></td></tr> 
+ <tr><td width='200px' align='right'>Disturbance Start Date and Time :</td>
+   <td>{{.Complaint.Timestamp.Format "01/02/06 03:04 PM"}}</td></tr> 
+ <tr><td width='200px' align='right'>Disturbance End Date and Time :</td>
+   <td>{{.Complaint.Timestamp.Format "01/02/06 03:04 PM"}}</td></tr> 
+ <tr><td width='200px' align='right'>Aircraft Type :</td><td>Jet</td></tr> 
+ <tr><td width='200px' align='right'>Disturbance Type :</td><td>Loud disturbance</td></tr> 
+ <tr><td width='200px' align='right'>Activity Disturbed :</td><td>{{.Complaint.Activity}}</td></tr> 
+ <tr><td width='200px' align='right'>Airline :</td><td>{{.Airline}}</td></tr> 
+ <tr><td width='200px' align='right'>Operation :</td><td>{{.Operation}}</td></tr> 
+ <tr><td width='200px' align='right'>Comments :</td><td>{{.Notes}}</td></tr> 
+ <tr><td width='200px' align='right'>Response Method :</td><td>No Response Needed</td></tr> 
+ <tr><td width='200px' align='right'>Complainant copied on email :</td><td>YES</td></tr>
+</table></html>
+
+{{end}}

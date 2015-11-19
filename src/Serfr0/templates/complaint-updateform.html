@@ -1,0 +1,26 @@
+{{define "complaint-updateform"}}
+
+<html>
+  {{template "header"}}
+  <body>
+    <div class="allstack">
+      <div class="box" style="background-color: #eeeeee;">
+        {{template "complaint-form" . }}
+      </div>
+      <div style="text-align:left">
+        <p> Here are the raw details about flight identification; it might
+          list the flight you're looking for. A brief explanation:<br/>
+          <b>3Dist</b>: 3D distance, taking altitude into account<br/>
+          <b>2Dist</b>: 2D distance from aircraft latlong to yours<br/>
+          <b>Brng</b>: the bearing from the aircraft to your latlong<br/>
+          <b>Hdng</b>: The direction the aircraft was pointing in<br/>
+          <b>Equip</b>: The kind of aircraft (Airbus 320, etc)<br/>
+          Flightnumbers that look like r:N123AB - these are unscheduled flights, even though they're sometimes big jets being moved around by the airlines. I filter these out, as they ruin the accuracy.
+        </p>
+        <p><pre>{{.C.Debug}}</pre></p>
+      </div>
+    </div>
+  </body>
+</html>
+
+{{end}}

@@ -1,0 +1,14 @@
+{{define "stats"}}
+
+<html>
+  {{template "header"}}
+
+  <body>
+    <div class="allstack">
+      <pre>{{range .GlobalStats.Counts}}{{.}}<br/>{{end}}
+      </pre>
+    </div>
+  </body>
+</html>
+
+{{end}}

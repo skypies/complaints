@@ -1,0 +1,18 @@
+{{define "fdb-queryresults-map"}}
+
+<html>
+  {{template "header-map"}}
+  <body>
+    <div id="map"></div>
+    <div id="legend"></div>
+    <script type="text/javascript">
+      {{template "js-map-setup" . }}
+      {{template "js-map-snapshotset" . }}
+    </script>
+    <script async defer
+      src="https://maps.googleapis.com/maps/api/js?key={{.MapsAPIKey}}&callback=initMap">
+    </script>
+  </body>
+</html>
+
+{{end}}
