@@ -20,8 +20,8 @@ import (
 	"github.com/skypies/geo/sfo"
 	ftype "github.com/skypies/flightdb"
 	fdb   "github.com/skypies/flightdb/gae"
-	fdbfa "abw/flightdbfa"
-	fdb24 "abw/flightdbfr24"
+	fdbfa "github.com/skypies/flightdb/flightdbfa"
+	fdb24 "github.com/skypies/flightdb/flightdbfr24"
 )
 
 const (

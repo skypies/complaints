@@ -20,7 +20,7 @@ import (
 	"github.com/skypies/geo/sfo"
 	"github.com/skypies/flightdb"
 	fdb "github.com/skypies/flightdb/gae"
-	hist "abw/histogram"
+	hist "github.com/skypies/histogram"
 )
 
 func init() {
