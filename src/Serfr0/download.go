@@ -34,6 +34,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	cap, err := cdb.GetAllByEmailAddress(session.Values["email"].(string), true)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	_ = cap
 

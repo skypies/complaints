@@ -184,7 +184,6 @@ func updateComplaintHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Compose a new timestamp, by inserting hew HH:MM:SS fragment into the old timestamp (date+nanoseconds)
-		c.Infof(" **YAS {%s}", orig.Timestamp.Format("2006.01.02 .999999999") + newTimeString)
 		newTimestamp,err2 := date.ParseInPdt("2006.01.02 .999999999 15:04:05",
 			orig.Timestamp.Format("2006.01.02 .999999999 ") + newTimeString)
 		if err2 != nil {

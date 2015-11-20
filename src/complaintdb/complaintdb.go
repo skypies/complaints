@@ -253,7 +253,10 @@ func (cdb ComplaintDB)getMaybeCachedComplaintsByQuery(q *datastore.Query, memKey
 
 	var data = []types.Complaint{}
 	//cdb.C.Infof(" #=== Fetching[%s] from DS :(", memKey)
-	keys, err := q.GetAll(cdb.C, &data)
+
+	tolerantContext := appengine.Timeout(cdb.C, 30*time.Second)
+
+	keys, err := q.GetAll(tolerantContext, &data)
 	if err != nil { return nil, nil, err }
 
 	if cdb.Memcache && memKey != "" {
