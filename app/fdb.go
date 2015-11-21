@@ -181,7 +181,7 @@ func addflightHandler(w http.ResponseWriter, r *http.Request) {
 				f.AnalyseFlightPath() // Work out how to tag it
 
 				if f.HasTag(ftype.KTagSERFR1) || f.HasTag(ftype.KTagBRIXX) {
-					if err := fdbfa.AddFlightAwareTrack(urlfetch.Client(c),f); err != nil {
+					if err := fdbfa.AddFlightAwareTrack(urlfetch.Client(c),f,kFlightawareAPIUsername,kFlightawareAPIKey); err != nil {
 						c.Errorf(" /mdb/addflight: addflightaware: %v", err)
 					}
 				}
@@ -600,7 +600,10 @@ func testFdbHandler(w http.ResponseWriter, r *http.Request) {
 
 				f.AnalyseFlightPath() // Work out how to tag it
 
-				if f.Tags[ftype.KTagSERFR1] { fdbfa.AddFlightAwareTrack(urlfetch.Client(c),f) }
+				if f.Tags[ftype.KTagSERFR1] {
+					c.Infof("/mdb/test: Calling FA on flight %s",f)
+					fdbfa.AddFlightAwareTrack(urlfetch.Client(c),f,kFlightawareAPIUsername,kFlightawareAPIKey)
+				}
 
 				f.Analyse() // Other tags
 

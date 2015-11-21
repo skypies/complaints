@@ -8,4 +8,7 @@ var (
 	kGoogleMapsAPIKey = config.Get("googlemaps.apikey")
 	kFacebookAppId = config.Get("facebook.appid")
 	kFacebookAppSecret = config.Get("facebook.appsecret")
+
+	kFlightawareAPIUsername = config.Get("flightaware.username")
+	kFlightawareAPIKey = config.Get("flightaware.key")
 )
