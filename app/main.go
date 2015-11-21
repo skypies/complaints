@@ -104,6 +104,8 @@ func rootHandler (w http.ResponseWriter, r *http.Request) {
 	
 	// No session ? Get them to login
 	if session.Values["email"] == nil {
+		fb.AppId = kFacebookAppId
+		fb.AppSecret = kFacebookAppSecret
 		loginUrls := map[string]string{
 			"googlefromscratch": g.GetLoginUrl(r, true),
 			"google": g.GetLoginUrl(r, false),

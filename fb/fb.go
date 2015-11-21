@@ -20,8 +20,9 @@ import (
 var (
 	callbackURLPath = "/login/facebook"
 
-	facebookAppId = "871184712972286"
-	facebookAppSecret = "2eadf024d9bdbc0bd1818d8702e59c45"
+	// These globals need to be set before the functions below are executed
+	AppId = ""
+	AppSecret = ""
 )
 
 func init() {
@@ -35,8 +36,8 @@ func getConfig(r *http.Request) *oauth2.Config {
 	destURL.RawQuery = ""
 
 	return &oauth2.Config{
- 		ClientID:     facebookAppId,
- 		ClientSecret: facebookAppSecret,
+ 		ClientID:     AppId,
+ 		ClientSecret: AppSecret,
  		RedirectURL:  destURL.String(),
  		Scopes:       []string{"email"},
  		Endpoint:     fboauth2.Endpoint,
@@ -45,7 +46,7 @@ func getConfig(r *http.Request) *oauth2.Config {
 
 // If the user wants to login via facebook, we will redirect them to this URL
 func GetLoginUrl(r *http.Request) string {
- 	return getConfig(r).AuthCodeURL("foo")  // "foo" is opaque state FB will send back to us. Ignore
+ 	return getConfig(r).AuthCodeURL("foo")  // "foo" is opaque state FB will send back to us.
 }
 
 // If the user logs in (and grants permission), they will be redirected here
