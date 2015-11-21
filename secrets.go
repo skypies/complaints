@@ -1,6 +1,6 @@
 package serfr0
 
-import "config"
+import "github.com/skypies/complaints/config"
 
 // Setup some 'constants' across the serfr0 package, pulling secrets from the
 // config lookup.

@@ -10,9 +10,9 @@ import (
 
 	"github.com/skypies/date"
 	
-	"complaintdb"
-	"complaintdb/types"
-	"sessions"
+	"github.com/skypies/complaints/complaintdb"
+	"github.com/skypies/complaints/complaintdb/types"
+	"github.com/skypies/complaints/sessions"
 )
 
 func init() {

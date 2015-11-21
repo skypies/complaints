@@ -13,7 +13,7 @@ import (
 	
 	"appengine"
 
-	"complaintdb"
+	"github.com/skypies/complaints/complaintdb"
 
 	"github.com/skypies/date"
 	"github.com/skypies/geo"

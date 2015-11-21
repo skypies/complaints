@@ -14,7 +14,7 @@ import (
 	newappengine "google.golang.org/appengine"
 	newurlfetch "google.golang.org/appengine/urlfetch"
 
-	"sessions"
+	"github.com/skypies/complaints/sessions"
 )
 
 var (

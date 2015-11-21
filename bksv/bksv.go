@@ -15,7 +15,7 @@ import (
 
 	"github.com/skypies/date"
 	
-	"complaintdb/types"
+	"github.com/skypies/complaints/complaintdb/types"
 )
 
 const bksvHost = "complaints-staging.bksv.com"

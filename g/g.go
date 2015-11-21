@@ -1,12 +1,12 @@
 package g
 
-import (	
+import (
 	"net/http"
 
 	"appengine"
 	"appengine/user"
 
-	"sessions"
+	"github.com/skypies/complaints/sessions"
 )
 
 var (

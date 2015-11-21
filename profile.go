@@ -6,9 +6,9 @@ import (
 	
 	"appengine"
 
-	"complaintdb"
-	"complaintdb/types"
-	"sessions"
+	"github.com/skypies/complaints/complaintdb"
+	"github.com/skypies/complaints/complaintdb/types"
+	"github.com/skypies/complaints/sessions"
 )
 //import "fmt"
 

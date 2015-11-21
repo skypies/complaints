@@ -17,10 +17,10 @@ import (
 	"github.com/skypies/date"
 	"github.com/skypies/geo"
 
-	"complaintdb/types"
+	"github.com/skypies/complaints/complaintdb/types"
+	fr24 "github.com/skypies/complaints/fr24"
 	
-	// "bksv"
-	"fr24"
+	// "github.com/skypies/complaints/bksv"
 )
 
 var(

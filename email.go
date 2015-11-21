@@ -18,10 +18,10 @@ import (
 
 	"github.com/skypies/date"
 
-	"bksv"
-	"complaintdb"
-	"complaintdb/types"
-	"sessions"
+	"github.com/skypies/complaints/bksv"
+	"github.com/skypies/complaints/complaintdb"
+	types "github.com/skypies/complaints/complaintdb/types"
+	"github.com/skypies/complaints/sessions"
 )
 
 const(

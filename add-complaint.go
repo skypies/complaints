@@ -10,10 +10,10 @@ import (
 
 	"github.com/skypies/date"
 
-	"complaintdb"
-	"complaintdb/types"
-	"fr24"
-	"sessions"
+	"github.com/skypies/complaints/complaintdb"
+	"github.com/skypies/complaints/complaintdb/types"
+	"github.com/skypies/complaints/fr24"
+	"github.com/skypies/complaints/sessions"
 )
 // {{{ kActivities = []string
 

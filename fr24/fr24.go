@@ -15,7 +15,7 @@ import (
 	"github.com/skypies/geo"
 	//"github.com/skypies/geo/sfo"
 
-	"config"
+	"github.com/skypies/complaints/config"
 )
 
 var(

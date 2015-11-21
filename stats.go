@@ -5,7 +5,8 @@ import (
 	"net/http"
 	"regexp"
 	"appengine"
-	"complaintdb"
+
+	"github.com/skypies/complaints/complaintdb"
 )
 
 func init() {
