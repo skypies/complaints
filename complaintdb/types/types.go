@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 	
-	fr24	"github.com/skypies/complaints/fr24"
+	"github.com/skypies/complaints/fr24"
 )
 
 // The various types used in the complaint db

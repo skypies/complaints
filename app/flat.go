@@ -1,9 +1,9 @@
-package serfr0
+package complaints
 
 import (
 	"net/http"
 	//"appengine"
-	//"complaintdb"
+	//"github.com/skypies/complaints/complaintdb"
 )
 
 // The flatpage template will get a userprofile as dot, in case that's handy.

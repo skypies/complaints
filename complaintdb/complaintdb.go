@@ -18,7 +18,7 @@ import (
 	"github.com/skypies/geo"
 
 	"github.com/skypies/complaints/complaintdb/types"
-	fr24 "github.com/skypies/complaints/fr24"
+	"github.com/skypies/complaints/fr24"
 	
 	// "github.com/skypies/complaints/bksv"
 )

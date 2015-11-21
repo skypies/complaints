@@ -1,4 +1,4 @@
-package serfr0
+package complaints
 
 import "github.com/skypies/complaints/config"
 

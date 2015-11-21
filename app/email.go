@@ -1,4 +1,4 @@
-package serfr0
+package complaints
 
 import (
 	"bytes"
@@ -20,7 +20,7 @@ import (
 
 	"github.com/skypies/complaints/bksv"
 	"github.com/skypies/complaints/complaintdb"
-	types "github.com/skypies/complaints/complaintdb/types"
+	"github.com/skypies/complaints/complaintdb/types"
 	"github.com/skypies/complaints/sessions"
 )
 
