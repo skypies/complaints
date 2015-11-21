@@ -3,13 +3,18 @@ The complaints website
 How to get it running
 ---------------------
 
-1. Install the [Go programming language](https://golang.org/dl/)
-2. Install the [Go appengine SDK](https://cloud.google.com/appengine/docs/go/), and add it to your `$PATH`
-3. Pick a directory for your Go workspace: `export GOPATH=/home/you/go_workspace`.
-4. Use appengine's goapp wrapper to git clone this repo, and its dependencies: `goapp get github.com/skypies/complaints`
-5. Run a local server: `goapp serve $GOPATH/github.com/skypies/complaints/app`
-6. Take a look at [http://localhost:8080/] ! (For admin panel, [http://localhost:8000/])
+Prerequisites:
+* the [Go programming language](https://golang.org/dl/)
+* the [Go appengine SDK](https://cloud.google.com/appengine/docs/go/), and add it to your `$PATH`
+* define your Go workspace: `export GOPATH=/home/you/go_workspace`.
 
-A few limitations of the local setup:
-* flight lookups won't work (they need a local file)
-* facebook login won't work (facebook refuses a localhost return URL)
+Download and run the site locally:
+* `goapp get github.com/skypies/complaints/app` (pulls down all dependencies
+* `goapp serve $GOPATH/github.com/skypies/complaints/app` (build & run locally)
+* Look at <http://localhost:8080/> (admin panel is <http://localhost:8000/>)
+
+A few things depend on credentials that aren't stored in github:
+* realtime overhead flight lookups
+* facebook login
+* fligthaware flightpath backfill
+
