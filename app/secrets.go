@@ -11,4 +11,7 @@ var (
 
 	kFlightawareAPIUsername = config.Get("flightaware.username")
 	kFlightawareAPIKey = config.Get("flightaware.key")
+
+	kSessionsKey = config.Get("sessions.key")
+	kSessionsPrevKey = config.Get("sessions.prevkey")
 )

@@ -54,6 +54,8 @@ func init() {
 	http.HandleFunc("/faq", faqHandler)
 	http.HandleFunc("/intro", gettingStartedHandler)
 	http.HandleFunc("/masq", masqueradeHandler)
+
+	sessions.Init(kSessionsKey,kSessionsPrevKey)
 }
 
 // {{{ HintedComplaints

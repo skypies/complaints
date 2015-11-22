@@ -5,7 +5,14 @@ import (
 	sessions "github.com/gorilla/sessions"
 )
 
-var sessionStore = sessions.NewCookieStore([]byte("0xdeadbeef"))
+var sessionStore *sessions.CookieStore
+
+func Init(key, prevkey string) {
+	sessionStore = sessions.NewCookieStore(
+		[]byte(key), nil,
+		[]byte(prevkey), nil)
+
+}
 
 func Get(r *http.Request) *sessions.Session {
 	session, _ := sessionStore.Get(r, "serfr0")
