@@ -44,8 +44,9 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	cols := []string{
 		"Date", "Time(PDT)", "Notes", "Speedbrakes", "Loudness", "Activity",
-		"Flightnumber", "Origin", "Destination", "Speed(Knots)", "Altitude(Feet)", "Lat", "Long",
-		"Registration", "Callsign",
+		"Flightnumber", "Origin", "Destination", "Speed(Knots)", "Altitude(Feet)",
+		"Lat", "Long", "Registration", "Callsign",
+		"VerticalSpeed(FeetPerMin)",
 	}
 	
 	csvWriter := csv.NewWriter(w)
@@ -62,7 +63,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 			a.FlightNumber, a.Origin, a.Destination,
 			fmt.Sprintf("%.0f",a.Speed), fmt.Sprintf("%.0f",a.Altitude),
 			fmt.Sprintf("%.5f", a.Lat), fmt.Sprintf("%.5f", a.Long),
-			a.Registration, a.Callsign,
+			a.Registration, a.Callsign, fmt.Sprintf("%.0f",a.VerticalSpeed),
 		}
 
 		if err := csvWriter.Write(r); err != nil {
