@@ -178,8 +178,8 @@ func updateComplaintHandler(w http.ResponseWriter, r *http.Request) {
 		orig.Activity = new.Activity
 		orig.HeardSpeedbreaks = new.HeardSpeedbreaks
 
-		// If we're manually entering a flightnumber, wipe out all the other flight data
-		if newFlightNumber != "" && newFlightNumber != orig.AircraftOverhead.FlightNumber {
+		// If we're manually changing a flightnumber, wipe out all the other flight data
+		if newFlightNumber != orig.AircraftOverhead.FlightNumber {
 			orig.AircraftOverhead = fr24.Aircraft{FlightNumber: newFlightNumber}
 		}
 
