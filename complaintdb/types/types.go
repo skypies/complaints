@@ -13,7 +13,12 @@ import (
 // {{{ PostalAddress{}
 
 type PostalAddress struct {
-	Number, Street, City, State, Zip, Country string
+	Number string `datastore:",noindex"`
+	Street string `datastore:",noindex"`
+	City string
+	State string `datastore:",noindex"`
+	Zip string
+	Country string `datastore:",noindex"`
 }
 
 // }}}
@@ -24,11 +29,11 @@ type PostalAddress struct {
 type ComplainerProfile struct {
 	EmailAddress      string // This is the root key; we get it from the GAE user profile.
 	CallerCode        string
-	FullName          string
-	Address           string
+	FullName          string `datastore:",noindex"`
+	Address           string `datastore:",noindex"`
 	StructuredAddress PostalAddress
-	Lat,Long          float64
-	CcSfo             bool
+	Lat,Long          float64 `datastore:",noindex"`
+	CcSfo             bool `datastore:",noindex"`
 }
 
 // Attempt to split into firstname, surname

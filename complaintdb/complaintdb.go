@@ -291,7 +291,7 @@ func (cdb ComplaintDB)getComplaintsByQuery(q *datastore.Query, memKey string) ([
 	ordered := unfilteredComplaints
 	sort.Sort(types.ComplaintsByTimeDesc(ordered))
 	for i,_ := range ordered {
-		if i>0 && ComplaintIsSupercededBy(ordered[i], ordered[i-1]) { // we're iterating in descending order.
+		if i>0 && ComplaintsAreEquivalent(ordered[i], ordered[i-1]) { // we're iterating in descending order.
 			dupes[ordered[i].DatastoreKey] = true
 		}
 	}
@@ -348,13 +348,32 @@ func (cdb ComplaintDB) GetComplaintsInSpanByEmailAddress(ea string, start,end ti
 }
 
 // }}}
-// {{{ cdb.GetFirstComplaintByEmailAddress
+// {{{ cdb.GetOldestComplaintByEmailAddress
 
-func (cdb ComplaintDB) GetFirstComplaintByEmailAddress(ea string) (*types.Complaint, error) {
+func (cdb ComplaintDB) GetOldestComplaintByEmailAddress(ea string) (*types.Complaint, error) {
 	q := datastore.
 		NewQuery(kComplaintKind).
 		Ancestor(cdb.emailToRootKey(ea)).
 		Order("Timestamp").
+		Limit(1)
+
+	if complaints,err := cdb.getComplaintsByQuery(q,""); err != nil {
+		return nil, err
+	} else if len(complaints) == 0 {
+		return nil,nil
+	} else {
+		return &complaints[0], nil
+	}
+}
+
+// }}}
+// {{{ cdb.GetNewestComplaintByEmailAddress
+
+func (cdb ComplaintDB) GetNewestComplaintByEmailAddress(ea string) (*types.Complaint, error) {
+	q := datastore.
+		NewQuery(kComplaintKind).
+		Ancestor(cdb.emailToRootKey(ea)).
+		Order("-Timestamp").
 		Limit(1)
 
 	if complaints,err := cdb.getComplaintsByQuery(q,""); err != nil {
@@ -543,6 +562,15 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 	}
 
 	c.Version = kComplaintVersion
+
+	// Too much like the last complaint by this user ? Merge them.
+	if prev, err := cdb.GetNewestComplaintByEmailAddress(cp.EmailAddress); err != nil {
+		cdb.C.Errorf("complainByProfile/GetNewest: %v", err)
+	} else if prev != nil && ComplaintsAreEquivalent(*prev, *c) {
+		// The two complaints are in fact one complaint; use the more recent timestamp.
+		prev.Timestamp = c.Timestamp
+		return cdb.UpdateComplaint(*prev, cp.EmailAddress)
+	}
 	
 	key := datastore.NewIncompleteKey(cdb.C, kComplaintKind, cdb.emailToRootKey(cp.EmailAddress))	
 	_, err := datastore.Put(cdb.C, key, c)

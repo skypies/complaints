@@ -54,7 +54,7 @@ func (cdb *ComplaintDB) GetDailyCounts(email string) ([]DailyCount, error) {
 	if len(c) > 0 {
 		start = date.Datestring2MidnightPdt(c[0].Datestring)
 	} else {
-		if complaint,err := cdb.GetFirstComplaintByEmailAddress(email); err != nil {
+		if complaint,err := cdb.GetOldestComplaintByEmailAddress(email); err != nil {
 			cdb.C.Errorf("error looking up first complaint for %s: %v", email, err)
 			return c, err
 		} else if complaint != nil {

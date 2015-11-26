@@ -20,6 +20,12 @@ indexes:
   properties:
   - name: Timestamp
 
+- kind: ComplaintKind
+  ancestor: yes
+  properties:
+  - name: Timestamp
+    direction: desc
+
 - kind: Flight
   properties:
   - name: Tags

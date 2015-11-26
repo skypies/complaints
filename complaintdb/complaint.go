@@ -15,9 +15,9 @@ const (
 	kComplaintCoalesceThreshold = 45
 )
 
-// {{{ ComplaintIsSupercededBy
+// {{{ ComplaintsAreEquivalent
 
-func ComplaintIsSupercededBy(this, next types.Complaint) bool {
+func ComplaintsAreEquivalent(this, next types.Complaint) bool {
   // If not close together, or different text, do not coalesce
 	if next.Timestamp.Sub(this.Timestamp) > (time.Duration(kComplaintCoalesceThreshold) * time.Second) {
 		return false
