@@ -1,6 +1,10 @@
 package types
 
 import (
+	"bytes"
+	"encoding/base64"
+	"encoding/gob"
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -74,6 +78,24 @@ func (p ComplainerProfile)GetStructuredAddress() PostalAddress {
 	return addr
 }
 
+func (p ComplainerProfile)Base64Encode() (string, error) {
+	var buf bytes.Buffer
+	if err := gob.NewEncoder(&buf).Encode(p); err != nil {
+		return "", err
+	} else {
+		return base64.StdEncoding.EncodeToString(buf.Bytes()), nil
+	}
+}
+func (p *ComplainerProfile)Base64Decode(str string) error {
+	if data,err := base64.StdEncoding.DecodeString(str); err != nil {
+		return err
+	} else {
+		buf := bytes.NewBuffer(data)
+		err := gob.NewDecoder(buf).Decode(&p)
+		return err
+	}
+}
+
 // }}}
 
 // {{{ Complaint{}
@@ -92,12 +114,24 @@ type Complaint struct {
 	HeardSpeedbreaks bool
 	Loudness         int           `datastore:",noindex"` // 0=undefined, 1=loud, 2=very loud, 3=insane
 	Activity         string        `datastore:",noindex"` // What was disturbed
+
+	Profile          ComplainerProfile
 }
 
 type ComplaintsByTimeDesc []Complaint
 func (a ComplaintsByTimeDesc) Len() int           { return len(a) }
 func (a ComplaintsByTimeDesc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ComplaintsByTimeDesc) Less(i, j int) bool { return a[i].Timestamp.After(a[j].Timestamp) }
+
+func (c Complaint) String() string {
+	return fmt.Sprintf("<%s>@%s [%-6.6s] %d \"%s\"",
+		c.Profile.EmailAddress,
+		c.Timestamp,
+		c.AircraftOverhead.FlightNumber,
+		c.Loudness,
+		c.Description,
+	)
+}
 
 // }}}
 

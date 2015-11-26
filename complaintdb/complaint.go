@@ -50,7 +50,7 @@ func FixupComplaint(c *types.Complaint, key *datastore.Key) {
 }
 
 // }}}
-	
+
 // {{{ -------------------------={ E N D }=----------------------------------
 
 // Local variables:

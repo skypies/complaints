@@ -207,6 +207,12 @@ func updateComplaintHandler(w http.ResponseWriter, r *http.Request) {
 func deleteComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	session := sessions.Get(r)
+	if session.Values["email"] == nil {
+		c.Errorf("session was empty; no cookie ?")
+		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
+			http.StatusInternalServerError)
+		return
+	}
 	email := session.Values["email"].(string)
 	
 	r.ParseForm()

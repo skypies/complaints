@@ -571,7 +571,7 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 		prev.Timestamp = c.Timestamp
 		return cdb.UpdateComplaint(*prev, cp.EmailAddress)
 	}
-	
+
 	key := datastore.NewIncompleteKey(cdb.C, kComplaintKind, cdb.emailToRootKey(cp.EmailAddress))	
 	_, err := datastore.Put(cdb.C, key, c)
 
