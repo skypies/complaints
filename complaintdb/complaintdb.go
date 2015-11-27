@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"sort"
 	"time"
 
 	"appengine"
@@ -283,6 +284,8 @@ func (cdb ComplaintDB)getComplaintsByQuery(q *datastore.Query, memKey string) ([
 	for i, _ := range complaints {
 		FixupComplaint(&complaints[i], keys[i])
 	}
+
+	sort.Sort(types.ComplaintsByTimeDesc(complaints))
 
 	return complaints, nil
 }
