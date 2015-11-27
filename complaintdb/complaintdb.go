@@ -550,8 +550,8 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 	if prev, err := cdb.GetNewestComplaintByEmailAddress(cp.EmailAddress); err != nil {
 		cdb.C.Errorf("complainByProfile/GetNewest: %v", err)
 	} else if prev != nil && ComplaintsAreEquivalent(*prev, *c) {
-		// The two complaints are in fact one complaint; use the more recent timestamp.
-		prev.Timestamp = c.Timestamp
+		// The two complaints are in fact one complaint. Overwrite the old one with data from new one.
+		Overwrite(prev, c)
 		return cdb.UpdateComplaint(*prev, cp.EmailAddress)
 	}
 

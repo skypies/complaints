@@ -50,6 +50,18 @@ func FixupComplaint(c *types.Complaint, key *datastore.Key) {
 }
 
 // }}}
+// {{{ Overwrite
+
+// Overwrite user-entered data (and timestamp) into the base complaint.
+func Overwrite(this, from *types.Complaint) {
+	orig := *this  // Keep a temp copy
+	*this = *from  // Overwrite everything
+
+	// Restore a few key fields from the original
+	this.DatastoreKey = orig.DatastoreKey
+}
+
+// }}}
 
 // {{{ -------------------------={ E N D }=----------------------------------
 
