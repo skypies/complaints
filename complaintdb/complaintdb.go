@@ -277,36 +277,15 @@ func (cdb ComplaintDB)getMaybeCachedComplaintsByQuery(q *datastore.Query, memKey
 // {{{ cdb.getComplaintsByQuery
 
 func (cdb ComplaintDB)getComplaintsByQuery(q *datastore.Query, memKey string) ([]types.Complaint, error) {
-	keys,unfilteredComplaints,err := cdb.getMaybeCachedComplaintsByQuery(q,memKey)
+	keys,complaints,err := cdb.getMaybeCachedComplaintsByQuery(q,memKey)
 	if err != nil { return nil, err}
 	
 	// Data fixups !
-	for i, _ := range unfilteredComplaints {
-		FixupComplaint(&unfilteredComplaints[i], keys[i])
+	for i, _ := range complaints {
+		FixupComplaint(&complaints[i], keys[i])
 	}
 
-	// The dataset might be in an interesting order. Reorder a copy of it, to strip dupes
-	// This does not work as advertised; this reordering occurs to the output, too.
-	dupes := map[string]bool{}
-	ordered := unfilteredComplaints
-	sort.Sort(types.ComplaintsByTimeDesc(ordered))
-	for i,_ := range ordered {
-		if i>0 && ComplaintsAreEquivalent(ordered[i], ordered[i-1]) { // we're iterating in descending order.
-			dupes[ordered[i].DatastoreKey] = true
-		}
-	}
-
-	// Prune out dupes
-	filteredComplaints := []types.Complaint{}
-	for _,c := range unfilteredComplaints {
-		if (dupes[c.DatastoreKey]) { continue }
-		filteredComplaints = append(filteredComplaints, c)
-	}
-
-	//cdb.C.Infof("getComplaintsByQuery: unfilt=%d, final=%d",
-	//	len(unfilteredComplaints), len(filteredComplaints))
-	
-	return filteredComplaints, err
+	return complaints, nil
 }
 
 // }}}
@@ -563,6 +542,8 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 
 	c.Version = kComplaintVersion
 
+	c.Profile = cp // Copy the profile fields into every complaint
+	
 	// Too much like the last complaint by this user ? Merge them.
 	if prev, err := cdb.GetNewestComplaintByEmailAddress(cp.EmailAddress); err != nil {
 		cdb.C.Errorf("complainByProfile/GetNewest: %v", err)
