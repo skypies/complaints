@@ -7,6 +7,7 @@ import (
 
 	"github.com/skypies/date"
 
+	"github.com/skypies/geo"
 	"github.com/skypies/complaints/complaintdb/types"
 )
 
@@ -47,6 +48,27 @@ func FixupComplaint(c *types.Complaint, key *datastore.Key) {
 	if age < time.Hour*24*7 {
 		c.AircraftOverhead.Fr24Url = c.AircraftOverhead.PlaybackUrl()
 	}
+
+	// 3. Compute distances, if we have an aircraft
+	if c.AircraftOverhead.FlightNumber != "" {
+		a := c.AircraftOverhead
+		aircraftPos := geo.Latlong{a.Lat,a.Long}
+		observerPos := geo.Latlong{c.Profile.Lat, c.Profile.Long}
+		c.Dist2KM = observerPos.Dist(aircraftPos)
+		c.Dist3KM = observerPos.Dist3(aircraftPos, a.Altitude)
+	}
+}
+
+// }}}
+// {{{ Overwrite
+
+// Overwrite user-entered data (and timestamp) into the base complaint.
+func Overwrite(this, from *types.Complaint) {
+	orig := *this  // Keep a temp copy
+	*this = *from  // Overwrite everything
+
+	// Restore a few key fields from the original
+	this.DatastoreKey = orig.DatastoreKey
 }
 
 // }}}

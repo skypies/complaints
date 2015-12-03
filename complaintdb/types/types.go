@@ -107,15 +107,16 @@ type Complaint struct {
 	AircraftOverhead fr24.Aircraft `datastore:",noindex"`
 	Debug            string        `datastore:",noindex"` // Debugging; mostly about flight lookup
 
-	// Synthetic fields
-	DatastoreKey     string        `datastore:"-"`
-
-	// Fields added in v2
 	HeardSpeedbreaks bool
-	Loudness         int           `datastore:",noindex"` // 0=undefined, 1=loud, 2=very loud, 3=insane
+	Loudness         int           `datastore:",noindex"` // 0=undef, 1=loud, 2=very loud, 3=insane
 	Activity         string        `datastore:",noindex"` // What was disturbed
 
-	Profile          ComplainerProfile
+	Profile          ComplainerProfile                    // Embed the whole profile
+
+	// Synthetic fields
+	DatastoreKey     string        `datastore:"-"`
+	Dist2KM          float64       `datastore:"-"`        // Distance from home to aircraft
+	Dist3KM          float64       `datastore:"-"`
 }
 
 type ComplaintsByTimeDesc []Complaint

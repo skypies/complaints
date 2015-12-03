@@ -546,12 +546,12 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 
 	c.Profile = cp // Copy the profile fields into every complaint
 	
-	// Too much like the last complaint by this user ? Merge them.
+	// Too much like the last complaint by this user ? Just update that one.
 	if prev, err := cdb.GetNewestComplaintByEmailAddress(cp.EmailAddress); err != nil {
 		cdb.C.Errorf("complainByProfile/GetNewest: %v", err)
 	} else if prev != nil && ComplaintsAreEquivalent(*prev, *c) {
-		// The two complaints are in fact one complaint; use the more recent timestamp.
-		prev.Timestamp = c.Timestamp
+		// The two complaints are in fact one complaint. Overwrite the old one with data from new one.
+		Overwrite(prev, c)
 		return cdb.UpdateComplaint(*prev, cp.EmailAddress)
 	}
 
