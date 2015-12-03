@@ -1,3 +1,4 @@
+
 package fr24
 // http://blog.cykey.ca/post/88174516880/analyzing-flightradar24s-internal-api-structure
 // https://github.com/danmir/pyFlightRadar/blob/master/get_planes.py
@@ -513,7 +514,7 @@ func filterAircraft(in []Aircraft) (out []Aircraft) {
 		if a.FlightNumber == "" {continue}
 		// if a.BestIdent() == "" { continue }  // No ID info; not much interesting to say
 		if a.Altitude > 28000 { continue }    // Too high to be the problem
-		if a.Altitude == 0 { continue }    // Too low to be the problem
+		if a.Altitude <   500 { continue }    // Too low to be the problem
 
 		// Strip out little planes
 		skip := false
