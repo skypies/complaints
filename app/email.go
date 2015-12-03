@@ -338,7 +338,7 @@ func emailHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	start,end := date.WindowForYesterday()
-	//end = time.Now()
+	// end = time.Now()
 	complaints, err2 := cdb.GetComplaintsInSpanByEmailAddress(cp.EmailAddress, start, end)
 	if err2 != nil {
 		http.Error(w, err2.Error(), http.StatusInternalServerError)
@@ -356,6 +356,10 @@ func emailHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cap.Profile.CcSfo = true
+	if len(cap.Complaints) == 0 {
+		http.Error(w, "No complaints found ?!", http.StatusInternalServerError)
+		return
+	}
 	msg2,err4 := GenerateSingleComplaintEmail(c, cap.Profile, cap.Complaints[len(cap.Complaints)-1])
 	if err4 != nil {
 		http.Error(w, err4.Error(), http.StatusInternalServerError)
