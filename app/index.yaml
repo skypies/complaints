@@ -16,6 +16,11 @@ indexes:
   - name: AircraftOverhead.FlightNumber
 
 - kind: ComplaintKind
+  properties:
+  - name: Profile.StructuredAddress.Zip
+  - name: Timestamp
+
+- kind: ComplaintKind
   ancestor: yes
   properties:
   - name: Timestamp

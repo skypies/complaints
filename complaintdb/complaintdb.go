@@ -434,6 +434,30 @@ func (cdb ComplaintDB)GetComplaintsInSpanBroken(start,end time.Time) ([]types.Co
 }
 
 // }}}
+// {{{ cdb.GetComplaintsInSpanByZip
+
+func (cdb ComplaintDB) GetComplaintsInSpanByZip(start,end time.Time, zip string) ([]types.Complaint, error) {
+
+	memKey := ""
+	todayStart,_ := date.WindowForToday()
+	if (end.Before(todayStart) || end.Equal(todayStart)) {
+		memKey = fmt.Sprintf("comp-in-span:__all__:%d-%d", start.Unix(), end.Unix())
+		//cdb.C.Infof(" ##== comp-in-span cacheable [%s]", memKey)
+	}	
+	
+	q := datastore.
+		NewQuery(kComplaintKind).
+		Filter("Profile.StructuredAddress.Zip = ", zip).
+		Filter("Timestamp >= ", start).
+		Filter("Timestamp < ", end).
+		Order("Timestamp").
+		Limit(-1)
+
+	return cdb.getComplaintsByQuery(q,memKey)
+
+}
+
+// }}}
 
 
 // {{{ cdb.GetComplaintByKey

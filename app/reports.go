@@ -347,7 +347,7 @@ func (a SCRowByNumComplaints) Less(i, j int) bool {
 func serfr1ComplaintsReport(c appengine.Context, s,e time.Time, opt ReportOptions) ([]ReportRow, ReportMetadata, error) {
 	fdb := fdb.FlightDB{C: c}
 	maybeMemcache(&fdb,e)
-	cdb := complaintdb.ComplaintDB{C: c, Memcache:true}
+	cdb := complaintdb.ComplaintDB{C: c, Memcache:false}
 	meta := ReportMetadata{}
 
 	memKey := "asdasdasd"
