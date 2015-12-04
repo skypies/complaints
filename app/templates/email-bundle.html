@@ -38,7 +38,8 @@
             {{if .AircraftOverhead.EquipType}}
             ({{.AircraftOverhead.EquipType}}; speed: {{.AircraftOverhead.Speed}} knots,
             altitude: {{.AircraftOverhead.Altitude}} ft,
-            dist2: {{.Dist2KM | printf "%.2f"}}km, dist3: {{.Dist3KM | printf "%.2f"}}km)
+            dist2: {{.Dist2KM | km2feet | printf "%.0f"}} ft,
+            dist3: {{.Dist3KM | km2feet | printf "%.0f"}} ft)
             {{end}}
           </td>
           {{end}}

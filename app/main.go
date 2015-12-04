@@ -23,12 +23,14 @@ import (
 var (
 	templates = template.Must(template.New("").Funcs(template.FuncMap{
 		"add": templateAdd,
+		"km2feet": templateKM2Feet,
 		"spacify": templateSpacifyFlightNumber,
 		"dict": templateDict,
 		"formatPdt": templateFormatPdt,
 	}).ParseGlob("templates/*"))
 )
 func templateAdd(a int, b int) int { return a + b }
+func templateKM2Feet(x float64) float64 { return x * 3280.84 }
 func templateSpacifyFlightNumber(s string) string {
 	s2 := regexp.MustCompile("^r:(.+)$").ReplaceAllString(s, "Registration:$1")
 	s3 := regexp.MustCompile("^(..)(\\d\\d\\d)$").ReplaceAllString(s2, "$1 $2")
