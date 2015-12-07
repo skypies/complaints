@@ -408,14 +408,11 @@ func (cdb ComplaintDB)GetComplaintsInSpan(start,end time.Time) ([]types.Complain
 }
 
 // }}}
-// {{{ cdb.GetComplaintsInSpanBroken
+// {{{ cdb.GetComplaintsInSpanNew
 
-// This looks sensible, but is in fact broken; it trues to colaesce
-// all complaints as a single unit, and losts about 2/3 of them.
-// (Coalescing only makes sense for a single users complaints; but
-// when we just .getall them, we can't tell which belong to which user :/
-func (cdb ComplaintDB)GetComplaintsInSpanBroken(start,end time.Time) ([]types.Complaint, error) {
-	//cdb.C.Infof(" ##== comp-in-span [%s  -->  %s]", start, end)
+// Now the DB is clean, we can do this simple query instead of going user by user
+func (cdb ComplaintDB)GetComplaintsInSpanNew(start,end time.Time) ([]types.Complaint, error) {
+	cdb.C.Infof(" ##== comp-in-span [%s  -->  %s]", start, end)
 	memKey := ""
 	todayStart,_ := date.WindowForToday()
 	if (end.Before(todayStart) || end.Equal(todayStart)) {
@@ -458,7 +455,6 @@ func (cdb ComplaintDB) GetComplaintsInSpanByZip(start,end time.Time, zip string)
 }
 
 // }}}
-
 
 // {{{ cdb.GetComplaintByKey
 
