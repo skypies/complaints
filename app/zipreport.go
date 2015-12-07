@@ -58,7 +58,8 @@ func zipResultsHandler(w http.ResponseWriter, r *http.Request) {
 		countsByDate := map[string]int{}
 		var uniquesByHour [24]map[string]int
 		uniquesByDate := map[string]map[string]int{}
-
+		uniquesAll := map[string]int{}
+		
 		for _,c := range data {
 			h := c.Timestamp.Hour()
 			countsByHour[h]++
@@ -69,6 +70,8 @@ func zipResultsHandler(w http.ResponseWriter, r *http.Request) {
 			countsByDate[d]++
 			if uniquesByDate[d] == nil { uniquesByDate[d] = map[string]int{} }
 			uniquesByDate[d][c.Profile.EmailAddress]++
+
+			uniquesAll[c.Profile.EmailAddress]++
 		}
 		dateKeys := []string{}
 		for k,_ := range countsByDate { dateKeys = append(dateKeys, k) }
@@ -91,6 +94,8 @@ func zipResultsHandler(w http.ResponseWriter, r *http.Request) {
 				fmt.Sprintf("%d",len(uniquesByDate[k])),
 			})
 		}
+		data = append(data, []string{"------"})		
+		data = append(data, []string{"All uniques", fmt.Sprintf("%d", len(uniquesAll))})
 		
 		var params = map[string]interface{}{ "Data": data }
 		if err := templates.ExecuteTemplate(w, "report", params); err != nil {
