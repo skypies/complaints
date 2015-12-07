@@ -56,9 +56,19 @@ func zipResultsHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		var countsByHour [24]int
 		countsByDate := map[string]int{}
+		var uniquesByHour [24]map[string]int
+		uniquesByDate := map[string]map[string]int{}
+
 		for _,c := range data {
-			countsByHour[c.Timestamp.Hour()]++
-			countsByDate[c.Timestamp.Format("2006.01.02")]++
+			h := c.Timestamp.Hour()
+			countsByHour[h]++
+			if uniquesByHour[h] == nil { uniquesByHour[h] = map[string]int{} }
+			uniquesByHour[h][c.Profile.EmailAddress]++
+
+			d := c.Timestamp.Format("2006.01.02")
+			countsByDate[d]++
+			if uniquesByDate[d] == nil { uniquesByDate[d] = map[string]int{} }
+			uniquesByDate[d][c.Profile.EmailAddress]++
 		}
 		dateKeys := []string{}
 		for k,_ := range countsByDate { dateKeys = append(dateKeys, k) }
@@ -66,12 +76,20 @@ func zipResultsHandler(w http.ResponseWriter, r *http.Request) {
 
 		data := [][]string{}
 		for i,v := range countsByHour {
-			data = append(data, []string{fmt.Sprintf("%d",i), fmt.Sprintf("%d",v)})
+			data = append(data, []string{
+				fmt.Sprintf("%d",i),
+				fmt.Sprintf("%d",v),
+				fmt.Sprintf("%d",len(uniquesByHour[i])),
+			})
 		}
 
 		data = append(data, []string{"------"})		
 		for _,k := range dateKeys {
-			data = append(data, []string{k, fmt.Sprintf("%d",countsByDate[k])})
+			data = append(data, []string{
+				k,
+				fmt.Sprintf("%d",countsByDate[k]),
+				fmt.Sprintf("%d",len(uniquesByDate[k])),
+			})
 		}
 		
 		var params = map[string]interface{}{ "Data": data }
