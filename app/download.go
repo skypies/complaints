@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
+	"time"
 	
 	"appengine"
 
@@ -17,8 +19,85 @@ import (
 
 func init() {
 	http.HandleFunc("/download-complaints", downloadHandler)
-	http.HandleFunc("/backfill", backfillHandler)
+	//http.HandleFunc("/backfill", backfillHandler)
+	//http.HandleFunc("/month", monthHandler)
 }
+
+// {{{ monthHandler
+
+// http://stop.jetnoise.net/month?month=9&day=1&num=10
+// http://stop.jetnoise.net/month?month=9&day=11&num=10
+// http://stop.jetnoise.net/month?month=9&day=21&num=10
+
+// http://stop.jetnoise.net/month?month=10&day=1&num=10
+// http://stop.jetnoise.net/month?month=10&day=11&num=10
+// http://stop.jetnoise.net/month?month=10&day=21&num=11  <-- 31st day
+
+func monthHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := appengine.Timeout(appengine.NewContext(r), 180*time.Second)
+
+	month,err := strconv.ParseInt(r.FormValue("month"), 10, 64)
+	if err != nil {
+		http.Error(w, "need arg 'month' (1-12)", http.StatusInternalServerError)
+		return
+	}
+	day,err := strconv.ParseInt(r.FormValue("day"), 10, 64)
+	if err != nil {
+		http.Error(w, "need arg 'day' (1-31)", http.StatusInternalServerError)
+		return
+	}
+	num,err := strconv.ParseInt(r.FormValue("num"), 10, 64)
+	if err != nil {
+		http.Error(w, "need arg 'num' (31 - 'day')", http.StatusInternalServerError)
+		return
+	}
+	now := date.NowInPdt()
+	firstOfMonth := time.Date(now.Year(), time.Month(month), 1, 0,0,0,0, now.Location())
+	s := firstOfMonth.AddDate(0,0,int(day-1))
+	e := s.AddDate(0,0,int(num)).Add(-1 * time.Second)
+
+	ctx.Infof("Yow: START : %s", s)
+	ctx.Infof("Yow: END   : %s", e)
+
+	cdb := complaintdb.ComplaintDB{C: ctx}
+
+	filename := s.Format("complaints-20060102") + e.Format("-20060102.csv")
+	w.Header().Set("Content-Type", "application/csv")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+
+	cols := []string{
+		"CallerCode", "Name", "Address", "Zip", "Email", "HomeLat", "HomeLong", 
+		"UnixEpoch", "Date", "Time(PDT)", "Notes", "ActivityDisturbed", "Flightnumber", "Notes",
+	}
+	csvWriter := csv.NewWriter(w)
+	csvWriter.Write(cols)
+	
+	iter := cdb.IterTimeSpan(s,e)
+	for {
+		c := iter.Next();
+		if c == nil { break }
+
+		r := []string{
+			c.Profile.CallerCode, c.Profile.FullName, c.Profile.Address,
+			c.Profile.StructuredAddress.Zip, c.Profile.EmailAddress,
+			fmt.Sprintf("%.4f",c.Profile.Lat), fmt.Sprintf("%.4f",c.Profile.Long),
+			fmt.Sprintf("%d", c.Timestamp.UTC().Unix()),
+			c.Timestamp.Format("2006/01/02"),
+			c.Timestamp.Format("15:04:05"),
+			c.Description, c.AircraftOverhead.FlightNumber, c.Activity,
+		}
+		
+		if err := csvWriter.Write(r); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	csvWriter.Flush()
+}
+
+// }}}
+
+// {{{ downloadHandler
 
 func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
@@ -74,6 +153,9 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	csvWriter.Flush()
 }
 
+// }}}
+// {{{ outputCSV
+
 func outputCSV(w *csv.Writer, p types.ComplainerProfile, c types.Complaint) {
 	zip := regexp.MustCompile("^.*(\\d{5}(-\\d{4})?).*$").ReplaceAllString(p.Address, "$1")
 
@@ -90,6 +172,9 @@ func outputCSV(w *csv.Writer, p types.ComplainerProfile, c types.Complaint) {
 		// ?
 	}
 }
+
+// }}}
+// {{{ backfillHandler
 
 func backfillHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
@@ -137,3 +222,6 @@ func backfillHandler(w http.ResponseWriter, r *http.Request) {
 	//c.Infof("All done!")
 	csvWriter.Flush()
 }
+
+// }}}
+
