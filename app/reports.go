@@ -58,14 +58,13 @@ type ReportMetadata map[string]float64
 
 // }}}
 
-// {{{ maybeMemcache
+// {{{ maybeMemcache, report{To|From}Memcache
 
 func maybeMemcache(fdb *fdb.FlightDB, queryEnd time.Time) {
 	if (time.Now().Sub(queryEnd) > time.Hour) {
 		fdb.Memcache = true
 	}
 }
-
 
 type memResults struct {
 	Rows []ReportRow
@@ -347,10 +346,10 @@ func (a SCRowByNumComplaints) Less(i, j int) bool {
 func serfr1ComplaintsReport(c appengine.Context, s,e time.Time, opt ReportOptions) ([]ReportRow, ReportMetadata, error) {
 	fdb := fdb.FlightDB{C: c}
 	maybeMemcache(&fdb,e)
-	cdb := complaintdb.ComplaintDB{C: c, Memcache:false}
+	cdb := complaintdb.ComplaintDB{C: c, Memcache:true}
 	meta := ReportMetadata{}
 
-	memKey := "asdasdasd"
+	memKey := fmt.Sprintf("serfr1complaintsreport:%s:%d-%d", s.Unix(), e.Unix())
 	
 	if rows, meta, err := reportFromMemcache(c, memKey); err == nil {
 		return rows,meta,err
