@@ -37,7 +37,7 @@ func init() {
 	http.HandleFunc("/fdb/decodetrack", decodetrackHandler)
 
 	// User-facing screens
-	http.HandleFunc("/fdb/test", testFdbHandler)
+	// http.HandleFunc("/fdb/test", testFdbHandler)
 	http.HandleFunc("/fdb/lookup", lookupHandler)
 	http.HandleFunc("/fdb/query", queryHandler)
 
@@ -110,7 +110,7 @@ func scanHandler(w http.ResponseWriter, r *http.Request) {
 					})
 
 					// We could be smarter about this.
-					t.Delay = time.Minute * 45
+					// t.Delay = time.Minute * 45
 
 					if _,err6 := taskqueue.Add(c, t, "addflight"); err6 != nil {
 						c.Errorf(" /mdb/scan: enqueue: %v", err6)
@@ -145,12 +145,7 @@ func addflightHandler(w http.ResponseWriter, r *http.Request) {
 	fr24Id := fs.F.Id.ForeignKeys["fr24"]
 	// c.Infof(" /mdb/addflight: %s, %s", fr24Id, fs)
 
-	if false {
-		//c.Infof("\n\n  ** %s\n\n", fr24Id)
-		c.Infof(" /mdb/addflight: * bailing %s", fs)
-		w.Write([]byte(fmt.Sprintf("bailing\n")))
-		return
-	}
+	tStart := time.Now().UTC()
 	
 	if db,err := fdb24.NewFlightDBFr24(urlfetch.Client(c)); err != nil {
 		c.Errorf(" /mdb/addflight: newdb: %v", err)
@@ -193,7 +188,7 @@ func addflightHandler(w http.ResponseWriter, r *http.Request) {
 				
 				f.Analyse()
 
-				if err4 := db.Fdb.PersistFlight(*f); err4 != nil {
+				if err4 := db.Fdb.PersistFlight(*f, tStart); err4 != nil {
 					c.Errorf(" /mdb/addflight: persist: %v", err4)
 					http.Error(w, err4.Error(), http.StatusInternalServerError)
 
@@ -546,6 +541,7 @@ func decodetrackHandler(w http.ResponseWriter, r *http.Request) {
 
 // }}}
 
+/*
 // {{{ testFdbHandler
 
 // Look for new flights that we should add to our database. Invoked by cron.
@@ -650,6 +646,7 @@ func testFdbHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
+*/
 
 /* To populate the dev server dlight DB: comment out the 45m timeout, then call
  *  localhost:8080/fdb/scan */
