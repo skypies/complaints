@@ -30,7 +30,7 @@ var(
 	kPlaybackUrl2 = config.Get("fr24.kPlaybackUrl2")
 	kPlaybackUrl = config.Get("fr24.kPlaybackUrl")
 	
-	kBlanklistEquipmentTypes = []string{
+	kBlacklistEquipmentTypes = []string{
 		"SR20",
 	}
 )
@@ -518,7 +518,7 @@ func filterAircraft(in []Aircraft) (out []Aircraft) {
 
 		// Strip out little planes
 		skip := false
-		for _,e := range kBlanklistEquipmentTypes {
+		for _,e := range kBlacklistEquipmentTypes {
 			if a.EquipType == e { skip = true }
 		}
 		if skip { continue }
