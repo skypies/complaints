@@ -1,29 +1,32 @@
 package complaintdb
 
 import (
-	"time"
-
 	"appengine"
 	"appengine/datastore"
-
 	"github.com/skypies/complaints/complaintdb/types"
 )
+
+// TODO: Iter.EOF, for better for loops
 
 type ComplaintIterator struct {
 	C      appengine.Context
 	Query *datastore.Query
 	Iter  *datastore.Iterator
+
+	EOF    bool
 }
 
 // Runs at ~1000/sec; watch for appengine timeouts
-func (ci ComplaintIterator)NextWithErr() (*types.Complaint, error) {
+func (ci *ComplaintIterator)NextWithErr() (*types.Complaint, error) {
 	var complaint types.Complaint
 	k, err := ci.Iter.Next(&complaint)
 	
 	if err == datastore.Done {
+		ci.EOF = true
 		return nil,nil // We're all done
 	}
 	if err != nil {
+		ci.EOF = true
 		ci.C.Errorf("iter.Next: %v", err)
 		return nil,err
 	}
@@ -39,22 +42,12 @@ func (ci ComplaintIterator)Next() *types.Complaint {
 }
 	
 
-func (cdb ComplaintDB)iterFromQuery(q *datastore.Query) *ComplaintIterator {
+func (cdb ComplaintDB)NewIter(q *datastore.Query) *ComplaintIterator {
 	ci := ComplaintIterator{
 		C:     cdb.C,
 		Query: q,
 		Iter:  q.Run(cdb.C),
+		EOF:   false,
 	}
 	return &ci
-}
-
-func (cdb ComplaintDB)IterTimeSpan(start,end time.Time) *ComplaintIterator {
-	cdb.C.Infof(" ##== iter-time-span [%s  -->  %s]", start, end)
-
-	return cdb.iterFromQuery(datastore.
-		NewQuery(kComplaintKind).
-		Filter("Timestamp >= ", start).
-		Filter("Timestamp < ", end).
-		Order("Timestamp").
-		Limit(-1))
 }

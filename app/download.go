@@ -72,7 +72,7 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 	csvWriter := csv.NewWriter(w)
 	csvWriter.Write(cols)
 	
-	iter := cdb.IterTimeSpan(s,e)
+	iter := cdb.NewIter(cdb.QueryInSpan(s,e))
 	for {
 		c := iter.Next();
 		if c == nil { break }
