@@ -42,7 +42,8 @@ type ComplainerProfile struct {
 
 // Attempt to split into firstname, surname
 func (p ComplainerProfile)SplitName() (first,last string) {
-	str := strings.TrimSpace(p.FullName) // Trailing whitespace messes up the split
+	str := strings.Replace(p.FullName, "\n", " ", -1)
+	str = strings.TrimSpace(str)
 	words := strings.Split(str, " ")
 	if len(words) == 1 {
 		first,last = str,str
