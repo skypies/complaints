@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"fmt"
 	"net/http"
+	"regexp"
 	"sort"
 
 	"github.com/skypies/date"
@@ -86,6 +87,17 @@ func (a Aircraft)BestIdent() string {
 		return a.FlightNumber
 	} else if a.Registration != "" {
 		return "r:"+a.Registration
+	}
+	return ""
+}
+
+func (a Aircraft)IATAAirlineCode() string {
+	if a.FlightNumber != "" {
+		if s := regexp.MustCompile("^(..)(\\d+)$").ReplaceAllString(a.FlightNumber, "$1"); s != "" {
+			return s
+		} else {
+			return a.FlightNumber // Shouldn't happen
+		}
 	}
 	return ""
 }

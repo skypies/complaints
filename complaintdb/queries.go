@@ -28,3 +28,21 @@ func (cdb ComplaintDB) QueryInSpanInZip(start, end time.Time, zip string) *datas
 		Order("Timestamp").
 		Limit(-1)
 }
+
+func (cdb ComplaintDB) QueryInSpanByEmailAddress(start,end time.Time, email string) *datastore.Query {
+	return datastore.
+		NewQuery(kComplaintKind).
+		Ancestor(cdb.emailToRootKey(email)).
+		Filter("Timestamp >= ", start).
+		Filter("Timestamp < ", end).
+		Order("Timestamp").
+		Limit(-1)
+}
+
+func (cdb ComplaintDB) QueryAllByEmailAddress(email string) *datastore.Query {
+	return datastore.
+		NewQuery(kComplaintKind).
+		Ancestor(cdb.emailToRootKey(email)).
+		Order("Timestamp").
+		Limit(-1)
+}

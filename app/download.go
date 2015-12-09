@@ -19,6 +19,8 @@ import (
 
 func init() {
 	http.HandleFunc("/download-complaints", downloadHandler)
+	http.HandleFunc("/personal-report", personalReportFormHandler)
+	http.HandleFunc("/personal-report/results", personalReportHandler)
 	//http.HandleFunc("/backfill", backfillHandler)
 	//http.HandleFunc("/month", monthHandler)
 }
@@ -225,3 +227,84 @@ func backfillHandler(w http.ResponseWriter, r *http.Request) {
 
 // }}}
 
+// {{{ personalReportFormHandler
+
+func personalReportFormHandler(w http.ResponseWriter, r *http.Request) {
+	var params = map[string]interface{}{
+		"Yesterday": date.NowInPdt().AddDate(0,0,-1),
+	}
+	if err := templates.ExecuteTemplate(w, "report-personal-form", params); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// }}}
+// {{{ personalReportHandler
+
+func personalReportHandler(w http.ResponseWriter, r *http.Request) {
+	session := sessions.Get(r)
+	if session.Values["email"] == nil {
+		http.Error(w, "session was empty; no cookie ?", http.StatusInternalServerError)
+		return
+	}
+	email := session.Values["email"].(string)
+	start,end,_ := FormValueDateRange(r)
+
+	ctx := appengine.Timeout(appengine.NewContext(r), 60*time.Second)
+	cdb := complaintdb.ComplaintDB{C: ctx}
+
+	w.Header().Set("Content-Type", "text/plain")
+	// w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", "sc.txt"))
+	fmt.Fprintf(w, "Personal disturbances report for <%s>:\n From [%s]\n To   [%s]\n", email, start, end)
+
+	complaintStrings := []string{}
+
+	var countsByHour [24]int
+	countsByDate := map[string]int{}
+	countsByAirline := map[string]int{}
+	
+	iter := cdb.NewIter(cdb.QueryInSpanByEmailAddress(start,end,email))
+	for {
+		c := iter.Next();
+		if c == nil { break }
+
+		str := fmt.Sprintf("Time: %s, Loudness:%d, Speedbrakes:%v, Flight:%6.6s, Notes:%s",
+			c.Timestamp.Format("2006.01.02 15:04:05"), c.Loudness, c.HeardSpeedbreaks,
+			c.AircraftOverhead.FlightNumber, c.Description)
+		
+		complaintStrings = append(complaintStrings, str)
+		
+		countsByHour[c.Timestamp.Hour()]++
+		countsByDate[c.Timestamp.Format("2006.01.02")]++
+		if airline := c.AircraftOverhead.IATAAirlineCode(); airline != "" {
+			countsByAirline[airline]++
+		}
+	}
+
+	fmt.Fprintf(w, "\nDisturbance reports, counted by Airline (where known):\n")
+	for k,v := range countsByAirline {
+		fmt.Fprintf(w, " %s: % 3d\n", k, v)
+	}
+	fmt.Fprintf(w, "\nDisturbance reports, counted by date:\n")
+	for k,v := range countsByDate {
+		fmt.Fprintf(w, " %s: % 3d\n", k, v)
+	}
+	fmt.Fprintf(w, "\nDisturbance reports, counted by hour of day (across all dates):\n")
+	for i,n := range countsByHour {
+		fmt.Fprintf(w, " %02d: % 3d\n", i, n)
+	}
+	fmt.Fprintf(w, "\nFull dump of all disturbance reports:\n\n")
+	for _,s := range complaintStrings {
+		fmt.Fprint(w, s+"\n")
+	}
+}
+
+// }}}
+	
+// {{{ -------------------------={ E N D }=----------------------------------
+
+// Local variables:
+// folded-file: t
+// end:
+
+// }}}
