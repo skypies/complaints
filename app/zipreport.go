@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"time"
 
 	"appengine"
 
@@ -32,21 +31,7 @@ func zipResultsHandler(w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.ComplaintDB{C: ctx, Memcache:false}
 
 	zip := r.FormValue("zip")
-
-	var s,e time.Time
-	switch r.FormValue("date") {
-	case "today":
-		s,_ = date.WindowForToday()
-		e=s
-	case "yesterday":
-		s,_ = date.WindowForYesterday()
-		e=s
-	case "range":
-		s = date.ArbitraryDatestring2MidnightPdt(r.FormValue("range_from"), "2006/01/02")
-		e = date.ArbitraryDatestring2MidnightPdt(r.FormValue("range_to"), "2006/01/02")
-		if s.After(e) { s,e = e,s }
-	}
-	e = e.Add(23*time.Hour + 59*time.Minute + 59*time.Second) // make sure e covers its whole day
+	s,e,_ := FormValueDateRange(r)	
 
 	var countsByHour [24]int
 	countsByDate := map[string]int{}
