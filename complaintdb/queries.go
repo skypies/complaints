@@ -1,0 +1,30 @@
+// This file is a central place for routines that generate various datastore.Queries
+package complaintdb
+
+import (
+	"time"
+
+	// "appengine"
+	"appengine/datastore"
+
+	// "github.com/skypies/complaints/complaintdb/types"
+)
+
+func (cdb ComplaintDB) QueryInSpan(start, end time.Time) *datastore.Query {
+	return datastore.
+		NewQuery(kComplaintKind).
+		Filter("Timestamp >= ", start).
+		Filter("Timestamp < ", end).
+		Order("Timestamp").
+		Limit(-1)
+}
+
+func (cdb ComplaintDB) QueryInSpanInZip(start, end time.Time, zip string) *datastore.Query {
+	return datastore.
+		NewQuery(kComplaintKind).
+		Filter("Profile.StructuredAddress.Zip = ", zip).
+		Filter("Timestamp >= ", start).
+		Filter("Timestamp < ", end).
+		Order("Timestamp").
+		Limit(-1)
+}
