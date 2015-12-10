@@ -17,17 +17,6 @@ func init() {
 	http.HandleFunc("/profile-update", profileUpdateHandler)
 }
 
-// {{{ checkbox2bool
-
-func checkbox2bool(r *http.Request, name string) bool {
-	if r.FormValue(name) != "" {
-		return true
-	}
-	return false
-}
-
-// }}}
-
 // {{{ profileFormHandler
 
 func profileFormHandler(w http.ResponseWriter, r *http.Request) {
@@ -117,7 +106,7 @@ func profileUpdateHandler(w http.ResponseWriter, r *http.Request) {
 			Zip: r.FormValue("AddrZip"),
 			Country: r.FormValue("AddrCountry"),
 		},
-		CcSfo: checkbox2bool(r, "CcSfo"),
+		CcSfo: FormValueCheckbox(r, "CcSfo"),
 		Lat: lat,
 		Long: long,
 	}

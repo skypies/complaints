@@ -708,7 +708,7 @@ func reportHandler(w http.ResponseWriter, r *http.Request) {
 	e = e.Add(23*time.Hour + 59*time.Minute + 59*time.Second) // make sure e covers its whole day
 	
 	opt := ReportOptions{
-		ClassB_OnePerFlight: checkbox2bool(r, "classb_oneperflight"),
+		ClassB_OnePerFlight: FormValueCheckbox(r, "classb_oneperflight"),
 	}
 	if val,err := strconv.ParseFloat(r.FormValue("skimmer_altitude_tolerance"), 64); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

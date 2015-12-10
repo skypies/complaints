@@ -3,7 +3,6 @@ package complaints
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 	
 	"appengine"
@@ -41,6 +40,7 @@ var (
 func init() {
 	http.HandleFunc("/button", buttonHandler)
 	http.HandleFunc("/add-complaint", addComplaintHandler)
+	http.HandleFunc("/add-historical-complaint", addHistoricalComplaintHandler)
 	http.HandleFunc("/update-complaint", updateComplaintHandler)
 	http.HandleFunc("/delete-complaints", deleteComplaintsHandler)
 	http.HandleFunc("/complaint-updateform", complaintUpdateFormHandler)
@@ -48,17 +48,31 @@ func init() {
 
 // {{{ form2Complaint
 
-func form2Complaint(r *http.Request) types.Complaint {
-	loudness,_ := strconv.ParseInt(r.FormValue("loudness"), 10, 64)
+// /add-complaint?loudness=timestamp_epoch=1441214141&flight=UA123
 
-	return types.Complaint{
-		DatastoreKey: r.FormValue("datastorekey"),
+func form2Complaint(r *http.Request) types.Complaint {
+	c := types.Complaint{
 		Description: r.FormValue("content"),
 		Timestamp:   time.Now(), // No point setting a timezone, it gets reset to UTC
-		HeardSpeedbreaks: checkbox2bool(r, "speedbrakes"),
-		Loudness:  int(loudness),
+		HeardSpeedbreaks: FormValueCheckbox(r, "speedbrakes"),
+		Loudness:  int(FormValueInt64(r, "loudness")),
 		Activity:  r.FormValue("activity"),
 	}
+
+	// This field is set during updates (it identifies a complaint to update)
+	if r.FormValue("datastorekey") != "" {
+		c.DatastoreKey = r.FormValue("datastorekey")
+	}
+
+	// These fields are set directly in CGI args, for historical population
+	if r.FormValue("timestamp_epoch") != "" {
+		c.Timestamp = time.Unix(FormValueInt64(r,"timestamp_epoch"), 0)
+	}
+	if r.FormValue("flight") != "" {
+		c.AircraftOverhead.FlightNumber = r.FormValue("flight")
+	}
+
+	return c
 }
 
 // }}}
@@ -145,6 +159,33 @@ func addComplaintHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusFound)
+}
+
+// }}}
+// {{{ addHistoricalComplaintHandler
+
+func addHistoricalComplaintHandler(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	session := sessions.Get(r)
+	if session.Values["email"] == nil {
+		c.Errorf("session was empty; no cookie ?")
+		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
+			http.StatusInternalServerError)
+		return
+	}
+	email := session.Values["email"].(string)
+	
+	cdb := complaintdb.ComplaintDB{C: c}
+	complaint := form2Complaint(r)
+
+	err := cdb.AddHistoricalComplaintByEmailAddress(email, &complaint)
+	if err != nil {
+		c.Errorf("cdb.HistoricalComplain failed: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte(fmt.Sprintf("Added OK\n")))
 }
 
 // }}}

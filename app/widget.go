@@ -3,10 +3,12 @@ package complaints
 
 import (
 	"net/http"
-	//"strconv"
+	"strconv"
 	"time"
 	"github.com/skypies/date"
 )
+
+// {{{ FormValueDateRange
 
 // This widget assumes the values 'date', 'range_from', and 'range_to'
 func FormValueDateRange(r *http.Request) (s,e time.Time, err error) {
@@ -29,3 +31,32 @@ func FormValueDateRange(r *http.Request) (s,e time.Time, err error) {
 
 	return
 }
+
+// }}}
+// {{{ FormValueInt64
+
+func FormValueInt64(r *http.Request, name string) int64 {
+	val,_ := strconv.ParseInt(r.FormValue(name), 10, 64)
+	return val
+}
+
+// }}}
+// {{{ FormValueCheckbox
+
+func FormValueCheckbox(r *http.Request, name string) bool {
+	if r.FormValue(name) != "" {
+		return true
+	}
+	return false
+}
+
+// }}}
+
+
+// {{{ -------------------------={ E N D }=----------------------------------
+
+// Local variables:
+// folded-file: t
+// end:
+
+// }}}

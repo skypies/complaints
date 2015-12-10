@@ -591,6 +591,23 @@ func (cdb ComplaintDB) ComplainByCallerCode(cc string, c *types.Complaint) error
 }
 
 // }}}
+// {{{ cdb.AddHistoricalComplaintByEmailAddress
+
+func (cdb ComplaintDB) AddHistoricalComplaintByEmailAddress(ea string, c *types.Complaint) error {
+	var cp *types.ComplainerProfile
+	var err error
+
+	cp, err = cdb.GetProfileByEmailAddress(ea)
+	if err != nil { return err }
+
+	c.Profile = *cp
+
+	key := datastore.NewIncompleteKey(cdb.C, kComplaintKind, cdb.emailToRootKey(cp.EmailAddress))	
+	_, err = datastore.Put(cdb.C, key, c)
+	return err
+}
+
+// }}}
 
 // {{{ -------------------------={ E N D }=----------------------------------
 
