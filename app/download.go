@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
 	"time"
 	
@@ -24,6 +25,34 @@ func init() {
 	//http.HandleFunc("/backfill", backfillHandler)
 	//http.HandleFunc("/month", monthHandler)
 }
+
+// {{{ keysByIntValDesc
+
+// Yay, sorting things is so easy in go
+func keysByIntValDesc(m map[string]int) []string {
+	// Invert the map
+	inv := map[int][]string{}
+	for k,v := range m { inv[v] = append(inv[v], k) }
+
+	// List the unique vals
+	vals := []int{}
+	for k,_ := range inv { vals = append(vals, k) }
+
+	// Sort the vals
+	sort.Sort(sort.Reverse(sort.IntSlice(vals)))
+
+	// Now list the keys corresponding to each val
+	keys := []string{}
+	for _,val := range vals {
+		for _,key := range inv[val] {
+			keys = append(keys, key)
+		}
+	}
+
+	return keys
+}
+
+// }}}
 
 // {{{ monthHandler
 
@@ -92,64 +121,6 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 		if err := csvWriter.Write(r); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
-		}
-	}
-	csvWriter.Flush()
-}
-
-// }}}
-
-// {{{ downloadHandler
-
-func downloadHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-
-	session := sessions.Get(r)
-	if session.Values["email"] == nil {
-		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
-			http.StatusInternalServerError)
-		return
-	}
-
-	cdb := complaintdb.ComplaintDB{C: c}
-	cap, err := cdb.GetAllByEmailAddress(session.Values["email"].(string), true)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	_ = cap
-
-	filename := date.NowInPdt().Format("complaints-20060102.csv")
-	w.Header().Set("Content-Type", "application/csv")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
-
-	cols := []string{
-		"Date", "Time(PDT)", "Notes", "Speedbrakes", "Loudness", "Activity",
-		"Flightnumber", "Origin", "Destination", "Speed(Knots)", "Altitude(Feet)",
-		"Lat", "Long", "Registration", "Callsign",
-		"VerticalSpeed(FeetPerMin)", "Dist2(km)", "Dist3(km)",
-	}
-	
-	csvWriter := csv.NewWriter(w)
-	csvWriter.Write(cols)
-
-	for _,c := range cap.Complaints {
-		a := c.AircraftOverhead
-		speedbrakes := ""
-		if c.HeardSpeedbreaks { speedbrakes = "y" }
-		r := []string{
-			c.Timestamp.Format("2006/01/02"),
-			c.Timestamp.Format("15:04:05"),
-			c.Description, speedbrakes, fmt.Sprintf("%d", c.Loudness), c.Activity,
-			a.FlightNumber, a.Origin, a.Destination,
-			fmt.Sprintf("%.0f",a.Speed), fmt.Sprintf("%.0f",a.Altitude),
-			fmt.Sprintf("%.5f", a.Lat), fmt.Sprintf("%.5f", a.Long),
-			a.Registration, a.Callsign, fmt.Sprintf("%.0f",a.VerticalSpeed),
-			fmt.Sprintf("%.1f", c.Dist2KM), fmt.Sprintf("%.1f", c.Dist3KM),
-		}
-
-		if err := csvWriter.Write(r); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
 	csvWriter.Flush()
@@ -227,6 +198,63 @@ func backfillHandler(w http.ResponseWriter, r *http.Request) {
 
 // }}}
 
+// {{{ downloadHandler
+
+func downloadHandler(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+
+	session := sessions.Get(r)
+	if session.Values["email"] == nil {
+		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
+			http.StatusInternalServerError)
+		return
+	}
+
+	cdb := complaintdb.ComplaintDB{C: c}
+	cap, err := cdb.GetAllByEmailAddress(session.Values["email"].(string), true)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	_ = cap
+
+	filename := date.NowInPdt().Format("complaints-20060102.csv")
+	w.Header().Set("Content-Type", "application/csv")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+
+	cols := []string{
+		"Date", "Time(PDT)", "Notes", "Speedbrakes", "Loudness", "Activity",
+		"Flightnumber", "Origin", "Destination", "Speed(Knots)", "Altitude(Feet)",
+		"Lat", "Long", "Registration", "Callsign",
+		"VerticalSpeed(FeetPerMin)", "Dist2(km)", "Dist3(km)",
+	}
+	
+	csvWriter := csv.NewWriter(w)
+	csvWriter.Write(cols)
+
+	for _,c := range cap.Complaints {
+		a := c.AircraftOverhead
+		speedbrakes := ""
+		if c.HeardSpeedbreaks { speedbrakes = "y" }
+		r := []string{
+			c.Timestamp.Format("2006/01/02"),
+			c.Timestamp.Format("15:04:05"),
+			c.Description, speedbrakes, fmt.Sprintf("%d", c.Loudness), c.Activity,
+			a.FlightNumber, a.Origin, a.Destination,
+			fmt.Sprintf("%.0f",a.Speed), fmt.Sprintf("%.0f",a.Altitude),
+			fmt.Sprintf("%.5f", a.Lat), fmt.Sprintf("%.5f", a.Long),
+			a.Registration, a.Callsign, fmt.Sprintf("%.0f",a.VerticalSpeed),
+			fmt.Sprintf("%.1f", c.Dist2KM), fmt.Sprintf("%.1f", c.Dist3KM),
+		}
+
+		if err := csvWriter.Write(r); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}
+	csvWriter.Flush()
+}
+
+// }}}
 // {{{ personalReportFormHandler
 
 func personalReportFormHandler(w http.ResponseWriter, r *http.Request) {
@@ -255,15 +283,16 @@ func personalReportHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain")
 	// w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", "sc.txt"))
-	fmt.Fprintf(w, "Personal disturbances report for <%s>:\n From [%s]\n To   [%s]\n", email, start, end)
+	fmt.Fprintf(w, "Personal disturbances report for <%s>:\n From [%s]\n To   [%s]\n",
+		email, start, end)
 
 	complaintStrings := []string{}
-
 	var countsByHour [24]int
 	countsByDate := map[string]int{}
 	countsByAirline := map[string]int{}
 	
 	iter := cdb.NewIter(cdb.QueryInSpanByEmailAddress(start,end,email))
+	n := 0
 	for {
 		c := iter.Next();
 		if c == nil { break }
@@ -272,6 +301,7 @@ func personalReportHandler(w http.ResponseWriter, r *http.Request) {
 			c.Timestamp.Format("2006.01.02 15:04:05"), c.Loudness, c.HeardSpeedbreaks,
 			c.AircraftOverhead.FlightNumber, c.Description)
 		
+		n++
 		complaintStrings = append(complaintStrings, str)
 		
 		countsByHour[c.Timestamp.Hour()]++
@@ -281,9 +311,12 @@ func personalReportHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	fmt.Fprintf(w, "\nTotal number of disturbance reports, over %d days:  %d\n",
+		len(countsByDate), n)
+
 	fmt.Fprintf(w, "\nDisturbance reports, counted by Airline (where known):\n")
-	for k,v := range countsByAirline {
-		fmt.Fprintf(w, " %s: % 3d\n", k, v)
+	for _,k := range keysByIntValDesc(countsByAirline) {
+		fmt.Fprintf(w, " %s: % 3d\n", k, countsByAirline[k])
 	}
 	fmt.Fprintf(w, "\nDisturbance reports, counted by date:\n")
 	for k,v := range countsByDate {
