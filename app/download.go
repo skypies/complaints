@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 	
 	"appengine"
@@ -22,6 +23,8 @@ func init() {
 	http.HandleFunc("/download-complaints", downloadHandler)
 	http.HandleFunc("/personal-report", personalReportFormHandler)
 	http.HandleFunc("/personal-report/results", personalReportHandler)
+	http.HandleFunc("/summary-report", summaryReportFormHandler)
+	http.HandleFunc("/summary-report/results", summaryReportHandler)
 	//http.HandleFunc("/backfill", backfillHandler)
 	//http.HandleFunc("/month", monthHandler)
 }
@@ -48,6 +51,20 @@ func keysByIntValDesc(m map[string]int) []string {
 			keys = append(keys, key)
 		}
 	}
+
+	return keys
+}
+
+// }}}
+// {{{ keysByKeyAsc
+
+func keysByKeyAsc(m map[string]int) []string {
+	// List the unique vals
+	keys := []string{}
+	for k,_ := range m { keys = append(keys, k) }
+
+	// Sort the vals
+	sort.Sort(sort.StringSlice(keys))
 
 	return keys
 }
@@ -316,15 +333,15 @@ func personalReportHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintf(w, "\nDisturbance reports, counted by Airline (where known):\n")
 	for _,k := range keysByIntValDesc(countsByAirline) {
-		fmt.Fprintf(w, " %s: % 3d\n", k, countsByAirline[k])
+		fmt.Fprintf(w, " %s: % 4d\n", k, countsByAirline[k])
 	}
 	fmt.Fprintf(w, "\nDisturbance reports, counted by date:\n")
 	for k,v := range countsByDate {
-		fmt.Fprintf(w, " %s: % 3d\n", k, v)
+		fmt.Fprintf(w, " %s: % 4d\n", k, v)
 	}
 	fmt.Fprintf(w, "\nDisturbance reports, counted by hour of day (across all dates):\n")
 	for i,n := range countsByHour {
-		fmt.Fprintf(w, " %02d: % 3d\n", i, n)
+		fmt.Fprintf(w, " %02d: % 4d\n", i, n)
 	}
 	fmt.Fprintf(w, "\nFull dump of all disturbance reports:\n\n")
 	for _,s := range complaintStrings {
@@ -333,7 +350,113 @@ func personalReportHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
+// {{{ summaryReportFormHandler
+
+func summaryReportFormHandler(w http.ResponseWriter, r *http.Request) {
+	var params = map[string]interface{}{
+		"Yesterday": date.NowInPdt().AddDate(0,0,-1),
+	}
+	if err := templates.ExecuteTemplate(w, "report-summary-form", params); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// }}}
+// {{{ summaryReportHandler
+
+func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
+	session := sessions.Get(r)
+	if session.Values["email"] == nil {
+		http.Error(w, "session was empty; no cookie ?", http.StatusInternalServerError)
+		return
+	}
+	start,end,_ := FormValueDateRange(r)
+
+	ctx := appengine.Timeout(appengine.NewContext(r), 60*time.Second)
+	cdb := complaintdb.ComplaintDB{C: ctx}
+
+	w.Header().Set("Content-Type", "text/plain")
+	fmt.Fprintf(w, "Summary of disturbance reports:\n From [%s]\n To   [%s]\n", start, end)
+
+	var countsByHour [24]int
+	countsByDate := map[string]int{}
+	countsByAirline := map[string]int{}
+	countsByEquip := map[string]int{}
+	countsByCity := map[string]int{}
+
+	uniquesAll := map[string]int{}
+	uniquesByDate := map[string]map[string]int{}
+	uniquesByCity := map[string]map[string]int{}
 	
+	iter := cdb.NewIter(cdb.QueryInSpan(start,end))
+	n := 0
+	for {
+		c,err := iter.NextWithErr();
+		if err != nil {
+			http.Error(w, fmt.Sprintf("iterator failed: %v", err), http.StatusInternalServerError)
+			return
+		} else if c == nil {
+			break
+		}
+
+		n++		
+		uniquesAll[c.Profile.EmailAddress]++
+		countsByHour[c.Timestamp.Hour()]++
+
+		d := c.Timestamp.Format("2006.01.02")
+		countsByDate[d]++
+		if uniquesByDate[d] == nil { uniquesByDate[d] = map[string]int{} }
+		uniquesByDate[d][c.Profile.EmailAddress]++
+
+		if airline := c.AircraftOverhead.IATAAirlineCode(); airline != "" {
+			countsByAirline[airline]++
+		}
+
+		// if city := c.Profile.StructuredAddress.City; city != "" {
+		if city := c.Profile.GetStructuredAddress().City; city != "" {
+			countsByCity[city]++
+			if uniquesByCity[city] == nil { uniquesByCity[city] = map[string]int{} }
+			uniquesByCity[city][c.Profile.EmailAddress]++
+		}
+		if equip := c.AircraftOverhead.EquipType; equip != "" {
+			countsByEquip[equip]++
+		}
+	}
+
+	fmt.Fprintf(w, "\nTotals:\n Days                : %d\n"+
+		" Disturbance reports : %d\n People reporting    : %d\n",
+		len(countsByDate), n, len(uniquesAll))
+
+	fmt.Fprintf(w, "\nDisturbance reports, counted by City (where known):\n")
+	for _,k := range keysByIntValDesc(countsByCity) {
+		fmt.Fprintf(w, " %-40.40s: % 5d (% 3d people reporting)\n", k, countsByCity[k],
+			len(uniquesByCity[k]))
+	}
+	fmt.Fprintf(w, "\nDisturbance reports, counted by date:\n")
+	for _,k := range keysByKeyAsc(countsByDate) {
+		fmt.Fprintf(w, " %s: % 5d (% 3d people reporting)\n", k, countsByDate[k], len(uniquesByDate[k]))
+	}
+
+	fmt.Fprintf(w, "\nDisturbance reports, counted by aircraft equipment type (where known):\n")
+	for _,k := range keysByIntValDesc(countsByEquip) {
+		if countsByEquip[k] < 5 { break }
+		fmt.Fprintf(w, " %-40.40s: % 5d\n", k, countsByEquip[k])
+	}
+
+	fmt.Fprintf(w, "\nDisturbance reports, counted by Airline (where known):\n")
+	for _,k := range keysByIntValDesc(countsByAirline) {
+		if countsByAirline[k] < 5 || len(k) > 2 { continue }
+		fmt.Fprintf(w, " %s: % 6d\n", k, countsByAirline[k])
+	}
+
+	fmt.Fprintf(w, "\nDisturbance reports, counted by hour of day (across all dates):\n")
+	for i,n := range countsByHour {
+		fmt.Fprintf(w, " %02d: % 5d\n", i, n)
+	}
+}
+
+// }}}
+
 // {{{ -------------------------={ E N D }=----------------------------------
 
 // Local variables:

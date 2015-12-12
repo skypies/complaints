@@ -12,8 +12,6 @@ type ComplaintIterator struct {
 	C      appengine.Context
 	Query *datastore.Query
 	Iter  *datastore.Iterator
-
-	EOF    bool
 }
 
 // Runs at ~1000/sec; watch for appengine timeouts
@@ -22,11 +20,9 @@ func (ci *ComplaintIterator)NextWithErr() (*types.Complaint, error) {
 	k, err := ci.Iter.Next(&complaint)
 	
 	if err == datastore.Done {
-		ci.EOF = true
 		return nil,nil // We're all done
 	}
 	if err != nil {
-		ci.EOF = true
 		ci.C.Errorf("iter.Next: %v", err)
 		return nil,err
 	}
@@ -47,7 +43,6 @@ func (cdb ComplaintDB)NewIter(q *datastore.Query) *ComplaintIterator {
 		C:     cdb.C,
 		Query: q,
 		Iter:  q.Run(cdb.C),
-		EOF:   false,
 	}
 	return &ci
 }

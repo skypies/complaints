@@ -1,0 +1,31 @@
+{{define "report-summary-form"}}
+
+<html>
+  {{template "header"}}
+  <body>
+    <h1>Summary of disturbance reports</h1><p/>
+
+    <form action="/summary-report/results" method="post">
+      <div class="stack">
+        <div class="box">
+        <table border="0">
+          <tr>
+            <td>Date range</td>
+            <td>{{template "widget-date-range" .}}</td>
+          </tr>
+          <tr><td>&nbsp;</td></tr>
+
+          <tr><td colspan="2"><hr/></td></tr>
+        </table>
+
+        <br/>
+        <p style="text-align:center"><input class="button" type="submit" value="GENERATE"/></p>
+        <br/>
+        </div>
+
+      </div>
+    </form>
+  </body>
+</html>
+
+{{end}}

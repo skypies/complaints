@@ -71,12 +71,15 @@ func (p ComplainerProfile)GetStructuredAddress() PostalAddress {
 		if addr.City == "" { addr.City  = "Unknown" }
 		if addr.Zip  == "" { addr.Zip   = "99999" }
 
+		addr.City = strings.Title(addr.City)
+
 	} else {
 		if addr.Number != "" {
 			addr.Street = addr.Number + " " + addr.Street
 		}
 	}
 
+	
 	return addr
 }
 
