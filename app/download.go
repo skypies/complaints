@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 	
 	"appengine"
@@ -21,10 +20,9 @@ import (
 
 func init() {
 	http.HandleFunc("/download-complaints", downloadHandler)
-	http.HandleFunc("/personal-report", personalReportFormHandler)
-	http.HandleFunc("/personal-report/results", personalReportHandler)
-	http.HandleFunc("/summary-report", summaryReportFormHandler)
-	http.HandleFunc("/summary-report/results", summaryReportHandler)
+	http.HandleFunc("/personal-report", personalReportHandler)
+	http.HandleFunc("/personal-report/results", personalReportHandler) // Legacy
+	http.HandleFunc("/summary-report", summaryReportHandler)
 	//http.HandleFunc("/backfill", backfillHandler)
 	//http.HandleFunc("/month", monthHandler)
 }
@@ -272,18 +270,6 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
-// {{{ personalReportFormHandler
-
-func personalReportFormHandler(w http.ResponseWriter, r *http.Request) {
-	var params = map[string]interface{}{
-		"Yesterday": date.NowInPdt().AddDate(0,0,-1),
-	}
-	if err := templates.ExecuteTemplate(w, "report-personal-form", params); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-// }}}
 // {{{ personalReportHandler
 
 func personalReportHandler(w http.ResponseWriter, r *http.Request) {
@@ -293,6 +279,18 @@ func personalReportHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := session.Values["email"].(string)
+
+	if r.FormValue("date") == "" {
+		var params = map[string]interface{}{
+			"Yesterday": date.NowInPdt().AddDate(0,0,-1),
+		}
+		if err := templates.ExecuteTemplate(w, "report-personal-form", params); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+
 	start,end,_ := FormValueDateRange(r)
 
 	ctx := appengine.Timeout(appengine.NewContext(r), 60*time.Second)
@@ -350,18 +348,6 @@ func personalReportHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
-// {{{ summaryReportFormHandler
-
-func summaryReportFormHandler(w http.ResponseWriter, r *http.Request) {
-	var params = map[string]interface{}{
-		"Yesterday": date.NowInPdt().AddDate(0,0,-1),
-	}
-	if err := templates.ExecuteTemplate(w, "report-summary-form", params); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-// }}}
 // {{{ summaryReportHandler
 
 func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
@@ -370,6 +356,18 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "session was empty; no cookie ?", http.StatusInternalServerError)
 		return
 	}
+
+	if r.FormValue("date") == "" {
+		var params = map[string]interface{}{
+			"Yesterday": date.NowInPdt().AddDate(0,0,-1),
+		}
+		if err := templates.ExecuteTemplate(w, "report-summary-form", params); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+
 	start,end,_ := FormValueDateRange(r)
 
 	ctx := appengine.Timeout(appengine.NewContext(r), 60*time.Second)
@@ -412,7 +410,6 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 			countsByAirline[airline]++
 		}
 
-		// if city := c.Profile.StructuredAddress.City; city != "" {
 		if city := c.Profile.GetStructuredAddress().City; city != "" {
 			countsByCity[city]++
 			if uniquesByCity[city] == nil { uniquesByCity[city] = map[string]int{} }
