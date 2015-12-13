@@ -105,12 +105,13 @@ func scanHandler(w http.ResponseWriter, r *http.Request) {
 					http.Error(w, err5.Error(), http.StatusInternalServerError)
 					return
 				} else {
-					t := taskqueue.NewPOSTTask("/fdb/addflight", map[string][]string{
+					url := fmt.Sprintf("/fdb/addflight?deb=%s", fs.F.UniqueIdentifier())
+					t := taskqueue.NewPOSTTask(url, map[string][]string{
 						"flightsnapshot": {fsStr},
 					})
 
 					// We could be smarter about this.
-					// t.Delay = time.Minute * 45
+					t.Delay = time.Minute * 45
 
 					if _,err6 := taskqueue.Add(c, t, "addflight"); err6 != nil {
 						c.Errorf(" /mdb/scan: enqueue: %v", err6)
@@ -137,69 +138,92 @@ func scanHandler(w http.ResponseWriter, r *http.Request) {
 func addflightHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
+	log := fmt.Sprintf("* addFlightHandler invoked: %s\n", time.Now().UTC())
+	
 	fsStr := r.FormValue("flightsnapshot")
 	fs := ftype.FlightSnapshot{}
 	if err := fs.Base64Decode(fsStr); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	fr24Id := fs.F.Id.ForeignKeys["fr24"]
-	// c.Infof(" /mdb/addflight: %s, %s", fr24Id, fs)
 
-	tStart := time.Now().UTC()
+	fr24Id := fs.F.Id.ForeignKeys["fr24"] // This is the only field we take from the 
+	log += fmt.Sprintf("* fr24 key: %s\n", fr24Id)
 	
-	if db,err := fdb24.NewFlightDBFr24(urlfetch.Client(c)); err != nil {
+	db := fdb.FlightDB{C: c}
+	fr24db,err := fdb24.NewFlightDBFr24(urlfetch.Client(c));
+	if err != nil {
 		c.Errorf(" /mdb/addflight: newdb: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-	} else {
-		db.Fdb.C = c
+		return
+	}
 
-		// Be idempotent - check to see if this flight has already been recorded
-		if exists,err2 := db.Fdb.FlightExists(fs.F.Id.UniqueIdentifier()); err2 != nil {
-			c.Errorf(" /mdb/addflight: FlightExists: %v", err2)
-			http.Error(w, err2.Error(), http.StatusInternalServerError)
+	// Be idempotent - check to see if this flight has already been recorded
+	/* Can't do this check now; the fs.F.Id we cached might be different from the
+   * f.Id we get back from LookupPlayback(), because fr24 reuse their keys.
+   *
+	if exists,err := db.FlightExists(fs.F.Id.UniqueIdentifier()); err != nil {
+		c.Errorf(" /mdb/addflight: FlightExists check failed: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	} else if exists {
+		c.Infof(" /mdb/addflight: already exists %s", fs)
+		w.Write([]byte(fmt.Sprintf("Skipped %s\n", fs)))
+		return
+	}
+	log += fmt.Sprintf("* FlightExists('%s') -> false\n", fs.F.Id.UniqueIdentifier())
+  */
 
-		} else if exists {
-			c.Infof(" /mdb/addflight: already exists %s", fs)
-			w.Write([]byte(fmt.Sprintf("Skipped %s\n", fs)))
-			return
+	// Now grab an initial flight (with track), from fr24. This depends on
+	// some apache on a nice IP configured as follows:
+	//     ProxyPass  "/fr24/"   "http://mobile.api.fr24.com/"
+	var f *ftype.Flight
+	if f,err = fr24db.LookupPlayback(fr24Id); err != nil {
+		// c.Errorf(" /mdb/addflight: lookup: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-		} else {	
-			// This depends on some apache on a nice IP configured as follows:
-			//     ProxyPass  "/fr24/"   "http://mobile.api.fr24.com/"
+	// Kludge: fr24 keys get reused, so the flight fr24 thinks it refers to might be
+	// different than when we cached it. So we do the uniqueness check here, to avoid
+	// dupes in the DB. Need a better solution to this.
+	if exists,err := db.FlightExists(f.Id.UniqueIdentifier()); err != nil {
+		c.Errorf(" /mdb/addflight: FlightExists check failed: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	} else if exists {
+		c.Infof(" /mdb/addflight: already exists %s", *f)
+		w.Write([]byte(fmt.Sprintf("Skipped %s\n", *f)))
+		return
+	}
+	log += fmt.Sprintf("* FlightExists('%s') -> false\n", f.Id.UniqueIdentifier())
 
-			if f,err3 := db.LookupPlayback(fr24Id); err3 != nil {
-				// c.Errorf(" /mdb/addflight: lookup: %v", err3)
-				http.Error(w, err3.Error(), http.StatusInternalServerError)
+	
+	// If we have any locally received ADSB fragments for this flight, add them in
+	if err := db.MaybeAddTrackFragmentsToFlight(f); err != nil {
+		c.Errorf(" /mdb/addflight: addTrackFrags(%s): %v", f.Id, err)
+	}
 
-			} else {
-
-				f.AnalyseFlightPath() // Work out how to tag it
-
-				if f.HasTag(ftype.KTagSERFR1) || f.HasTag(ftype.KTagBRIXX) {
-					if err := fdbfa.AddFlightAwareTrack(urlfetch.Client(c),f,kFlightawareAPIUsername,kFlightawareAPIKey); err != nil {
-						c.Errorf(" /mdb/addflight: addflightaware: %v", err)
-					}
-				}
-
-				// What the hell, do this on every flight we can
-				if err := db.Fdb.MaybeAddTrackFragmentsToFlight(f); err != nil {
-					c.Errorf(" /mdb/addflight: addTrackFrags(%s): %v", f.Id, err)
-				}
-				
-				f.Analyse()
-
-				if err4 := db.Fdb.PersistFlight(*f, tStart); err4 != nil {
-					c.Errorf(" /mdb/addflight: persist: %v", err4)
-					http.Error(w, err4.Error(), http.StatusInternalServerError)
-
-				} else {
-					// Success !
-					// c.Infof(" /mdb/addflight: persisted %s, %s", fr24Id, f)
-					w.Write([]byte(fmt.Sprintf("Added %s\n", f)))
-				}
-			}
+	f.AnalyseFlightPath() // Takes a coarse look at the flight path
+	log += fmt.Sprintf("* Initial tags: %v\n", f.TagList())
+	
+	// For flights on the SERFR1 or BRIXX1 approaches, fetch a flightaware track
+	if f.HasTag(ftype.KTagSERFR1) || f.HasTag(ftype.KTagBRIXX) {
+		u,p := kFlightawareAPIUsername,kFlightawareAPIKey
+		if err := fdbfa.AddFlightAwareTrack(urlfetch.Client(c),f,u,p); err != nil {
+			c.Errorf(" /mdb/addflight: addflightaware: %v", err)
 		}
 	}
+				
+	f.Analyse()
+	
+	if err := db.PersistFlight(*f, log); err != nil {
+		c.Errorf(" /mdb/addflight: persist: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// Success !
+	w.Write([]byte(fmt.Sprintf("Added %s\n", f)))
 }
 
 // }}}
@@ -639,6 +663,77 @@ func testFdbHandler(w http.ResponseWriter, r *http.Request) {
 				}	
 				if err7 := templates.ExecuteTemplate(w, "fdb-test", params); err7 != nil {
 					http.Error(w, err7.Error(), http.StatusInternalServerError)
+				}
+			}
+		}
+	}
+}
+
+// }}}
+// {{{ addflightHandler
+
+func addflightHandler(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+
+	fsStr := r.FormValue("flightsnapshot")
+	fs := ftype.FlightSnapshot{}
+	if err := fs.Base64Decode(fsStr); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	fr24Id := fs.F.Id.ForeignKeys["fr24"]
+	// c.Infof(" /mdb/addflight: %s, %s", fr24Id, fs)
+
+	tStart := time.Now().UTC()
+	
+	if db,err := fdb24.NewFlightDBFr24(urlfetch.Client(c)); err != nil {
+		c.Errorf(" /mdb/addflight: newdb: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	} else {
+		db.Fdb.C = c
+
+		// Be idempotent - check to see if this flight has already been recorded
+		if exists,err2 := db.Fdb.FlightExists(fs.F.Id.UniqueIdentifier()); err2 != nil {
+			c.Errorf(" /mdb/addflight: FlightExists: %v", err2)
+			http.Error(w, err2.Error(), http.StatusInternalServerError)
+
+		} else if exists {
+			c.Infof(" /mdb/addflight: already exists %s", fs)
+			w.Write([]byte(fmt.Sprintf("Skipped %s\n", fs)))
+			return
+
+		} else {	
+			// This depends on some apache on a nice IP configured as follows:
+			//     ProxyPass  "/fr24/"   "http://mobile.api.fr24.com/"
+
+			if f,err3 := db.LookupPlayback(fr24Id); err3 != nil {
+				// c.Errorf(" /mdb/addflight: lookup: %v", err3)
+				http.Error(w, err3.Error(), http.StatusInternalServerError)
+
+			} else {
+
+				f.AnalyseFlightPath() // Work out how to tag it
+
+				if f.HasTag(ftype.KTagSERFR1) || f.HasTag(ftype.KTagBRIXX) {
+					if err := fdbfa.AddFlightAwareTrack(urlfetch.Client(c),f,kFlightawareAPIUsername,kFlightawareAPIKey); err != nil {
+						c.Errorf(" /mdb/addflight: addflightaware: %v", err)
+					}
+				}
+
+				// What the hell, do this on every flight we can
+				if err := db.Fdb.MaybeAddTrackFragmentsToFlight(f); err != nil {
+					c.Errorf(" /mdb/addflight: addTrackFrags(%s): %v", f.Id, err)
+				}
+				
+				f.Analyse()
+
+				if err4 := db.Fdb.PersistFlight(*f, tStart); err4 != nil {
+					c.Errorf(" /mdb/addflight: persist: %v", err4)
+					http.Error(w, err4.Error(), http.StatusInternalServerError)
+
+				} else {
+					// Success !
+					// c.Infof(" /mdb/addflight: persisted %s, %s", fr24Id, f)
+					w.Write([]byte(fmt.Sprintf("Added %s\n", f)))
 				}
 			}
 		}
