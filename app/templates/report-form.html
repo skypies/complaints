@@ -7,7 +7,13 @@
 
     <form action="/report" method="post">
       <div class="stack">
+          <p><b>Please note</b> - the flight database needs a lot of TLC
+          right now. (A) If you get timeouts or other problems, reduce the
+          date range. (B) There are some duplicate flights in the
+          results, I'm still figuring out how they're getting into the DB.</p>
         <div class="box">
+
+          
         <table border="0">
           <tr>
             <td>Date range</td>
@@ -30,10 +36,15 @@
             <td><select name="reportname">
                 <option value="serfr1">All SERFR1 flights</option>
                 <option value="brixx1">All BRIXX1 flights</option>
+<!--
                 <option value="classb" selected="1">Class B Violations</option>
                 <option value="brixxviolations">BRIXX1 violations</option>
                 <option value="skimmer">Level flight on SERFR1 at 6000, 8000</option>
+-->
                 <option value="serfr1complaints">SERFR1 flights vs. complaints</option>
+<!--
+                <option value="serfr1at">SERFR1 flights at a waypoint</option>
+-->
             </select></td>
           </tr>
           <tr><td>&nbsp;</td></tr>
@@ -47,7 +58,7 @@
           </tr>
 
           <tr><td colspan="2"><hr/></td></tr>
-
+<!--
           <tr>
             <td>Options, Class B: </td>
             <td><input type="checkbox" checked="yes" name="classb_oneperflight"/>
@@ -67,6 +78,17 @@
               size="6" value="3"/>
               min length of skim (in NM)</td>
           </tr>
+          <tr><td>&nbsp;</td></tr>
+
+          <tr>
+            <td>Options, Waypoints: </td>
+            <td><input type="text" name="waypoint"
+              size="6" value="EPICK"/>
+              name of waypoint</td>
+          </tr>
+-->
+<input type="hidden" name="skimmer_altitude_tolerance" value="100" />
+<input type="hidden" name="skimmer_min_duration_nm" value="3"/>
 
         </table>
 
@@ -74,7 +96,8 @@
         <p style="text-align:center"><input class="button" type="submit" value="GENERATE"/></p>
         <br/>
         </div>
-        <p>Please note: we have no Class B data before 11:30am on Wed Sep 23.</p>
+
+          <p>Data only really starts at 11:30am on Wed Sep 23.</p>
 
       </div>
     </form>
