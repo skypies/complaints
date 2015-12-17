@@ -455,7 +455,7 @@ func lookupHandler(w http.ResponseWriter, r *http.Request) {
 		if _,exists := f.Tracks["FA"]; exists==true {
 			_,faClassBTrack := f.SFOClassB("FA")
 			faTrackJSVar = faClassBTrack.ToJSVar()
-			fr24TrackJSVar = template.JS("{}")
+			//fr24TrackJSVar = template.JS("{}")
 		}
 
 		// For ADS-B tracks !
