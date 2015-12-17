@@ -691,7 +691,7 @@ func (c SERFR1AtRow)ToCSVHeaders() []string {
 		"Airline", "Flightnumber", "Origin", "Destination",
 		"Registration", "Icao24",
 		"Date@", "Time@", "Groundspeed@(knots)", "Altitude@(feet)",
-		"InterpRange(seconds)", "InterpFraction",
+		"InterpRange(seconds)",
 	}
 }
 func (r SERFR1AtRow) ToCSV() []string {
@@ -707,7 +707,6 @@ func (r SERFR1AtRow) ToCSV() []string {
 		fmt.Sprintf("%.0f", r.ITP.SpeedKnots),
 		fmt.Sprintf("%.0f", r.ITP.AltitudeFeet),
 		fmt.Sprintf("%.0f", r.ITP.Post.TimestampUTC.Sub(r.ITP.Pre.TimestampUTC).Seconds()),
-		fmt.Sprintf("%.2f", r.ITP.Ratio),
 	}
 }
 
@@ -716,37 +715,43 @@ func serfr1AtReport(c appengine.Context, s,e time.Time, opt ReportOptions) ([]Re
 	fdb := fdb.FlightDB{C: c}
 	maybeMemcache(&fdb,e)
 	tags := []string{flightdb.KTagSERFR1}
-	if flights,err := fdb.LookupTimeRangeByTags(tags,s,e); err != nil {
-		return nil, nil, err
 
-	} else {
-		
-		meta["[A] Total SERFR1 flights "] = float64(len(flights))
+	pos := sfo.KFixes[opt.Waypoint]
+	out := []ReportRow{}
 
-		pos := sfo.KFixes[opt.Waypoint]
-			
-		out := []ReportRow{}
-		for _,f := range flights {
-			if _,exists := f.Tracks["ADSB"]; exists == true {
-				meta["[B] with data from "+f.Tracks["ADSB"].LongSource()]++
-			}
-			if _,exists := f.Tracks["FA"]; exists == true {
-				meta["[B] with data from "+f.Tracks["FA"].LongSource()]++
-			} else {
-				meta["[B] with data from "+f.Track.LongSource()]++
-			}
-
-			if itp,err := f.BestTrack().PointOfClosestApproach(pos); err != nil {
-				c.Infof("Skipping flight %s: err=%v", f, err)
-
-			} else {
-				url := template.HTML(fmt.Sprintf("%s&waypoint=%s",flight2Url(f), opt.Waypoint))
-				row := SERFR1AtRow{url , f, itp }
-				out = append(out, row)
-			}
+	iter := fdb.NewIter(fdb.QueryTimeRangeByTags(tags,s,e))
+	nSerfr1 := 0
+	for {
+		f,err := iter.NextWithErr();
+		if err != nil {
+			fdb.C.Errorf("serfr1AtReport iterator failed: %v", err)
+			return nil,nil,err
+		} else if f == nil {
+			break  // We've hit EOF
 		}
-		return out, meta, nil
+		nSerfr1++
+		
+		if _,exists := f.Tracks["ADSB"]; exists == true {
+			meta["[B] with data from "+f.Tracks["ADSB"].LongSource()]++
+		}
+		if _,exists := f.Tracks["FA"]; exists == true {
+			meta["[B] with data from "+f.Tracks["FA"].LongSource()]++
+		} else {
+			meta["[B] with data from "+f.Track.LongSource()]++
+		}
+
+		if itp,err := f.BestTrack().PointOfClosestApproach(pos); err != nil {
+			c.Infof("Skipping flight %s: err=%v", f, err)
+		} else {
+			url := template.HTML(fmt.Sprintf("%s&waypoint=%s",flight2Url(*f), opt.Waypoint))
+			row := SERFR1AtRow{url, *f, itp }
+			out = append(out, row)
+		}
 	}
+
+	meta["[A] Total SERFR1 flights "] = float64(nSerfr1)
+
+	return out, meta, nil
 }
 
 // }}}
@@ -766,7 +771,9 @@ func reportHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := appengine.NewContext(r)
+	//c := appengine.NewContext(r)
+	c := appengine.Timeout(appengine.NewContext(r), 30*time.Second)  // Default has a 5s timeout
+
 	s,e,_ := FormValueDateRange(r)	
 	opt := ReportOptions{
 		ClassB_OnePerFlight: FormValueCheckbox(r, "classb_oneperflight"),
