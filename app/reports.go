@@ -744,6 +744,7 @@ func serfr1AtReport(c appengine.Context, s,e time.Time, opt ReportOptions) ([]Re
 			c.Infof("Skipping flight %s: err=%v", f, err)
 		} else {
 			url := template.HTML(fmt.Sprintf("%s&waypoint=%s",flight2Url(*f), opt.Waypoint))
+			f.Tracks = nil // avoid running out of F1 RAM!
 			row := SERFR1AtRow{url, *f, itp }
 			out = append(out, row)
 		}
