@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strconv"
+	"strings"
 	"time"
 	
 	"appengine"
@@ -45,6 +45,8 @@ type ReportOptions struct {
 	// Skimmers
 	Skimmer_AltitudeTolerance float64
 	Skimmer_MinDurationNM     float64
+	// Waypoint stuff
+	Waypoint string
 }
 
 // {{{ ReportRow Interface
@@ -674,14 +676,86 @@ func brixxViolationReport(c appengine.Context, s,e time.Time, opt ReportOptions)
 }
 
 // }}}
+// {{{ serfr1AtReport
 
-// Daily report for closest approaches to my latlong (acoustics)
+// This is really a point of closest approach kind of thing.
+
+type SERFR1AtRow struct {
+	Url             template.HTML
+	F               flightdb.Flight
+  ITP             flightdb.InterpolatedTrackPoint
+}
+
+func (c SERFR1AtRow)ToCSVHeaders() []string {
+	return []string{
+		"Airline", "Flightnumber", "Origin", "Destination",
+		"Registration", "Icao24",
+		"Date@", "Time@", "Groundspeed@(knots)", "Altitude@(feet)",
+		"InterpRange(seconds)", "InterpFraction",
+	}
+}
+func (r SERFR1AtRow) ToCSV() []string {
+	return []string{
+		r.F.Id.Designator.IATAAirlineDesignator,
+		r.F.Id.Designator.String(),
+		r.F.Id.Origin,
+		r.F.Id.Destination,
+		r.F.Id.Registration,
+		r.F.Id.ModeS,
+		date.InPdt(r.ITP.TimestampUTC).Format("2006/01/02"),
+		date.InPdt(r.ITP.TimestampUTC).Format("15:04:05.999999999"),
+		fmt.Sprintf("%.0f", r.ITP.SpeedKnots),
+		fmt.Sprintf("%.0f", r.ITP.AltitudeFeet),
+		fmt.Sprintf("%.0f", r.ITP.Post.TimestampUTC.Sub(r.ITP.Pre.TimestampUTC).Seconds()),
+		fmt.Sprintf("%.2f", r.ITP.Ratio),
+	}
+}
+
+func serfr1AtReport(c appengine.Context, s,e time.Time, opt ReportOptions) ([]ReportRow, ReportMetadata, error) {
+	meta := ReportMetadata{}
+	fdb := fdb.FlightDB{C: c}
+	maybeMemcache(&fdb,e)
+	tags := []string{flightdb.KTagSERFR1}
+	if flights,err := fdb.LookupTimeRangeByTags(tags,s,e); err != nil {
+		return nil, nil, err
+
+	} else {
+		
+		meta["[A] Total SERFR1 flights "] = float64(len(flights))
+
+		pos := sfo.KFixes[opt.Waypoint]
+			
+		out := []ReportRow{}
+		for _,f := range flights {
+			if _,exists := f.Tracks["ADSB"]; exists == true {
+				meta["[B] with data from "+f.Tracks["ADSB"].LongSource()]++
+			}
+			if _,exists := f.Tracks["FA"]; exists == true {
+				meta["[B] with data from "+f.Tracks["FA"].LongSource()]++
+			} else {
+				meta["[B] with data from "+f.Track.LongSource()]++
+			}
+
+			if itp,err := f.BestTrack().PointOfClosestApproach(pos); err != nil {
+				c.Infof("Skipping flight %s: err=%v", f, err)
+
+			} else {
+				url := template.HTML(fmt.Sprintf("%s&waypoint=%s",flight2Url(f), opt.Waypoint))
+				row := SERFR1AtRow{url , f, itp }
+				out = append(out, row)
+			}
+		}
+		return out, meta, nil
+	}
+}
+
+// }}}
+
+// Daily report for closest approaches to my latlong (acoustics) ??
 
 // {{{ reportHandler
 
 func reportHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-
 	if r.FormValue("date") == "" {
 		var params = map[string]interface{}{
 			"Yesterday": date.NowInPdt().AddDate(0,0,-1),
@@ -692,35 +766,20 @@ func reportHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var s,e time.Time
-	switch r.FormValue("date") {
-	case "today":
-		s,_ = date.WindowForToday()
-		e=s
-	case "yesterday":
-		s,_ = date.WindowForYesterday()
-		e=s
-	case "range":
-		s = date.ArbitraryDatestring2MidnightPdt(r.FormValue("range_from"), "2006/01/02")
-		e = date.ArbitraryDatestring2MidnightPdt(r.FormValue("range_to"), "2006/01/02")
-		if s.After(e) { s,e = e,s }
-	}
-	e = e.Add(23*time.Hour + 59*time.Minute + 59*time.Second) // make sure e covers its whole day
-	
+	c := appengine.NewContext(r)
+	s,e,_ := FormValueDateRange(r)	
 	opt := ReportOptions{
 		ClassB_OnePerFlight: FormValueCheckbox(r, "classb_oneperflight"),
+		Skimmer_AltitudeTolerance: FormValueFloat64(w,r,"skimmer_altitude_tolerance"),
+		Skimmer_MinDurationNM: FormValueFloat64(w,r,"skimmer_min_duration_nm"),
 	}
-	if val,err := strconv.ParseFloat(r.FormValue("skimmer_altitude_tolerance"), 64); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	} else {
-		opt.Skimmer_AltitudeTolerance = val
-	}
-	if val,err := strconv.ParseFloat(r.FormValue("skimmer_min_duration_nm"), 64); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	} else {
-		opt.Skimmer_MinDurationNM = val
+
+	if fix := strings.ToUpper(r.FormValue("waypoint")); fix != "" {
+		if _,exists := sfo.KFixes[fix]; !exists {
+			http.Error(w, fmt.Sprintf("Waypoint '%s' not known",fix), http.StatusInternalServerError)
+			return
+		}
+		opt.Waypoint = fix
 	}
 	
 	reportWriter (c,w,s,e,opt, r.FormValue("reportname"), r.FormValue("resultformat"))
@@ -750,6 +809,8 @@ func reportWriter (c appengine.Context, w http.ResponseWriter, s,e time.Time, op
 		rows,meta,err = skimmerReport(c,s,e,opt)
 	case "brixxviolations":
 		rows,meta,err = brixxViolationReport(c,s,e,opt)
+	case "serfr1at":
+		rows,meta,err = serfr1AtReport(c,s,e,opt)
 	}
 	if err != nil {	
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -773,6 +834,7 @@ func reportWriter (c appengine.Context, w http.ResponseWriter, s,e time.Time, op
 			"Start": s,
 			"End": e,
 			"Metadata": meta,
+			"Options": opt,
 		}
 		
 		// Is there not a more elegant way to do this kind of thing ?
@@ -801,6 +863,10 @@ func reportWriter (c appengine.Context, w http.ResponseWriter, s,e time.Time, op
 		case "brixxviolations":
 			out := []BrixxRow{}
 			for _,r := range rows { out = append(out, r.(BrixxRow)) }
+			params["Rows"] = out
+		case "serfr1at":
+			out := []SERFR1AtRow{}
+			for _,r := range rows { out = append(out, r.(SERFR1AtRow)) }
 			params["Rows"] = out
 		}
 		

@@ -47,6 +47,8 @@ func FixupComplaint(c *types.Complaint, key *datastore.Key) {
 	age := date.NowInPdt().Sub(c.Timestamp)
 	if age < time.Hour*24*7 {
 		c.AircraftOverhead.Fr24Url = c.AircraftOverhead.PlaybackUrl()
+		// Or: http://flightaware.com/live/flight/UAL337/history/20151215/ [0655Z/KLAX/KSFO]
+		// date is UTC of departure time; might be tricky to guess :/
 	}
 
 	// 3. Compute distances, if we have an aircraft

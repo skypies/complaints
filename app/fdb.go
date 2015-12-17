@@ -325,6 +325,63 @@ func buildLegend(t time.Time) string {
 
 // }}}
 
+// {{{ MapPoint{}, MapLine{}
+
+type MapPoint struct {
+	ITP   *ftype.InterpolatedTrackPoint
+	TP    *ftype.TrackPoint
+	Pos   *geo.Latlong
+
+	Icon   string  // Name of /static/dot-<foo>.png
+	Text   string	
+}
+
+func (mp MapPoint)ToJSStr(text string) string {
+	if mp.Icon == "" { mp.Icon = "pink" }
+	tp := ftype.TrackPoint{Source:"n/a"}
+	
+	if mp.ITP != nil {
+		tp = mp.ITP.TrackPoint
+		tp.Source += "/interp"
+		mp.Text = fmt.Sprintf("** Interpolated trackpoint\n"+
+			" * Pre :%s\n * This:%s\n * Post:%s\n * Ratio: %.2f\n%s",
+			mp.ITP.Pre, mp.ITP, mp.ITP.Post, mp.ITP.Ratio, mp.Text)
+	} else if mp.TP != nil {
+		tp = *mp.TP
+		mp.Text = fmt.Sprintf("** Raw TP\n* %s\n%s", mp.TP, mp.Text)
+	} else {
+		tp.Latlong = *mp.Pos
+	}
+
+	mp.Text += text
+	
+	return fmt.Sprintf("source:\"%s\", pos:{lat:%.6f,lng:%.6f}, "+
+		"alt:%.0f, speed:%.0f, icon:%q, info:%q",
+		tp.Source, tp.Latlong.Lat, tp.Latlong.Long, tp.AltitudeFeet, tp.SpeedKnots, mp.Icon, mp.Text)
+}
+
+
+type MapLine struct {
+	Line        *geo.LatlongLine
+	Start, End  *geo.Latlong
+
+	Color  string  // A hex color value (e.g. "#ff8822")
+}
+func (ml MapLine)ToJSStr(text string) string {
+	color := ml.Color
+	if color == "" { color = "#000000" }
+
+	if ml.Line != nil {
+		return fmt.Sprintf("s:{lat:%f, lng:%f}, e:{lat:%f, lng:%f}, color:\"%s\"",
+			ml.Line.From.Lat, ml.Line.From.Long, ml.Line.To.Lat, ml.Line.To.Long, color) 
+	} else {
+		return fmt.Sprintf("s:{lat:%f, lng:%f}, e:{lat:%f, lng:%f}, color:\"%s\"},\n",
+			ml.Start.Lat, ml.Start.Long, ml.End.Lat, ml.End.Long, color) 
+	}
+}
+
+// }}}
+
 // {{{ flightListHandler
 
 // We examine the tags CGI arg, which should be a pipe-delimited set of flight tags.
@@ -387,8 +444,9 @@ func lookupHandler(w http.ResponseWriter, r *http.Request) {
 		c.Infof("Tags: %v, Tracks: %v", f.TagList(), f.TrackList())
 		_,classBTrack := f.SFOClassB("")
 			
-		f.Analyse()  // Populate the flight tags
+		f.Analyse()  // Populate the flight tags; should *really* be redundant
 
+		// Todo: collapse all these separate tracks down into the single point/line list thing
 		fr24TrackJSVar := classBTrack.ToJSVar()
 
 		// For Flightaware tracks
@@ -418,7 +476,28 @@ func lookupHandler(w http.ResponseWriter, r *http.Request) {
 			adsbTrackJSVar = template.JS("{}")
 		}
 
-		c.Infof("\n Ah ha 1: %s", kGoogleMapsAPIKey)
+		mapPoints := []MapPoint{}
+		mapLines  := []MapLine{}
+
+		if waypoint := r.FormValue("waypoint"); waypoint != "" {
+			//pos := geo.Latlong{37.060312, -121.990814}
+			pos := sfo.KFixes[waypoint]
+			if itp,err := f.BestTrack().PointOfClosestApproach(pos); err != nil {
+				c.Infof(" ** Error: %v", err)
+			} else {
+				mapPoints = append(mapPoints, MapPoint{Icon:"red", ITP:&itp})
+				mapPoints = append(mapPoints, MapPoint{Pos:&itp.Ref, Text:"** Reference point"})
+				mapLines = append(mapLines, MapLine{Line:&itp.Line, Color:"#ff8822"})
+				mapLines = append(mapLines, MapLine{Line:&itp.Perp, Color:"#ff2288"})
+			}
+		}
+
+		pointsStr := "{\n"
+		for i,mp := range mapPoints { pointsStr += fmt.Sprintf("    %d: {%s},\n", i, mp.ToJSStr("")) }
+		pointsJS := template.JS(pointsStr + "  }\n")		
+		linesStr := "{\n"
+		for i,ml := range mapLines { linesStr += fmt.Sprintf("    %d: {%s},\n", i, ml.ToJSStr("")) }
+		linesJS := template.JS(linesStr + "  }\n")
 		
 		var params = map[string]interface{}{
 			"F": f,
@@ -436,6 +515,9 @@ func lookupHandler(w http.ResponseWriter, r *http.Request) {
 			"FlightawareTrack": faTrackJSVar,
 			"ADSBTrack": adsbTrackJSVar,
 			"SkimTrack": skimTrackJSVar,
+
+			"Points": pointsJS,
+			"Lines": linesJS,
 		}
 		
 		templateName := "fdb-lookup"
@@ -565,187 +647,8 @@ func decodetrackHandler(w http.ResponseWriter, r *http.Request) {
 
 // }}}
 
-/*
-// {{{ testFdbHandler
-
-// Look for new flights that we should add to our database. Invoked by cron.
-func testFdbHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	client := urlfetch.Client(c)
-	
-	if db,err1 := fdb24.NewFlightDBFr24(client); err1 != nil {
-		c.Errorf(" /mdb/scan: newdb: %v", err1)
-		http.Error(w, err1.Error(), http.StatusInternalServerError)
-
-	} else {
-		db.Fdb.C = c  // Sigh
-
-		if flights,err2 := db.LookupList(sfo.KBoxSFO120K); err2 != nil {
-			c.Errorf(" /mdb/scan: lookup: %v", err2)
-			http.Error(w, err2.Error(), http.StatusInternalServerError)
-		} else {
-
-			set := ftype.FIFOSet{}
-			if err3 := loadFIFOSet(c,&set); err3 != nil {
-				c.Errorf(" /mdb/scan: loadcache: %v", err3)
-				http.Error(w, err3.Error(), http.StatusInternalServerError)
-				return
-			}
-			new := set.FindNew(flights)
-
-			if len(new) == 0 {
-				http.Error(w, "new was empty", http.StatusInternalServerError)
-				return
-			}
-
-			fr24Id := new[0].F.Id.ForeignKeys["fr24"]
-			for i,v := range new {
-				if r.FormValue("n") != "" {
-					c.Infof("Oh ho [%s][%s]: %s\n",
-						r.FormValue("n"), fmt.Sprintf("%d",v.F.Id.Designator.FlightNumber), new[i])
-					if fmt.Sprintf("%d",v.F.Id.Designator.FlightNumber) == r.FormValue("n") {
-						fr24Id = v.F.Id.ForeignKeys["fr24"]
-						break
-					}
-				} else if v.F.Id.Destination == "SFO" {
-					fr24Id = v.F.Id.ForeignKeys["fr24"]
-					break
-				}
-			}
-			if f,err4 := db.LookupPlayback(fr24Id); err4 != nil {
-				c.Errorf(" /mdb/test: lookup: %v", err4)
-				http.Error(w, err4.Error(), http.StatusInternalServerError)
-
-			} else {
-
-				f.AnalyseFlightPath() // Work out how to tag it
-
-				if f.Tags[ftype.KTagSERFR1] {
-					c.Infof("/mdb/test: Calling FA on flight %s",f)
-					fdbfa.AddFlightAwareTrack(urlfetch.Client(c),f,kFlightawareAPIUsername,kFlightawareAPIKey)
-				}
-
-				f.Analyse() // Other tags
-
-				// HACKETY HACK
-				if false {
-				if frags,err := db.Fdb.ExtractTrackFragments("A018EE","callsign"); err != nil {
-					c.Errorf(" /mdb/test: fragsy: %v", err)
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-				} else {
-					if len(frags) > 1 {
-						c.Errorf(" /mdb/test: multiple frags (%d); discarding all but last", len(frags))
-					}
-					if len(frags)>0 {
-						frag := frags[len(frags)-1]
-						f.Tracks["ADSB"] = frag
-						c.Infof("/mdb/test, got a frag: %s", frag)
-					} else {
-						c.Infof("/mdb/test, no frags")
-					}
-				}
-				}
-				
-				if r.FormValue("persist") != "" {
-					if err5 := db.Fdb.PersistFlight(*f); err5 != nil {
-						c.Errorf(" /mdb/test: persist: %v", err5)
-						http.Error(w, err5.Error(), http.StatusInternalServerError)
-					}
-				}
-
-				var params = map[string]interface{}{
-					"New": new,
-					"F": f,
-					"ClassB": "",
-					"Text": fmt.Sprintf("%#v", f.Id),
-					"Oneline": f.String(),
-					"Flights": flights,
-				}	
-				if err7 := templates.ExecuteTemplate(w, "fdb-test", params); err7 != nil {
-					http.Error(w, err7.Error(), http.StatusInternalServerError)
-				}
-			}
-		}
-	}
-}
-
-// }}}
-// {{{ addflightHandler
-
-func addflightHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-
-	fsStr := r.FormValue("flightsnapshot")
-	fs := ftype.FlightSnapshot{}
-	if err := fs.Base64Decode(fsStr); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-	fr24Id := fs.F.Id.ForeignKeys["fr24"]
-	// c.Infof(" /mdb/addflight: %s, %s", fr24Id, fs)
-
-	tStart := time.Now().UTC()
-	
-	if db,err := fdb24.NewFlightDBFr24(urlfetch.Client(c)); err != nil {
-		c.Errorf(" /mdb/addflight: newdb: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	} else {
-		db.Fdb.C = c
-
-		// Be idempotent - check to see if this flight has already been recorded
-		if exists,err2 := db.Fdb.FlightExists(fs.F.Id.UniqueIdentifier()); err2 != nil {
-			c.Errorf(" /mdb/addflight: FlightExists: %v", err2)
-			http.Error(w, err2.Error(), http.StatusInternalServerError)
-
-		} else if exists {
-			c.Infof(" /mdb/addflight: already exists %s", fs)
-			w.Write([]byte(fmt.Sprintf("Skipped %s\n", fs)))
-			return
-
-		} else {	
-			// This depends on some apache on a nice IP configured as follows:
-			//     ProxyPass  "/fr24/"   "http://mobile.api.fr24.com/"
-
-			if f,err3 := db.LookupPlayback(fr24Id); err3 != nil {
-				// c.Errorf(" /mdb/addflight: lookup: %v", err3)
-				http.Error(w, err3.Error(), http.StatusInternalServerError)
-
-			} else {
-
-				f.AnalyseFlightPath() // Work out how to tag it
-
-				if f.HasTag(ftype.KTagSERFR1) || f.HasTag(ftype.KTagBRIXX) {
-					if err := fdbfa.AddFlightAwareTrack(urlfetch.Client(c),f,kFlightawareAPIUsername,kFlightawareAPIKey); err != nil {
-						c.Errorf(" /mdb/addflight: addflightaware: %v", err)
-					}
-				}
-
-				// What the hell, do this on every flight we can
-				if err := db.Fdb.MaybeAddTrackFragmentsToFlight(f); err != nil {
-					c.Errorf(" /mdb/addflight: addTrackFrags(%s): %v", f.Id, err)
-				}
-				
-				f.Analyse()
-
-				if err4 := db.Fdb.PersistFlight(*f, tStart); err4 != nil {
-					c.Errorf(" /mdb/addflight: persist: %v", err4)
-					http.Error(w, err4.Error(), http.StatusInternalServerError)
-
-				} else {
-					// Success !
-					// c.Infof(" /mdb/addflight: persisted %s, %s", fr24Id, f)
-					w.Write([]byte(fmt.Sprintf("Added %s\n", f)))
-				}
-			}
-		}
-	}
-}
-
-// }}}
-*/
-
-/* To populate the dev server dlight DB: comment out the 45m timeout, then call
+/* To populate the dev server flight DB: comment out the 45m timeout, then call
  *  localhost:8080/fdb/scan */
-
 
 // {{{ -------------------------={ E N D }=----------------------------------
 

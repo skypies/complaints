@@ -41,6 +41,19 @@ func FormValueInt64(r *http.Request, name string) int64 {
 }
 
 // }}}
+// {{{ FormValueFloat64
+
+func FormValueFloat64(w http.ResponseWriter, r *http.Request, name string) float64 {
+	
+	if val,err := strconv.ParseFloat(r.FormValue(name), 64); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return -1
+	} else {
+		return val
+	}
+}
+
+// }}}
 // {{{ FormValueCheckbox
 
 func FormValueCheckbox(r *http.Request, name string) bool {

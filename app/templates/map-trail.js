@@ -78,7 +78,7 @@ function localOverlay() {
 
     for (var i in skimtrack) {
         var imgurl = "/static/dot-blue.png";
-        if (skimtrack[i].violation > 0) { imgurl = "/static/dot-red-large.gif"; }
+        if (skimtrack[i].violation > 0) { imgurl = "/static/dot-red-large.png"; }
         var infostring = '<div><pre>' + skimtrack[i].debug + '</pre></div>';
         var marker = new google.maps.Marker({
             position: skimtrack[i].pos,
@@ -93,5 +93,40 @@ function localOverlay() {
         });
     }
 
+    points = {{.Points}}
+    for (var i in points) {
+        var icon = points[i].icon
+        if (!icon) { icon = "pink" }
+        var imgurl = '/static/dot-' + icon + '.png';
+        var infostring = '<div><pre>' + points[i].info + '</pre></div>';
+        var marker = new google.maps.Marker({
+            position: points[i].pos,
+            map: map,
+            title: points[i].id,
+            icon: imgurl,
+            html: infostring,
+        });
+        marker.addListener('click', function(){
+            infowindow.setContent(this.html),
+            infowindow.open(map, this);
+        });
+    }
+
+    lines = {{.Lines}}
+    for (var i in lines) {
+        var color = lines[i].color
+        if (!color) { color = "#ff6611" }
+        var coords = []
+        coords.push(lines[i].s)
+        coords.push(lines[i].e)
+        var line = new google.maps.Polyline({
+            path: coords,
+            geodesic: true,
+            strokeColor: color,
+            strokeOpacity: 1,
+            strokeWeight: 1
+        });
+        line.setMap(map)
+    }
 }
 {{end}}
