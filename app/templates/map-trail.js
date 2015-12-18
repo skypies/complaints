@@ -40,7 +40,7 @@ function localOverlay() {
 
     for (var i in fatrack) {
         var imgurl = "/static/dot-blue.png";
-        if (fatrack[i].violation > 0) { imgurl = "/static/dot-red-large.gif"; }
+        if (fatrack[i].violation > 0) { imgurl = "/static/dot-red-large.png"; }
         var infostring = '<div><pre>' + fatrack[i].debug + '</pre></div>';
         var marker = new google.maps.Marker({
             position: fatrack[i].pos,
@@ -59,7 +59,7 @@ function localOverlay() {
 
     for (var i in adsbtrack) {
         var imgurl = "/static/dot-yellow.png";
-        if (adsbtrack[i].violation > 0) { imgurl = "/static/dot-red-large.gif"; }
+        if (adsbtrack[i].violation > 0) { imgurl = "/static/dot-red-large.png"; }
         var infostring = '<div><pre>' + adsbtrack[i].debug + '</pre></div>';
         var marker = new google.maps.Marker({
             position: adsbtrack[i].pos,

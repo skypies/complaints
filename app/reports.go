@@ -103,6 +103,185 @@ func reportFromMemcache(c appengine.Context, memKey string) ([]ReportRow, Report
 
 // {{{ classbReport
 
+// {{{ CBRow{}, etc
+
+type CBRow struct {
+	Seq  int
+	Url  template.HTML
+	F    flightdb.Flight
+	TP  *flightdb.TrackPoint
+	A    geo.TPClassBAnalysis
+}
+
+func (c CBRow)ToCSVHeaders() []string {
+	return []string{
+		"Flightnumber", "Registration", "Icao24", "Date(PDT)", "Time(PDT)",
+		"Dist2SFO", "Altitude", "BelowBy", "Lat", "Long", "DataSource"}
+}
+func (r CBRow) ToCSV() []string {
+	return []string{
+		r.F.Id.Designator.String(), r.F.Id.Registration, r.F.Id.ModeS,
+		date.InPdt(r.TP.TimestampUTC).Format("2006/01/02"),
+		date.InPdt(r.TP.TimestampUTC).Format("15:04:05.999999999"),
+		fmt.Sprintf("%.1f",r.A.DistNM),
+		fmt.Sprintf("%.0f",r.TP.AltitudeFeet),
+		fmt.Sprintf("%.0f",r.A.BelowBy),
+		fmt.Sprintf("%.4f",r.TP.Latlong.Lat),
+		fmt.Sprintf("%.4f",r.TP.Latlong.Long),
+		r.TP.LongSource(),
+	}
+}
+
+// }}}
+
+func classbReport(c appengine.Context, s,e time.Time, opt ReportOptions) ([]ReportRow, ReportMetadata, error) {
+	fdb := fdb.FlightDB{C: c}
+	maybeMemcache(&fdb,e)
+	tags := []string{
+		flightdb.KTagReliableClassBViolation,
+		flightdb.KTagLocalADSBClassBViolation,
+	}
+
+	meta := ReportMetadata{}
+	h := hist.Histogram{} // Only use it for the stats
+	rows := []ReportRow{}
+	
+	reportFunc := func(f *flightdb.Flight) {
+		bestTrack := "FA"
+		if f.HasTag(flightdb.KTagLocalADSBClassBViolation) { bestTrack = "ADSB" }
+
+		_,cbt := f.SFOClassB(bestTrack)
+
+		tmpRows :=[]ReportRow{}
+			
+		seq := 0
+		for _,cbtp := range cbt {
+			if cbtp.A.IsViolation() {					
+				fClone := f.ShallowCopy()
+				tmpRows = append(tmpRows, CBRow{ seq, flight2Url(*fClone), *fClone, cbtp.TP, cbtp.A } )
+				seq++
+			}
+		}
+
+		if len(tmpRows) == 0 { return }
+			
+		worstCBRow := tmpRows[0].(CBRow)
+		if seq > 0 {
+			// Select the worst row
+			n,belowBy := 0,0.0
+			for i,row := range tmpRows {
+				if row.(CBRow).A.BelowBy > belowBy { n,belowBy = i,row.(CBRow).A.BelowBy }
+			}
+			worstCBRow = tmpRows[n].(CBRow)
+			worstCBRow.Seq = 0 // fake this out for the webpage
+		}
+
+		h.Add(hist.ScalarVal(worstCBRow.A.BelowBy))
+
+		meta["[C] -- Detected via "+worstCBRow.TP.LongSource()]++
+						
+		if opt.ClassB_OnePerFlight {
+			rows = append(rows, worstCBRow)
+		} else {
+			rows = append(rows, tmpRows...)
+		}
+	}
+
+	// Need to do multiple passes, because of tagA-or-tagB sillness
+	for _,tag := range tags {
+		if err := fdb.IterWith(fdb.QueryTimeRangeByTags([]string{tag},s,e), reportFunc); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	if n,err := fdb.CountTimeRangeByTags([]string{flightdb.KTagSERFR1},s,e); err != nil {
+		return nil, nil, err
+	} else {
+		meta["[A] Total SERFR1 Flights"] = float64(n)
+	}
+
+	if stats,valid := h.Stats(); valid {
+		meta["[B] Num violating flights"] = float64(stats.N)
+		meta["[D] Mean violation below Class B floor"] = float64(int(stats.Mean))
+		meta["[D] Stddev"] = float64(int(stats.Stddev))
+	} else {
+		meta["[B] Num violating flights"] = 0.0
+	}
+		
+	return rows, meta, nil
+}
+
+// }}}
+// {{{ serfr1Report
+
+type SERFR1Row struct {
+	Url             template.HTML
+	F               flightdb.Flight
+	HadAdsb         bool
+	ClassBViolation bool
+}
+
+func (c SERFR1Row)ToCSVHeaders() []string {
+	return []string{
+		"Airline", "Flightnumber", "Origin", "Destination",
+		"Registration", "Icao24", "EnterDate(PDT)", "EnterTime(PDT)",
+		"HadADSB", "ClassBViolator"}
+}
+func (r SERFR1Row) ToCSV() []string {
+	return []string{
+		r.F.Id.Designator.IATAAirlineDesignator,
+		r.F.Id.Designator.String(),
+		r.F.Id.Origin,
+		r.F.Id.Destination,
+		r.F.Id.Registration,
+		r.F.Id.ModeS,
+		date.InPdt(r.F.EnterUTC).Format("2006/01/02"),
+		date.InPdt(r.F.EnterUTC).Format("15:04:05.999999999"),
+		bool2string(r.HadAdsb),
+		bool2string(r.ClassBViolation),
+	}
+}
+
+func serfr1Report(c appengine.Context, s,e time.Time, opt ReportOptions) ([]ReportRow, ReportMetadata, error) {
+	fdb := fdb.FlightDB{C: c}
+	maybeMemcache(&fdb,e)
+
+	meta := ReportMetadata{}
+	out := []ReportRow{}
+
+	reportFunc := func(f *flightdb.Flight) {
+		classBViolation := f.HasTag(flightdb.KTagReliableClassBViolation)		
+		hasAdsb := false
+		if _,exists := f.Tracks["ADSB"]; exists == true {
+			meta["[B] with data from "+f.Tracks["ADSB"].LongSource()]++
+		}
+		if t,exists := f.Tracks["FA"]; exists == true {
+			meta["[B] with data from "+f.Tracks["FA"].LongSource()]++
+			hasAdsb = t.IsFromADSB()
+		} else {
+			meta["[B] with data from "+f.Track.LongSource()]++
+		}
+
+		fClone := f.ShallowCopy()
+		
+		row := SERFR1Row{ flight2Url(*fClone), *fClone, hasAdsb, classBViolation }
+		out = append(out, row)
+	}
+	
+	tags := []string{flightdb.KTagSERFR1}
+	if err := fdb.IterWith(fdb.QueryTimeRangeByTags(tags,s,e), reportFunc); err != nil {
+		return nil, nil, err
+	}
+
+	meta["[A] Total SERFR1 flights "] = float64(len(out))
+	return out, meta, nil
+}
+
+// }}}
+
+/*
+// {{{ classbReport
+
 type CBRow struct {
 	Seq  int
 	Url  template.HTML
@@ -138,6 +317,7 @@ func classbReport(c appengine.Context, s,e time.Time, opt ReportOptions) ([]Repo
 		flightdb.KTagReliableClassBViolation,
 		flightdb.KTagLocalADSBClassBViolation,
 	}
+
 	if flights,err := fdb.LookupTimeRangeByOrTags(tags,s,e); err != nil {
 		return nil, nil, err
 	} else {
@@ -268,6 +448,7 @@ func serfr1Report(c appengine.Context, s,e time.Time, opt ReportOptions) ([]Repo
 }
 
 // }}}
+*/
 // {{{ brixx1Report
 
 func brixx1Report(c appengine.Context, s,e time.Time, opt ReportOptions) ([]ReportRow, ReportMetadata, error) {
