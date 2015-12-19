@@ -19,16 +19,20 @@ const (
 // {{{ ComplaintsAreEquivalent
 
 func ComplaintsAreEquivalent(this, next types.Complaint) bool {
-  // If not close together, or different text, do not coalesce
-	if next.Timestamp.Sub(this.Timestamp) > (time.Duration(kComplaintCoalesceThreshold) * time.Second) {
+	fn1 := this.AircraftOverhead.FlightNumber
+	fn2 := next.AircraftOverhead.FlightNumber
+
+	// If same (non-empty) flightnumber, coalesce, regardless of everything else
+	if fn1 == fn2 && fn1 != "" { return true }
+
+	// If not close together, or different text, do not coalesce
+	if next.Timestamp.Sub(this.Timestamp) > (time.Duration(kComplaintCoalesceThreshold)*time.Second) {
 		return false
 	}
   if this.Description != next.Description { return false }
 
-	fn1 := this.AircraftOverhead.FlightNumber
-	fn2 := next.AircraftOverhead.FlightNumber
-	if fn1 == fn2 { return true } // same flight (or no flight)
-	if fn1 == "" { return true } // next must have a flight, so this should be coalesced
+	if fn1 == fn2 { return true } // both are empty
+	if fn1 == "" { return true } // next must have a flight, so coalesce this (which has no flight) 
 
 	return false
 }
