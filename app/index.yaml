@@ -33,6 +33,11 @@ indexes:
 
 - kind: Flight
   properties:
+  - name: EnterUTC
+  - name: Id
+
+- kind: Flight
+  properties:
   - name: Tags
   - name: EnterUTC
     direction: desc
