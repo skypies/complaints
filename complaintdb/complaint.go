@@ -21,18 +21,24 @@ const (
 func ComplaintsAreEquivalent(this, next types.Complaint) bool {
 	fn1 := this.AircraftOverhead.FlightNumber
 	fn2 := next.AircraftOverhead.FlightNumber
-
-	// If same (non-empty) flightnumber, coalesce, regardless of everything else
+	d1 := this.Description
+	d2 := next.Description
+	
+	// If there are different and non-empty descriptions, *never* coaleasce
+  if d1 != "" && d2 != "" && d1 != d2 { return false }
+	
+	// Else - if same (non-empty) flightnumber, coalesce (regardless of gap between them)
 	if fn1 == fn2 && fn1 != "" { return true }
 
-	// If not close together, or different text, do not coalesce
+	// Else, if time has passed, do not coalesce
 	if next.Timestamp.Sub(this.Timestamp) > (time.Duration(kComplaintCoalesceThreshold)*time.Second) {
 		return false
 	}
-  if this.Description != next.Description { return false }
 
-	if fn1 == fn2 { return true } // both are empty
-	if fn1 == "" { return true } // next must have a flight, so coalesce this (which has no flight) 
+	// So: not much time has passed; the descriptions weren't explicitly distinct; and flights differ.
+  if d1 != d2 { return false }  // one is empty, but that's enough reason not to coalesce
+	if fn1 == fn2 { return true } // identical descriptions & flights; coalesce
+	if fn1 == "" { return true }  // identical descriptions, but new has a non-empty flight; coalesce
 
 	return false
 }
@@ -75,6 +81,11 @@ func Overwrite(this, from *types.Complaint) {
 
 	// Restore a few key fields from the original
 	this.DatastoreKey = orig.DatastoreKey
+
+	// If the orig had a description but new doesn't, don't lose it
+	if this.Description == "" && orig.Description != "" {
+		this.Description = orig.Description
+	}
 }
 
 // }}}
