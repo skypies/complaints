@@ -41,7 +41,8 @@ func flight2Url(f flightdb.Flight) template.HTML {
 
 type ReportOptions struct {
 	// Class B
-	ClassB_OnePerFlight bool
+	ClassB_OnePerFlight  bool
+	ClassB_LocalDataOnly bool
 	// Skimmers
 	Skimmer_AltitudeTolerance float64
 	Skimmer_MinDurationNM     float64
@@ -176,14 +177,17 @@ func classbReport(c appengine.Context, s,e time.Time, opt ReportOptions) ([]Repo
 			worstCBRow.Seq = 0 // fake this out for the webpage
 		}
 
-		h.Add(hist.ScalarVal(worstCBRow.A.BelowBy))
-
-		meta["[C] -- Detected via "+worstCBRow.TP.LongSource()]++
-						
-		if opt.ClassB_OnePerFlight {
-			rows = append(rows, worstCBRow)
+		if opt.ClassB_LocalDataOnly && !f.HasTag(flightdb.KTagLocalADSBClassBViolation) {
+			meta["[C] -- Skippped; not local - "+worstCBRow.TP.LongSource()]++
 		} else {
-			rows = append(rows, tmpRows...)
+			meta["[C] -- Detected via "+worstCBRow.TP.LongSource()]++
+			h.Add(hist.ScalarVal(worstCBRow.A.BelowBy))
+						
+			if opt.ClassB_OnePerFlight {
+				rows = append(rows, worstCBRow)
+			} else {
+				rows = append(rows, tmpRows...)
+			}
 		}
 	}
 
@@ -782,11 +786,12 @@ func reportHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := appengine.Timeout(appengine.NewContext(r), 30*time.Second)  // Default has a 5s timeout
+	c := appengine.Timeout(appengine.NewContext(r), 60*time.Second)  // Default has a 5s timeout
 
 	s,e,_ := FormValueDateRange(r)	
 	opt := ReportOptions{
 		ClassB_OnePerFlight: FormValueCheckbox(r, "classb_oneperflight"),
+		ClassB_LocalDataOnly: FormValueCheckbox(r, "classb_localdataonly"),
 		Skimmer_AltitudeTolerance: FormValueFloat64(w,r,"skimmer_altitude_tolerance"),
 		Skimmer_MinDurationNM: FormValueFloat64(w,r,"skimmer_min_duration_nm"),
 	}
@@ -936,6 +941,7 @@ func cannedClassBHandler(w http.ResponseWriter, r *http.Request) {
 
 	opt := ReportOptions{
 		ClassB_OnePerFlight: true,
+		ClassB_LocalDataOnly: true,
 	}
 
 	format := "list"

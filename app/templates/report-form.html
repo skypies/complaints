@@ -8,9 +8,8 @@
     <form action="/report" method="post">
       <div class="stack">
           <p><b>Please note</b> - the flight database needs a lot of TLC
-          right now. (A) If you get timeouts or other problems, reduce the
-          date range. (B) There are some duplicate flights in the
-          results, I'm still figuring out how they're getting into the DB.</p>
+          right now. If you get timeouts or other problems, reduce the
+          date range.</p>
         <div class="box">
 
           
@@ -56,6 +55,14 @@
           </tr>
 
           <tr><td colspan="2"><hr/></td></tr>
+
+          <tr>
+            <td>Options, Class B: </td>
+            <td><input type="checkbox" checked="yes" name="classb_localdataonly"/>
+              locally received ADS-B data only</td>
+          </tr>
+          <tr><td>&nbsp;</td></tr>
+
 <!--
           <tr>
             <td>Options, Class B: </td>

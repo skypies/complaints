@@ -375,9 +375,21 @@ func (ml MapLine)ToJSStr(text string) string {
 		return fmt.Sprintf("s:{lat:%f, lng:%f}, e:{lat:%f, lng:%f}, color:\"%s\"",
 			ml.Line.From.Lat, ml.Line.From.Long, ml.Line.To.Lat, ml.Line.To.Long, color) 
 	} else {
-		return fmt.Sprintf("s:{lat:%f, lng:%f}, e:{lat:%f, lng:%f}, color:\"%s\"},\n",
+		return fmt.Sprintf("s:{lat:%f, lng:%f}, e:{lat:%f, lng:%f}, color:\"%s\"",
 			ml.Start.Lat, ml.Start.Long, ml.End.Lat, ml.End.Long, color) 
 	}
+}
+
+func LatlongTimeBoxToMapLines(tb geo.LatlongTimeBox, color string) []MapLine {
+	SW,NE,SE,NW := tb.SW, tb.NE, tb.SE(), tb.NW()
+	if color == "" { color = "#22aa33" }
+	lines := []MapLine{
+		MapLine{Start:&SE, End:&SW, Color:color},
+		MapLine{Start:&SW, End:&NW, Color:color},
+		MapLine{Start:&NW, End:&NE, Color:color},
+		MapLine{Start:&NE, End:&SE, Color:color},
+	}
+	return lines
 }
 
 // }}}
@@ -444,7 +456,7 @@ func lookupHandler(w http.ResponseWriter, r *http.Request) {
 		c.Infof("Tags: %v, Tracks: %v", f.TagList(), f.TrackList())
 		_,classBTrack := f.SFOClassB("")
 			
-		f.Analyse()  // Populate the flight tags; should *really* be redundant
+		f.Analyse()  // Repopulate the flight tags; useful when debugging new analysis stuff
 
 		// Todo: collapse all these separate tracks down into the single point/line list thing
 		fr24TrackJSVar := classBTrack.ToJSVar()
@@ -479,6 +491,7 @@ func lookupHandler(w http.ResponseWriter, r *http.Request) {
 		mapPoints := []MapPoint{}
 		mapLines  := []MapLine{}
 
+		// &waypoint=EPICK
 		if waypoint := r.FormValue("waypoint"); waypoint != "" {
 			//pos := geo.Latlong{37.060312, -121.990814}
 			pos := sfo.KFixes[waypoint]
@@ -492,6 +505,26 @@ func lookupHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		// &boxes=1
+		if r.FormValue("boxes") != "" {
+			if true {
+				// fr24
+				for _,box := range f.Track.AsContiguousBoxes() {
+					mapLines = append(mapLines, LatlongTimeBoxToMapLines(box, "#118811")...)  
+				}
+			}
+			if t,exists := f.Tracks["FA"]; exists==true {
+				for _,box := range t.AsContiguousBoxes() {
+					mapLines = append(mapLines, LatlongTimeBoxToMapLines(box, "#1111aa")...)
+				}
+			}
+			if t,exists := f.Tracks["ADSB"]; exists==true {
+				for _,box := range t.AsContiguousBoxes() {
+					mapLines = append(mapLines, LatlongTimeBoxToMapLines(box, "#aaaa11")...)
+				}
+			}
+		}
+		
 		pointsStr := "{\n"
 		for i,mp := range mapPoints { pointsStr += fmt.Sprintf("    %d: {%s},\n", i, mp.ToJSStr("")) }
 		pointsJS := template.JS(pointsStr + "  }\n")		
