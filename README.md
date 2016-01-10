@@ -10,11 +10,10 @@ Prerequisites:
 
 Download and run the site locally:
 * `goapp get github.com/skypies/complaints/app` (pulls down all dependencies
+* `mv complaints/config/test-values.go.sample complaints/config/test-values.go` (setup test config)
 * `goapp serve $GOPATH/github.com/skypies/complaints/app` (build & run locally)
 * Look at <http://localhost:8080/> (admin panel is <http://localhost:8000/>)
 
-A few things depend on credentials that aren't stored in github:
-* realtime overhead flight lookups
-* facebook login
-* fligthaware flightpath backfill
+The `test-values.go.sample` sample file has no passwords in, so
+facebook login and flightaware flightpath backfill won't be working.
 
