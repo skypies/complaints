@@ -1,0 +1,37 @@
+// Rename this as "my-values.go" in this dir in your local tree, when compiling & serving the app
+package config
+
+func init() {
+	prod()
+	dev() // Overlay dev changes
+}
+
+func prod() {
+	// Used to sign/auth the session cookies. Cookies last 4 weeks, so rotate keys.
+	Set("sessions.key", "0xdeadbeef")
+	Set("sessions.prevkey", "0xdeadbeef")
+
+	// This is linked to abworrall's persona facebook account
+	Set("facebook.appid",     "deadbeef")
+	Set("facebook.appsecret", "deadbeef")
+
+	// This API costs real money, use with care
+	Set("flightaware.key", "deadbeef")
+	Set("flightaware.username", "deadbeef")
+	
+	// This prod key only works from the URLs stop.jetnoise.net, complaints.serfr1.org
+	Set("googlemaps.apikey", "dedbeef")  //prod
+
+	//// The flightradar24 URLs. 
+	
+	Set ("fr24.kBalancerUrl", "http://www.flightradar24.com//balance.json")
+	Set ("fr24.kListUrlPath", "/zones/fcgi/feed.json")
+	Set ("fr24.kLiveFlightDetailsUrlPath", "/_external/planedata_json.1.3.php")
+	Set ("fr24.kFlightDetailsUrlStem", "http://www.flightradar24.com/data/flights/")
+	Set ("fr24.kPlaybackUrl2", "http://mobile.api.fr24.com/common/v1/flight-playback.json")
+	Set ("fr24.kPlaybackUrl", "http://mobile.api.fr24.com/common/v1/flight-playback.json")//?flightId=729a70e
+}
+
+func dev() {
+	Set("googlemaps.apikey", "")
+}
