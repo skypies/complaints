@@ -370,21 +370,18 @@ func serfr1ComplaintsReport(c appengine.Context, s,e time.Time, opt ReportOption
 	if rows, meta, err := reportFromMemcache(c, memKey); err == nil {
 		return rows,meta,err
 	}
-	
-	tags := []string{flightdb.KTagSERFR1}
-	if flights,err := fdb.LookupTimeRangeByTags(tags,s,e); err != nil {
-		return nil, nil, err
 
-	} else if complaints,err := cdb.GetComplaintsInSpan(s,e); err != nil {
+	if complaints,err := cdb.GetComplaintsInSpan(s,e); err != nil {
 		return nil, nil, err
 
 	} else {
-		meta["[A] Total overflights"] = float64(len(flights))
 		meta["[B] Total disturbance reports"] = float64(len(complaints))
-		meta["[C] Average number of reports per overflight"] =
-			float64(int64(float64(len(complaints)) / float64(len(flights))))
-		// c.Infof("I have %d flights, %d complaints\n", len(flights), len(complaints))
-		// Aggregate complaints per flight
+
+		nFlights := 0
+		nFpC := map[string]int{}  // num flights per carrier
+		nCpC := map[string]int{}  // num complaints per carrier
+
+		// Aggregate complaints per flightnumber (as seen from complaints)
 		nC,nSB,nWC := map[string]int{},map[string]int{},map[string]int{}
 		for _,comp := range complaints {
 			if k := comp.AircraftOverhead.FlightNumber; k != "" {
@@ -394,27 +391,36 @@ func serfr1ComplaintsReport(c appengine.Context, s,e time.Time, opt ReportOption
 			}
 		}
 
-		nFpC := map[string]int{}  // num flights per carrier
-		nCpC := map[string]int{}  // num complaints per carrier
-		
 		rows := []SCRow{}
-		for _,f := range flights {
-			// c.Infof("abw1, %3d[%s]", i, f.Id.Designator.String())
+		reportFunc := func(f *flightdb.Flight) {
+			nFlights++
+
 			carrier := f.Id.Designator.IATAAirlineDesignator
 			if carrier != "" {nFpC[carrier] += 1}
 			
 			if k := f.Id.Designator.String(); k != "" {
 				if carrier != "" { nCpC[carrier] += nC[k] }
+				fClone := f.ShallowCopy()
 				scRow := SCRow{
 					NumComplaints      : nC[k],
 					NumSpeedbrakes     : nSB[k],
 					WeightedComplaints : nWC[k],
-					F                  : f,
+					F                  : *fClone,
 				}
 				rows = append(rows, scRow)
+				meta["[B] SERFR1 disturbance reports"] += float64(nC[k])
 			}
 		}
 		
+		tags := []string{flightdb.KTagSERFR1}
+		if err := fdb.IterWith(fdb.QueryTimeRangeByTags(tags,s,e), reportFunc); err != nil {
+			return nil, nil, err
+		}
+
+		meta["[A] Total flights we saw on SERFR1"] += float64(nFlights)
+		meta["[C] Average number of reports per overflight"] =
+			float64(int64(float64(len(complaints)) / float64(nFlights)))
+
 		sort.Sort(SCRowByNumComplaints(rows))		
 		out := []ReportRow{}
 		for _,r := range rows { out = append(out, r) }
@@ -431,7 +437,7 @@ func serfr1ComplaintsReport(c appengine.Context, s,e time.Time, opt ReportOption
 		meta["[D] Worst airline (average reports per overflight) - "+worstCarrier] = float64(worstScore)
 		meta["[E] Best airline (average reports per overflight) - "+bestCarrier] = float64(bestScore)
 		
-		//reportToMemcache(c, memKey)
+		// reportToMemcache(c, out, meta, memKey)
 		return out, meta, nil
 	}
 }
