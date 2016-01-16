@@ -44,6 +44,9 @@ type ComplainerProfile struct {
 func (p ComplainerProfile)SplitName() (first,last string) {
 	str := strings.Replace(p.FullName, "\n", " ", -1)
 	str = strings.TrimSpace(str)
+
+	if str == "" { return "No", "Name" }
+	
 	words := strings.Split(str, " ")
 	if len(words) == 1 {
 		first,last = str,str
