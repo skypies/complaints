@@ -25,6 +25,9 @@ handlers:
 - url: /stats-reset
   script: _go_app
   login: admin
+- url: /month
+  script: _go_app
+  login: admin
 
 - url: /email
   script: _go_app

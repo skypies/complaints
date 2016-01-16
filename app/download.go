@@ -118,8 +118,8 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 
 	cols := []string{
 		"CallerCode", "Name", "Address", "Zip", "Email", "HomeLat", "HomeLong", 
-		"UnixEpoch", "Date", "Time(PDT)", "Notes", "ActivityDisturbed", "Flightnumber", "Notes",
-		"AutoSubmit",
+		"UnixEpoch", "Date", "Time(PDT)",
+		"Notes", "Flightnumber", "ActivityDisturbed", "AutoSubmit",
 	}
 	csvWriter := csv.NewWriter(w)
 	csvWriter.Write(cols)
