@@ -24,7 +24,7 @@ func init() {
 	http.HandleFunc("/personal-report/results", personalReportHandler) // Legacy
 	http.HandleFunc("/summary-report", summaryReportHandler)
 	//http.HandleFunc("/backfill", backfillHandler)
-	//http.HandleFunc("/month", monthHandler)
+	http.HandleFunc("/month", monthHandler)
 }
 
 // {{{ keysByIntValDesc
@@ -71,17 +71,22 @@ func keysByKeyAsc(m map[string]int) []string {
 
 // {{{ monthHandler
 
-// http://stop.jetnoise.net/month?month=9&day=1&num=10
-// http://stop.jetnoise.net/month?month=9&day=11&num=10
-// http://stop.jetnoise.net/month?month=9&day=21&num=10
+// http://stop.jetnoise.net/month?year=2015&month=9&day=1&num=10
+// http://stop.jetnoise.net/month?year=2015&month=9&day=11&num=10
+// http://stop.jetnoise.net/month?year=2015&month=9&day=21&num=10
 
-// http://stop.jetnoise.net/month?month=10&day=1&num=10
-// http://stop.jetnoise.net/month?month=10&day=11&num=10
-// http://stop.jetnoise.net/month?month=10&day=21&num=11  <-- 31st day
+// http://stop.jetnoise.net/month?year=2015&month=10&day=1&num=10
+// http://stop.jetnoise.net/month?year=2015&month=10&day=11&num=10
+// http://stop.jetnoise.net/month?year=2015&month=10&day=21&num=11  <-- 31st day
 
 func monthHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.Timeout(appengine.NewContext(r), 180*time.Second)
 
+	year,err := strconv.ParseInt(r.FormValue("year"), 10, 64)
+	if err != nil {
+		http.Error(w, "need arg 'year' (2015)", http.StatusInternalServerError)
+		return
+	}
 	month,err := strconv.ParseInt(r.FormValue("month"), 10, 64)
 	if err != nil {
 		http.Error(w, "need arg 'month' (1-12)", http.StatusInternalServerError)
@@ -98,7 +103,7 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	now := date.NowInPdt()
-	firstOfMonth := time.Date(now.Year(), time.Month(month), 1, 0,0,0,0, now.Location())
+	firstOfMonth := time.Date(int(year), time.Month(month), 1, 0,0,0,0, now.Location())
 	s := firstOfMonth.AddDate(0,0,int(day-1))
 	e := s.AddDate(0,0,int(num)).Add(-1 * time.Second)
 
@@ -114,6 +119,7 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 	cols := []string{
 		"CallerCode", "Name", "Address", "Zip", "Email", "HomeLat", "HomeLong", 
 		"UnixEpoch", "Date", "Time(PDT)", "Notes", "ActivityDisturbed", "Flightnumber", "Notes",
+		"AutoSubmit",
 	}
 	csvWriter := csv.NewWriter(w)
 	csvWriter.Write(cols)
@@ -131,6 +137,7 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 			c.Timestamp.Format("2006/01/02"),
 			c.Timestamp.Format("15:04:05"),
 			c.Description, c.AircraftOverhead.FlightNumber, c.Activity,
+			fmt.Sprintf("%v",c.Profile.CcSfo),
 		}
 		
 		if err := csvWriter.Write(r); err != nil {
