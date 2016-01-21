@@ -64,15 +64,8 @@ func zipResultsHandler(w http.ResponseWriter, r *http.Request) {
 	sort.Strings(dateKeys)
 
 	data := [][]string{}
-	for i,v := range countsByHour {
-		data = append(data, []string{
-			fmt.Sprintf("%d",i),
-			fmt.Sprintf("%d",v),
-			fmt.Sprintf("%d",len(uniquesByHour[i])),
-		})
-	}
 
-	data = append(data, []string{"------"})
+	data = append(data, []string{"Date", "NumComplaints", "UniqueComplainers"})
 	for _,k := range dateKeys {
 		data = append(data, []string{
 			k,
@@ -81,7 +74,17 @@ func zipResultsHandler(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	data = append(data, []string{"------"})
-	data = append(data, []string{"All uniques", fmt.Sprintf("%d", len(uniquesAll))})
+
+	data = append(data, []string{"HourAcrossAllDays", "NumComplaints", "UniqueComplainers"})
+	for i,v := range countsByHour {
+		data = append(data, []string{
+			fmt.Sprintf("%02d:00",i),
+			fmt.Sprintf("%d",v),
+			fmt.Sprintf("%d",len(uniquesByHour[i])),
+		})
+	}
+	data = append(data, []string{"------"})
+	data = append(data, []string{"UniqueComplainersAcrossAllDays", fmt.Sprintf("%d", len(uniquesAll))})
 		
 	var params = map[string]interface{}{ "Data": data }
 	if err := templates.ExecuteTemplate(w, "report", params); err != nil {
