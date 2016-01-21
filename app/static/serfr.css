@@ -9,10 +9,12 @@
 .box p {margin:0}
 
 .message {
+    text-align: left;
     margin:1em;
-    padding: 2em;
+    padding: 1em;
+    padding-top: 0em;
     display:inline-block;
-    background-color: #ff4040;
+    background-color: #ff7070;
     border-radius:3px;
     box-shadow: 0 0 12px rgba(0,0,0, .75);
 }

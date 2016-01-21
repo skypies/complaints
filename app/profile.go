@@ -106,7 +106,7 @@ func profileUpdateHandler(w http.ResponseWriter, r *http.Request) {
 			Zip: r.FormValue("AddrZip"),
 			Country: r.FormValue("AddrCountry"),
 		},
-		CcSfo: FormValueCheckbox(r, "CcSfo"),
+		CcSfo: true, //FormValueCheckbox(r, "CcSfo"),
 		Lat: lat,
 		Long: long,
 	}
@@ -121,8 +121,6 @@ func profileUpdateHandler(w http.ResponseWriter, r *http.Request) {
 
 	http.Redirect(w, r, "/", http.StatusFound)
 }
-
-// lat,long := 37.060312,-121.990814  // 1 Cielo
 
 // }}}
 
