@@ -11,16 +11,14 @@
         <!-- Google autocomplete magic will populate these. -->
         <input type="hidden" name="AddrNumber"  id="street_number" />
         <input type="hidden" name="AddrStreet"  id="route" />
-        <input type="hidden" name="AddrCity"    id="locality" />
         <input type="hidden" name="AddrState"   id="administrative_area_level_1"/>
-        <input type="hidden" name="AddrZip"     id="postal_code" />
         <input type="hidden" name="AddrCountry" id="country"  />
         
         {{if .Message}}<div class="message">{{.Message}}</div>{{end}}
 
         <p><b>Enter your name, and then start typing your address</b>,
-        clicking on yours when it shows up in the list. We'll work
-        out your lat/long for you. <b>Don't worry if you don't have a
+        clicking on yours when it shows up in the list. Make sure the
+        grey boxes underneath get filled out. <b>Don't worry if you don't have a
         Caller Code</b>; everything works fine without one.</p>
 
         <div class="box">
@@ -41,35 +39,36 @@
                        placeholder="Enter your address"
                        onFocus="geolocate()"
                        name="AutoCompletingMagic"
-                       value="{{.Profile.Address}}"/>
+                       value=" {{.Profile.Address}}"/>
                 <br/>
 
-                <input class="disabled" id="mylat" type="text" size="9" readonly="1"
+                <input class="disabled" readonly="1" id="locality" type="text" size="14"
+                       name="AddrCity" value="{{.Profile.StructuredAddress.City}}"/>
+                <input class="disabled" readonly="1" id="postal_code" type="text" size="5"
+                       name="AddrZip" value="{{.Profile.StructuredAddress.Zip}}"/>
+            </tr>
+            <tr>
+              <td valign="top"><i>Lat/long</i></td>
+              <td>
+                <input class="disabled" readonly="1" id="mylat" type="text" size="9" 
                        name="Lat" value="{{.Profile.Lat}}"/>, 
-                <input class="disabled" id="mylong" type="text" size="10" readonly="1"
+                <input class="disabled" readonly="1" id="mylong" type="text" size="10" 
                        name="Long" value="{{.Profile.Long}}"/>
+                </td>
             </tr>
             
             <tr>
               <td>CallerCode</td>
-              <td><input type="text" size="8" name="CallerCode"
-              value="{{.Profile.CallerCode}}"/></td>
+              <td><input type="text" size="8" name="CallerCode" value="{{.Profile.CallerCode}}"/>
+                <i>(optional)</i></td>
             </tr>
           </table>
         </div>
 
-
         <p> Your complaints will be automatically sent off
-          to <code>sfo.noise</code>. If you don't want to report them,
-          untick this box:</p>
+          to <code>sfo.noise</code> at the end of each day.</p>
 
-        <div class="box">
-            <p>Auto-complain to SFO ?
-                <input type="checkbox" name="CcSfo" {{if .Profile.CcSfo}}checked="yes"{{end}}></p>
         </div>
-
-        <br/>
-        <br/>
         
         <p style="text-align:center"><input class="button" type="submit" value="SAVE PROFILE"/></p>
 

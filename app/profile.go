@@ -3,6 +3,7 @@ package complaints
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	
 	"appengine"
 
@@ -96,8 +97,8 @@ func profileUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	cp := types.ComplainerProfile{
 		EmailAddress: email,
 		CallerCode: r.FormValue("CallerCode"),
-		FullName: r.FormValue("FullName"),
-		Address: r.FormValue("AutoCompletingMagic"),
+		FullName: strings.TrimSpace(r.FormValue("FullName")),
+		Address: strings.TrimSpace(r.FormValue("AutoCompletingMagic")),
 		StructuredAddress: types.PostalAddress{
 			Number: r.FormValue("AddrNumber"),
 			Street: r.FormValue("AddrStreet"),
