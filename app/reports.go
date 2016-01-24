@@ -15,13 +15,14 @@ import (
 	newappengine "google.golang.org/appengine"
 	//"golang.org/x/net/context"
 
-	"github.com/skypies/util/gcs"
-	"github.com/skypies/util/date"
 	"github.com/skypies/geo"
 	"github.com/skypies/geo/sfo"
+	"github.com/skypies/util/date"
+	"github.com/skypies/util/gcs"
+	"github.com/skypies/util/histogram"
+
 	"github.com/skypies/flightdb"
 	fdb "github.com/skypies/flightdb/gae"
-	hist "github.com/skypies/histogram"
 
 	"github.com/skypies/complaints/complaintdb"
 )
@@ -156,7 +157,7 @@ func classbReport(c appengine.Context, s,e time.Time, opt ReportOptions) ([]Repo
 	}
 
 	meta := ReportMetadata{}
-	h := hist.Histogram{} // Only use it for the stats
+	h := histogram.Histogram{} // Only use it for the stats
 	rows := []ReportRow{}
 	
 	reportFunc := func(f *flightdb.Flight) {
@@ -193,7 +194,7 @@ func classbReport(c appengine.Context, s,e time.Time, opt ReportOptions) ([]Repo
 			meta["[C] -- Skippped; not local - "+worstCBRow.TP.LongSource()]++
 		} else {
 			meta["[C] -- Detected via "+worstCBRow.TP.LongSource()]++
-			h.Add(hist.ScalarVal(worstCBRow.A.BelowBy))
+			h.Add(histogram.ScalarVal(worstCBRow.A.BelowBy))
 						
 			if opt.ClassB_OnePerFlight {
 				rows = append(rows, worstCBRow)

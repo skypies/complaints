@@ -13,7 +13,7 @@ import (
 	"net/url"
 	"regexp"
 
-	"github.com/skypies/date"
+	"github.com/skypies/util/date"
 	
 	"github.com/skypies/complaints/complaintdb/types"
 )

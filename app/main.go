@@ -11,7 +11,7 @@ import (
 	"appengine"
 	"appengine/user"
 
-	"github.com/skypies/date"
+	"github.com/skypies/util/date"
 	
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"

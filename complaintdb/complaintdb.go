@@ -14,8 +14,8 @@ import (
 	"appengine/memcache"
 	"appengine/urlfetch"
 
-	"github.com/skypies/date"
 	"github.com/skypies/geo"
+	"github.com/skypies/util/date"
 
 	"github.com/skypies/complaints/complaintdb/types"
 	"github.com/skypies/complaints/fr24"

@@ -13,7 +13,7 @@ import (
 	"regexp"
 	"sort"
 
-	"github.com/skypies/date"
+	"github.com/skypies/util/date"
 	"github.com/skypies/geo"
 	//"github.com/skypies/geo/sfo"
 

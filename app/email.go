@@ -16,7 +16,7 @@ import (
 	"appengine/taskqueue"
 	"appengine/mail"
 
-	"github.com/skypies/date"
+	"github.com/skypies/util/date"
 
 	"github.com/skypies/complaints/bksv"
 	"github.com/skypies/complaints/complaintdb"

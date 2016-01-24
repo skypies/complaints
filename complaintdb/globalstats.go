@@ -11,7 +11,7 @@ import (
 	"appengine/datastore"
 	"appengine/memcache"
 
-	"github.com/skypies/date"
+	"github.com/skypies/util/date"
 )
 
 const (

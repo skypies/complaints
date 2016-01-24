@@ -5,7 +5,7 @@ import (
 
 	"appengine/datastore"
 
-	"github.com/skypies/date"
+	"github.com/skypies/util/date"
 
 	"github.com/skypies/geo"
 	"github.com/skypies/complaints/complaintdb/types"

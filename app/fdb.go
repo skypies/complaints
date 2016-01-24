@@ -15,9 +15,9 @@ import (
 	"appengine/taskqueue"
 	"appengine/urlfetch"
 
-	"github.com/skypies/date"
 	"github.com/skypies/geo"
 	"github.com/skypies/geo/sfo"
+	"github.com/skypies/util/date"
 	ftype "github.com/skypies/flightdb"
 	fdb   "github.com/skypies/flightdb/gae"
 	fdbfa "github.com/skypies/flightdb/flightdbfa"

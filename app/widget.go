@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
-	"github.com/skypies/date"
+	"github.com/skypies/util/date"
 )
 
 // {{{ FormValueDateRange

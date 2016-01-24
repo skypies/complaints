@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/skypies/date"
+	"github.com/skypies/util/date"
 	
 	"appengine/memcache"
 )

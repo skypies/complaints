@@ -9,7 +9,7 @@ import (
 	"appengine"
 
 	"github.com/skypies/complaints/complaintdb"
-	"github.com/skypies/date"
+	"github.com/skypies/util/date"
 )
 
 func init() {
