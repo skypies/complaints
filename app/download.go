@@ -10,8 +10,9 @@ import (
 	"time"
 	
 	"appengine"
+	"appengine/taskqueue"
 
-	"github.com/skypies/date"
+	"github.com/skypies/util/date"
 	
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
@@ -92,11 +93,25 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "need arg 'month' (1-12)", http.StatusInternalServerError)
 		return
 	}
+
 	day,err := strconv.ParseInt(r.FormValue("day"), 10, 64)
 	if err != nil {
-		http.Error(w, "need arg 'day' (1-31)", http.StatusInternalServerError)
+		// Presume we should enqueue this for batch
+		taskUrl := fmt.Sprintf("/task/month?year=%d&month=%d", year, month)
+		t := taskqueue.NewPOSTTask(taskUrl, map[string][]string{
+			"year": {r.FormValue("year")},
+			"month": {r.FormValue("month")},
+		})
+		if _,err := taskqueue.Add(ctx, t, "batch"); err != nil {
+			ctx.Errorf("monthHandler: enqueue: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write([]byte(fmt.Sprintf("OK\nHave enqueued for batch {%s}\n", taskUrl)))
 		return
 	}
+
 	num,err := strconv.ParseInt(r.FormValue("num"), 10, 64)
 	if err != nil {
 		http.Error(w, "need arg 'num' (31 - 'day')", http.StatusInternalServerError)
@@ -128,7 +143,7 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 	for {
 		c := iter.Next();
 		if c == nil { break }
-
+		
 		r := []string{
 			c.Profile.CallerCode, c.Profile.FullName, c.Profile.Address,
 			c.Profile.StructuredAddress.Zip, c.Profile.EmailAddress,
@@ -139,7 +154,9 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 			c.Description, c.AircraftOverhead.FlightNumber, c.Activity,
 			fmt.Sprintf("%v",c.Profile.CcSfo),
 		}
-		
+
+		//r = []string{c.Timestamp.Format("15:04:05")}
+
 		if err := csvWriter.Write(r); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -460,6 +477,7 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
+
 
 // {{{ -------------------------={ E N D }=----------------------------------
 

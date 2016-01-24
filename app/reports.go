@@ -12,15 +12,18 @@ import (
 	"time"
 	
 	"appengine"
+	newappengine "google.golang.org/appengine"
+	//"golang.org/x/net/context"
 
-	"github.com/skypies/complaints/complaintdb"
-
-	"github.com/skypies/date"
+	"github.com/skypies/util/gcs"
+	"github.com/skypies/util/date"
 	"github.com/skypies/geo"
 	"github.com/skypies/geo/sfo"
 	"github.com/skypies/flightdb"
 	fdb "github.com/skypies/flightdb/gae"
 	hist "github.com/skypies/histogram"
+
+	"github.com/skypies/complaints/complaintdb"
 )
 
 func init() {
@@ -55,9 +58,18 @@ type ReportOptions struct {
 type ReportRow interface {
 	ToCSVHeaders() []string
 	ToCSV() []string
+	//ToHTMLRow() []string
 }
 
 type ReportMetadata map[string]float64
+
+
+// A better interface ?
+/*
+type Reporter interface {
+	Generate(c appengine.Context, s,e time.Time, opt ReportOptions) ([]ReportRow, ReportMetadata, error)
+}
+*/
 
 // }}}
 
@@ -810,13 +822,13 @@ func reportHandler(w http.ResponseWriter, r *http.Request) {
 		opt.Waypoint = fix
 	}
 	
-	reportWriter (c,w,s,e,opt, r.FormValue("reportname"), r.FormValue("resultformat"))
+	reportWriter (c,w,r,s,e,opt, r.FormValue("reportname"), r.FormValue("resultformat"))
 }
 
 // }}}
 // {{{ reportWriter
 
-func reportWriter (c appengine.Context, w http.ResponseWriter, s,e time.Time, opt ReportOptions, rep string, format string) {
+func reportWriter (c appengine.Context, w http.ResponseWriter, r *http.Request, s,e time.Time, opt ReportOptions, rep string, format string) {
 	var rows []ReportRow
 	var meta ReportMetadata
 	var err error
@@ -843,20 +855,46 @@ func reportWriter (c appengine.Context, w http.ResponseWriter, s,e time.Time, op
 	if err != nil {	
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	
+
+	// Should do something better for this
+	filename := date.NowInPdt().AddDate(0,0,-1).Format(rep+"-20060102.csv")
+	outFunc := func(csvWriter *csv.Writer) error {
+		csvWriter.Write(rows[0].ToCSVHeaders())
+		for _,r := range rows {
+			if err := csvWriter.Write(r.ToCSV()); err != nil { return err }
+		}
+		csvWriter.Flush()		
+		return nil
+	}
+
 	if format == "csv" {
-		filename := date.NowInPdt().AddDate(0,0,-1).Format(rep+"-20060102.csv")
 		w.Header().Set("Content-Type", "application/csv")
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 		csvWriter := csv.NewWriter(w)
-		csvWriter.Write(rows[0].ToCSVHeaders())
-		for _,r := range rows {
-			if err := csvWriter.Write(r.ToCSV()); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
+		if err := outFunc(csvWriter); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
-		csvWriter.Flush()
 
+	} else if format == "gcs" {
+		newCtx := newappengine.NewContext(r)
+		handle, err := gcs.OpenRW(newCtx, "serfr0-reports", filename, "text/plain")//?"application/csv")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		csvWriter := csv.NewWriter(handle.IOWriter())
+		if err := outFunc(csvWriter); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if err := handle.Close(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write([]byte(fmt.Sprintf("OK!\nGCS file '%s' written to bucket", filename)))
+		
 	} else {
 		var params = map[string]interface{}{
 			"Start": s,
@@ -918,7 +956,7 @@ func cannedDiscrepHandler(w http.ResponseWriter, r *http.Request) {
 	format := "list"
 	if r.FormValue("csv") != "" { format = "csv" }
 
-	reportWriter (appengine.NewContext(r), w, s,e, opt, "discrep", format)
+	reportWriter (appengine.NewContext(r), w,r, s,e, opt, "discrep", format)
 }
 
 // }}}
@@ -935,7 +973,7 @@ func cannedSerfr1Handler(w http.ResponseWriter, r *http.Request) {
 	format := "list"
 	if r.FormValue("csv") != "" { format = "csv" }
 
-	reportWriter (appengine.NewContext(r), w, s,e, opt, "serfr1", format)
+	reportWriter (appengine.NewContext(r), w,r, s,e, opt, "serfr1", format)
 }
 
 // }}}
@@ -953,7 +991,7 @@ func cannedClassBHandler(w http.ResponseWriter, r *http.Request) {
 	format := "list"
 	if r.FormValue("csv") != "" { format = "csv" }
 
-	reportWriter (appengine.NewContext(r), w, s,e, opt, "classb", format)
+	reportWriter (appengine.NewContext(r), w,r, s,e, opt, "classb", format)
 }
 
 // }}}
@@ -967,7 +1005,7 @@ func cannedAdsbClassBHandler(w http.ResponseWriter, r *http.Request) {
 	format := "list"
 	if r.FormValue("csv") != "" { format = "csv" }
 
-	reportWriter (appengine.NewContext(r), w, s,e, opt, "adsbclassb", format)
+	reportWriter (appengine.NewContext(r), w,r, s,e, opt, "adsbclassb", format)
 }
 
 // }}}
@@ -980,7 +1018,7 @@ func cannedSerfr1ComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 	format := "list"
 	if r.FormValue("csv") != "" { format = "csv" }
 
-	reportWriter(appengine.NewContext(r), w, s,e, ReportOptions{}, "serfr1complaints", format)
+	reportWriter(appengine.NewContext(r), w,r, s,e, ReportOptions{}, "serfr1complaints", format)
 }
 
 // }}}

@@ -4,7 +4,7 @@ How to run a local instance
 Prerequisites:
 * the [Go programming language](https://golang.org/dl/)
 * the [Go appengine SDK](https://cloud.google.com/appengine/docs/go/), and add it to your `$PATH`
-* define your Go workspace: `export GOPATH=~/go`.
+* define your Go workspace: `export GOPATH=~/go`
 
 Download and run the site locally:
 * `goapp get github.com/skypies/complaints/app` (pulls down all dependencies)

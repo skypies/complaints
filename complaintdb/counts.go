@@ -13,16 +13,23 @@ import (
 // {{{ DailyCount
 
 type DailyCount struct {
-	Datestring     string
-	NumComplaints  int
-	NumComplainers int
+	Datestring       string
+	NumComplaints    int
+	NumComplainers   int
+	IsMaxComplaints  bool
+	IsMaxComplainers bool
 }
 func (dc DailyCount)Timestamp() time.Time {
 	return date.Datestring2MidnightPdt(dc.Datestring)
 }
 
 func (dc DailyCount)String() string {
-	return fmt.Sprintf("%s: % 4d complaints by % 3d people", dc.Datestring, dc.NumComplaints, dc.NumComplainers)
+	str := fmt.Sprintf("%s: % 4d complaints by % 3d people", dc.Datestring, dc.NumComplaints, dc.NumComplainers)
+
+	if dc.IsMaxComplainers { str += " (max complainers!)" }
+	if dc.IsMaxComplaints { str += " (max complaints!)" }
+
+	return str
 }
 
 type DailyCountDesc []DailyCount
@@ -83,7 +90,7 @@ func (cdb *ComplaintDB) GetDailyCounts(email string) ([]DailyCount, error) {
 				return []DailyCount{}, err
 			} else {
 				// cdb.C.Infof("  -  {%s}  n=%d [%v]\n", dayStart, len(comp), m)
-				c = append(c, DailyCount{date.Time2Datestring(dayStart), len(comp), 1})
+				c = append(c, DailyCount{date.Time2Datestring(dayStart),len(comp),1,false,false})
 			}
 		}
 		sort.Sort(DailyCountDesc(c))

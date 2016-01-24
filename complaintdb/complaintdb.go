@@ -65,6 +65,8 @@ func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem
 			if dc,exists := stats[item.Key]; exists {
 				item.TotalComplainers = dc.NumComplainers
 				item.TotalComplaints = dc.NumComplaints
+				item.IsMaxComplainers = dc.IsMaxComplainers
+				item.IsMaxComplaints = dc.IsMaxComplaints
 			}
 			counts = append(counts, item)
 		}
@@ -254,9 +256,9 @@ func (cdb ComplaintDB)getMaybeCachedComplaintsByQuery(q *datastore.Query, memKey
 	var data = []types.Complaint{}
 	//cdb.C.Infof(" #=== Fetching[%s] from DS :(", memKey)
 
-	tolerantContext := appengine.Timeout(cdb.C, 30*time.Second)  // Default context has a 5s timeout
+	//tolerantContext := appengine.Timeout(cdb.C, 30*time.Second)  // Default context has a 5s timeout
 
-	keys, err := q.GetAll(tolerantContext, &data)
+	keys, err := q.GetAll(cdb.C, &data)
 	if err != nil { return nil, nil, err }
 
 	if cdb.Memcache && memKey != "" {

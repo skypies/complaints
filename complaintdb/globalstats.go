@@ -104,6 +104,22 @@ func (cdb ComplaintDB)LoadGlobalStats() (*GlobalStats, error) {
 		err := gob.NewDecoder(buf).Decode(&gs)
 		gs.DatastoreKey = keys[0].Encode()  // Store this, so we can overwrite
 
+		// Pick out the high water marks ...
+		if len(gs.Counts) > 0 {
+			iMaxComplaints,iMaxComplainers := 0,0
+			maxComplaints,maxComplainers := 0,0
+			for i,_ := range gs.Counts {
+				if gs.Counts[i].NumComplaints > maxComplaints {
+					iMaxComplaints,maxComplaints = i, gs.Counts[i].NumComplaints
+				}
+				if gs.Counts[i].NumComplainers > maxComplainers {
+					iMaxComplainers,maxComplainers = i, gs.Counts[i].NumComplainers
+				}
+			}
+			gs.Counts[iMaxComplaints].IsMaxComplaints = true
+			gs.Counts[iMaxComplainers].IsMaxComplainers = true
+		}
+		
 		//gs.ToMemcache(cdb.C)
 		//cdb.C.Infof("** Global stats from DS:")
 		//for _,v := range gs.Counts { cdb.C.Infof(" * %s", v) }

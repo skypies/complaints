@@ -38,6 +38,7 @@ func init() {
 
 	// User-facing screens
 	// http.HandleFunc("/fdb/test", testFdbHandler)
+	http.HandleFunc("/fdb/deb", debugHandler)
 	http.HandleFunc("/fdb/lookup", lookupHandler)
 	http.HandleFunc("/fdb/query", queryHandler)
 
@@ -174,15 +175,14 @@ func addflightHandler(w http.ResponseWriter, r *http.Request) {
 	log += fmt.Sprintf("* FlightExists('%s') -> false\n", fs.F.Id.UniqueIdentifier())
   */
 
-	// Now grab an initial flight (with track), from fr24. This depends on
-	// some apache on a nice IP configured as follows:
-	//     ProxyPass  "/fr24/"   "http://mobile.api.fr24.com/"
+	// Now grab an initial flight (with track), from fr24.
 	var f *ftype.Flight
 	if f,err = fr24db.LookupPlayback(fr24Id); err != nil {
 		// c.Errorf(" /mdb/addflight: lookup: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	log += fmt.Sprintf("* the fr24/default track has %d points\n", len(f.Track))
 
 	// Kludge: fr24 keys get reused, so the flight fr24 thinks it refers to might be
 	// different than when we cached it. So we do the uniqueness check here, to avoid
@@ -676,6 +676,49 @@ func decodetrackHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
+}
+
+// }}}
+// {{{ debugHandler
+
+func debugHandler(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	db := fdb.FlightDB{C: c}
+	id := r.FormValue("id")
+	blob,f,err := db.GetBlobById(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	} else if blob == nil {
+		http.Error(w, fmt.Sprintf("id=%s not found", id), http.StatusInternalServerError)
+		return
+	}
+
+	blob.Flight = []byte{} // Zero this out
+
+	s,e := f.Track.TimesInBox(sfo.KBoxSFO120K)
+	log := blob.GestationLog
+	blob.GestationLog = ""
+
+	str := fmt.Sprintf("OK\n* Flight found: %s\n* Tracks: %q\n", f, f.TrackList())
+	str += fmt.Sprintf("* Points in default track: %d\n", len(f.Track))
+	str += fmt.Sprintf("* Default's start/end: %s, %s\n", s, e)
+	str += fmt.Sprintf("\n** Gestation log:-\n%s\n", log)
+	str += fmt.Sprintf("** Blob:-\n* Id=%s, Icao24=%s\n* Enter/Leave: %s -> %s\n* Tags: %v\n",
+		blob.Id, blob.Icao24, blob.EnterUTC, blob.LeaveUTC, blob.Tags)
+
+	str += "\n**** Tracks\n\n"
+	str += fmt.Sprintf("** %s [DEFAULT]\n", f.Track)
+	for _,t := range f.Tracks { str += fmt.Sprintf("** %s\n", t) }
+
+	consistent,debug := f.TracksAreConsistentDebug()
+	str += fmt.Sprintf("\n** Track consistency (%v)\n\n%s\n", consistent, debug)
+	
+	//str += "\n** Default track\n"
+	//for _,tp := range f.Track { str += fmt.Sprintf(" * %s\n", tp) }
+	
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(str))
 }
 
 // }}}

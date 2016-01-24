@@ -152,6 +152,8 @@ type CountItem struct {
 	Count int
 	TotalComplaints int
 	TotalComplainers int
+	IsMaxComplaints bool
+	IsMaxComplainers bool
 }
 type countItemSlice []CountItem
 func (a countItemSlice) Len() int           { return len(a) }

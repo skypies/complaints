@@ -99,6 +99,10 @@ li { border:0em; margin-top: 0em; }
 
 .about li { margin-bottom: 0.5em; }
 
+span.highlight {
+    background-color:yellow;
+    font-weight:bold;
+}
 
 hr {
     color:black;background-color:black;

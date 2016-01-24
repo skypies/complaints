@@ -7,13 +7,14 @@
   <body>
     <div class="allstack">
       {{if .Modes.debug}}<h1>DEBUG</h1>{{end}}
-      <p>{{if .Message}}
-        <b> {{.Message}} </b>
-        {{else}}Hello, <code>{{.Cap.Profile.EmailAddress}}</code>.
-        {{end}}
+
+      {{if .Message}}<div class="message">{{.Message}}</div><br/>
+      {{else}}
+      <p>Hello, <code>{{.Cap.Profile.EmailAddress}}</code>.
         <br/>It is {{.Now.Format "15:04:05 PM on Mon, Jan 2"}}.
       </p>
-
+      {{end}}
+      
       <div class="box" style="background-color: #eeffee;">
         {{template "complaint-form" .ComplaintDefaults}}
       </div>
@@ -52,17 +53,19 @@
       <div class="box">
         {{range .Cap.Counts}}
           <div style="text-align:left">{{.Key}}: <b>{{.Count}}</b> reports
-            {{if ne .TotalComplaints 0 }}({{.TotalComplaints}} reports by {{.TotalComplainers}} users){{end}}
+            {{if ne .TotalComplaints 0 }}(<span{{if .IsMaxComplaints}} class="highlight"{{end}}>{{.TotalComplaints}}</span> reports by <span{{if .IsMaxComplainers}} class="highlight"{{end}}>{{.TotalComplainers}}</span> users)
+            {{end}}
           </div>
         {{end}}
           {{if not $modes.expanded}}<div class="complaintfooter">
             <!--<a href="/full">ShowAll</a>,-->
-            [<a href="/download-complaints">DownloadCSV</a>]</div>{{end}}
+            [<a href="/download-complaints">DownloadCSV</a>,
+            <a href="/personal-report">PersonalReport</a>]</div>{{end}}
       </div>
         {{end}}
       {{end}}
 
-      <p><a href="/profile">EditProfile</a>,
+      <p>Aaa, <span class="highlight">Bbb</span>, <a href="/profile">EditProfile</a>,
         <a href="/logout">Logout</a>,
         <a target="_blank" href="/faq">About</a>
         {{if $modes.superuser}}<br/><a href="/debug">debug</a>{{end}}{{if $modes.admin}},

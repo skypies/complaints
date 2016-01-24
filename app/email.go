@@ -75,7 +75,9 @@ func SendEmailToAllUsers(c appengine.Context, subject string) int {
 
 		n := 0
 		for _,cp := range cps {
-			// if cp.CallerCode != "WOR005" { continue }
+
+			// This message update goes only to the opt-outers ...
+			if cp.CcSfo == true && cp.CallerCode != "WOR005" { continue }
 
 			msg := &mail.Message{
 				Sender:   kSenderEmail,
@@ -349,6 +351,13 @@ func emailHandler(w http.ResponseWriter, r *http.Request) {
 		Profile: *cp,
 		Complaints: complaints,
 	}
+
+	if err := templates.ExecuteTemplate(w, "email-update", map[string]interface{}{}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	} else {
+		return
+	}
 	
 	msg,err3 := GenerateEmail(c, cap)
 	if err3 != nil {
@@ -397,7 +406,7 @@ func sendEmailsForYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 
 func emailUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
-	subject := "Some updates on the complaints.serfr1.org website"
+	subject := "Stop.jetnoise.net: a proposal to auto-submit your complaints"
 	n := SendEmailToAllUsers(c, subject)
 
 	w.Write([]byte(fmt.Sprintf("Email update, OK (%d)\n", n)))

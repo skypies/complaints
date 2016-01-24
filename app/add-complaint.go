@@ -151,7 +151,7 @@ func addComplaintHandler(w http.ResponseWriter, r *http.Request) {
 	
 	cdb := complaintdb.ComplaintDB{C: c}
 	complaint := form2Complaint(r)
-	//complaint.Timestamp = complaint.Timestamp.AddDate(0,0,-8)
+	//complaint.Timestamp = complaint.Timestamp.AddDate(0,0,-3)
 	err := cdb.ComplainByEmailAddress(email, &complaint)
 	if err != nil {
 		c.Errorf("cdb.Complain failed: %v", err)
