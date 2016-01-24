@@ -357,9 +357,10 @@ func personalReportHandler(w http.ResponseWriter, r *http.Request) {
 	for _,k := range keysByIntValDesc(countsByAirline) {
 		fmt.Fprintf(w, " %s: % 4d\n", k, countsByAirline[k])
 	}
+
 	fmt.Fprintf(w, "\nDisturbance reports, counted by date:\n")
-	for k,v := range countsByDate {
-		fmt.Fprintf(w, " %s: % 4d\n", k, v)
+	for _,k := range keysByKeyAsc(countsByDate) {
+		fmt.Fprintf(w, " %s: % 4d\n", k, countsByDate[k])
 	}
 	fmt.Fprintf(w, "\nDisturbance reports, counted by hour of day (across all dates):\n")
 	for i,n := range countsByHour {
