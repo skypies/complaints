@@ -1,0 +1,7 @@
+dispatch:
+
+- url: "*/backend/*"
+  module: backend
+
+- url: "*/report/*"
+  module: backend

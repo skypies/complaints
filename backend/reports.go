@@ -1,4 +1,4 @@
-package complaints
+package backend
 
 import (
 	"bytes"
@@ -20,6 +20,7 @@ import (
 	"github.com/skypies/util/date"
 	"github.com/skypies/util/gcs"
 	"github.com/skypies/util/histogram"
+	"github.com/skypies/util/widget"
 
 	"github.com/skypies/flightdb"
 	fdb "github.com/skypies/flightdb/gae"
@@ -29,6 +30,7 @@ import (
 
 func init() {
 	http.HandleFunc("/report", reportHandler)
+	http.HandleFunc("/report/", reportHandler)
 
 	// Canned reports
 	http.HandleFunc("/report/serfr1", cannedSerfr1Handler)
@@ -206,7 +208,8 @@ func classbReport(c appengine.Context, s,e time.Time, opt ReportOptions) ([]Repo
 
 	// Need to do multiple passes, because of tagA-or-tagB sillness
 	for _,tag := range tags {
-		if err := fdb.IterWith(fdb.QueryTimeRangeByTags([]string{tag},s,e), reportFunc); err != nil {
+		theseTags := []string{tag, flightdb.KTagSERFR1}
+		if err := fdb.IterWith(fdb.QueryTimeRangeByTags(theseTags,s,e), reportFunc); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -807,12 +810,12 @@ func reportHandler(w http.ResponseWriter, r *http.Request) {
 
 	c := appengine.Timeout(appengine.NewContext(r), 60*time.Second)  // Default has a 5s timeout
 
-	s,e,_ := FormValueDateRange(r)	
+	s,e,_ := widget.FormValueDateRange(r)	
 	opt := ReportOptions{
-		ClassB_OnePerFlight: FormValueCheckbox(r, "classb_oneperflight"),
-		ClassB_LocalDataOnly: FormValueCheckbox(r, "classb_localdataonly"),
-		Skimmer_AltitudeTolerance: FormValueFloat64(w,r,"skimmer_altitude_tolerance"),
-		Skimmer_MinDurationNM: FormValueFloat64(w,r,"skimmer_min_duration_nm"),
+		ClassB_OnePerFlight: widget.FormValueCheckbox(r, "classb_oneperflight"),
+		ClassB_LocalDataOnly: widget.FormValueCheckbox(r, "classb_localdataonly"),
+		Skimmer_AltitudeTolerance: widget.FormValueFloat64(w,r,"skimmer_altitude_tolerance"),
+		Skimmer_MinDurationNM: widget.FormValueFloat64(w,r,"skimmer_min_duration_nm"),
 	}
 
 	if fix := strings.ToUpper(r.FormValue("waypoint")); fix != "" {
@@ -855,6 +858,7 @@ func reportWriter (c appengine.Context, w http.ResponseWriter, r *http.Request, 
 	}
 	if err != nil {	
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	// Should do something better for this
@@ -992,7 +996,8 @@ func cannedClassBHandler(w http.ResponseWriter, r *http.Request) {
 	format := "list"
 	if r.FormValue("csv") != "" { format = "csv" }
 
-	reportWriter (appengine.NewContext(r), w,r, s,e, opt, "classb", format)
+	c := appengine.Timeout(appengine.NewContext(r), 60*time.Second)  // Default has a 5s timeout
+	reportWriter (c, w,r, s,e, opt, "classb", format)
 }
 
 // }}}
@@ -1006,7 +1011,8 @@ func cannedAdsbClassBHandler(w http.ResponseWriter, r *http.Request) {
 	format := "list"
 	if r.FormValue("csv") != "" { format = "csv" }
 
-	reportWriter (appengine.NewContext(r), w,r, s,e, opt, "adsbclassb", format)
+	c := appengine.Timeout(appengine.NewContext(r), 60*time.Second)  // Default has a 5s timeout
+	reportWriter (c, w,r, s,e, opt, "adsbclassb", format)
 }
 
 // }}}
@@ -1019,7 +1025,8 @@ func cannedSerfr1ComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 	format := "list"
 	if r.FormValue("csv") != "" { format = "csv" }
 
-	reportWriter(appengine.NewContext(r), w,r, s,e, ReportOptions{}, "serfr1complaints", format)
+	c := appengine.Timeout(appengine.NewContext(r), 60*time.Second)  // Default has a 5s timeout
+	reportWriter(c, w,r, s,e, ReportOptions{}, "serfr1complaints", format)
 }
 
 // }}}
