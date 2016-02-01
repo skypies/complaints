@@ -1,37 +1,39 @@
 // This file has handlers for zip-code reports.
-package complaints
+package backend
 
 import (
 	"fmt"
 	"net/http"
 	"sort"
-
+	"time"
+	
 	"appengine"
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/util/date"
+	"github.com/skypies/util/widget"
 )
 
 func init() {
-	http.HandleFunc("/zip", zipFormHandler)
-	http.HandleFunc("/zip/results", zipResultsHandler)
+	http.HandleFunc("/report/zip", zipHandler)
 }
 
-func zipFormHandler(w http.ResponseWriter, r *http.Request) {
-	var params = map[string]interface{}{
-		"Yesterday": date.NowInPdt().AddDate(0,0,-1),
+func zipHandler(w http.ResponseWriter, r *http.Request) {
+	if r.FormValue("date") == "" {
+		var params = map[string]interface{}{
+			"Yesterday": date.NowInPdt().AddDate(0,0,-1),
+		}
+		if err := templates.ExecuteTemplate(w, "zip-report-form", params); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
 	}
-	if err := templates.ExecuteTemplate(w, "report-zip-form", params); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
 
-func zipResultsHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.NewContext(r)
+	ctx := appengine.Timeout(appengine.NewContext(r), 60*time.Second)  // Default has a 5s timeout
 	cdb := complaintdb.ComplaintDB{C: ctx, Memcache:false}
-
+	
 	zip := r.FormValue("zip")
-	s,e,_ := FormValueDateRange(r)	
+	s,e,_ := widget.FormValueDateRange(r)	
 
 	var countsByHour [24]int
 	countsByDate := map[string]int{}
@@ -39,12 +41,15 @@ func zipResultsHandler(w http.ResponseWriter, r *http.Request) {
 	uniquesByDate := map[string]map[string]int{}
 	uniquesAll := map[string]int{}
 
-	// ??
-	// for iter := cdb.NewIter(QueryInSpanInZip(s,e,zip)); !iter.EOF; c := iter.Next() {
 	iter := cdb.NewIter(cdb.QueryInSpanInZip(s,e,zip))
 	for {
-		c := iter.Next();
-		if c == nil { break }
+		c,err := iter.NextWithErr();
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Zip iterator failed: %v", err), http.StatusInternalServerError)
+			return
+		} else if c == nil {
+			break  // We've hit EOF
+		}
 
 		h := c.Timestamp.Hour()
 		countsByHour[h]++

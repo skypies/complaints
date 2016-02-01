@@ -18,6 +18,14 @@ import (
 	"github.com/skypies/complaints/fb"
 	"github.com/skypies/complaints/g"
 	"github.com/skypies/complaints/sessions"
+
+
+
+	newappengine "google.golang.org/appengine"
+	"google.golang.org/appengine/datastore"
+	"google.golang.org/appengine/log"
+
+	oldfgae "github.com/skypies/flightdb/gae"
 )
 
 var (
@@ -52,11 +60,16 @@ func templateFormatPdt(t time.Time, format string) string {
 
 func init() {
 	http.HandleFunc("/", rootHandler)
+	http.HandleFunc("/slow", slowHandler)
 	http.HandleFunc("/logout", logoutHandler)
 	http.HandleFunc("/faq", faqHandler)
 	http.HandleFunc("/intro", gettingStartedHandler)
 	http.HandleFunc("/masq", masqueradeHandler)
 
+	http.HandleFunc("/report",                  makeRedirectHandler("/report/"))
+	http.HandleFunc("/zip",                     makeRedirectHandler("/report/zip"))
+	http.HandleFunc("/personal-report/results", makeRedirectHandler("/personal-report"))
+	
 	sessions.Init(kSessionsKey,kSessionsPrevKey)
 }
 
@@ -249,6 +262,42 @@ func gettingStartedHandler (w http.ResponseWriter, r *http.Request) {
 
 // }}}
 
+func makeRedirectHandler(target string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target, http.StatusFound)
+	}
+}
+
+func slowHandler(w http.ResponseWriter, r *http.Request) {
+	c := newappengine.NewContext(r)
+	d,_ := time.ParseDuration(r.FormValue("d"))
+
+	tStart := time.Now()
+
+	start,end := date.WindowForTime(tStart)
+	end = end.Add(-1 * time.Second)
+	str := ""
+	
+	for time.Since(tStart) < d {	
+		q := datastore.
+			NewQuery(oldfgae.KFlightKind).
+			Filter("EnterUTC >= ", start).
+			Filter("EnterUTC < ", end).
+			KeysOnly()
+		keys, err := q.GetAll(c, nil);
+		if err != nil {
+			log.Errorf(c, "batch/day: GetAll: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		str += fmt.Sprintf("Found %d flight objects at %s\n", len(keys), time.Now())
+		time.Sleep(2 * time.Second)
+	}
+
+	time.Sleep(d)
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(fmt.Sprintf("OK, waited for %s !\n%s", r.FormValue("d"), str)))
+}
 
 // {{{ junk
 

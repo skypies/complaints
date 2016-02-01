@@ -454,7 +454,7 @@ func lookupHandler(w http.ResponseWriter, r *http.Request) {
 		
 	} else {
 		c.Infof("Tags: %v, Tracks: %v", f.TagList(), f.TrackList())
-		_,classBTrack := f.SFOClassB("")
+		_,classBTrack := f.SFOClassB("",nil)
 			
 		f.Analyse()  // Repopulate the flight tags; useful when debugging new analysis stuff
 
@@ -465,7 +465,7 @@ func lookupHandler(w http.ResponseWriter, r *http.Request) {
 		//faClassBTrack := fdb.ClassBTrack{}
 		faTrackJSVar   := template.JS("{}")
 		if _,exists := f.Tracks["FA"]; exists==true {
-			_,faClassBTrack := f.SFOClassB("FA")
+			_,faClassBTrack := f.SFOClassB("FA",nil)
 			faTrackJSVar = faClassBTrack.ToJSVar()
 			//fr24TrackJSVar = template.JS("{}")
 		}
@@ -473,7 +473,7 @@ func lookupHandler(w http.ResponseWriter, r *http.Request) {
 		// For ADS-B tracks !
 		adsbTrackJSVar   := template.JS("{}")
 		if _,exists := f.Tracks["ADSB"]; exists==true {
-			_,adsbClassBTrack := f.SFOClassB("ADSB")
+			_,adsbClassBTrack := f.SFOClassB("ADSB",nil)
 			adsbTrackJSVar = adsbClassBTrack.ToJSVar()
 		}
 
@@ -531,6 +531,13 @@ func lookupHandler(w http.ResponseWriter, r *http.Request) {
 		linesStr := "{\n"
 		for i,ml := range mapLines { linesStr += fmt.Sprintf("    %d: {%s},\n", i, ml.ToJSStr("")) }
 		linesJS := template.JS(linesStr + "  }\n")
+
+		box := sfo.KBoxSFO120K
+		if r.FormValue("report") == "level" {
+			box = sfo.KBoxPaloAlto20K
+		} else if r.FormValue("report") == "stack" {
+			box = sfo.KBoxSFO10K
+		}
 		
 		var params = map[string]interface{}{
 			"F": f,
@@ -542,7 +549,7 @@ func lookupHandler(w http.ResponseWriter, r *http.Request) {
 			"MapsAPIKey": kGoogleMapsAPIKey,
 			"Center": sfo.KLatlongSERFR1,
 			"Zoom": 10,
-			"CaptureArea": sfo.KBoxSFO120K,
+			"CaptureArea": box,
 
 			"MapsTrack": fr24TrackJSVar,
 			"FlightawareTrack": faTrackJSVar,

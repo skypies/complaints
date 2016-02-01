@@ -1,7 +1,4 @@
-package complaints
-
-// This file is full of 'task' handlers. Should only be invoked via task queue,
-// because they take too long for interactive use.
+package backend
 
 import (
 	"encoding/csv"
@@ -22,12 +19,12 @@ import (
 )
 
 func init() {
-	http.HandleFunc("/task/month", monthTaskHandler)
+	http.HandleFunc("/backend/monthdump", monthTaskHandler)
 }
 
 // {{{ monthTaskHandler
 
-// http://stop.jetnoise.net/task/month?year=2015&month=9
+// http://stop.jetnoise.net/backend/monthdump?year=2015&month=9
 
 func monthTaskHandler(w http.ResponseWriter, r *http.Request) {
 	//ctx,_ := context.WithTimeout(appengine.NewContext(r), 599*time.Second)

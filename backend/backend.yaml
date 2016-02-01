@@ -16,6 +16,9 @@ handlers:
 - url: "/report/.*"
   script: _go_app
 
+- url: "/report2/.*"
+  script: _go_app
+
 - url: /_ah/start
   script: _go_app
 

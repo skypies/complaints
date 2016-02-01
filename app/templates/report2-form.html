@@ -1,11 +1,11 @@
-{{define "report-form"}}
+{{define "report2-form"}}
 
 <html>
   {{template "header"}}
   <body>
     <h1>Reports</h1><p/>
 
-    <form action="/report/" method="post">
+    <form action="/report2/" method="post">
       <div class="stack">
           <p><b>Please note</b> - the flight database needs a lot of TLC
           right now. If you get timeouts or other problems, reduce the
@@ -26,17 +26,12 @@
           <tr>
             <td>Report type</td>
             <td><select name="reportname">
-                <option value="serfr1">All SERFR1 flights</option>
-                <option value="brixx1">All BRIXX1 flights</option>
-                <option value="classb" selected="1">Class B Violations</option>
-                <option value="brixxviolations">BRIXX1 violations</option>
-                <option value="skimmer">Level flight on SERFR1 at 6000, 8000</option>
-                <option value="serfr1complaints">SERFR1 flights vs. complaints</option>
-                <option value="serfr1at">SERFR1 flights at a waypoint</option>
+                <option value="level">Level flight over Palo Alto</option>
+                <option value="stack">Altitude stacks over SFO</option>
             </select></td>
           </tr>
           <tr><td>&nbsp;</td></tr>
-          
+<!--          
           <tr>
             <td>Result format</td>
             <td>
@@ -45,7 +40,7 @@
               <input type="radio" name="resultformat" value="gcs"/>Cloud Storage.
             </td>
           </tr>
-
+-->
           <tr><td colspan="2"><hr/></td></tr>
 
           <tr>

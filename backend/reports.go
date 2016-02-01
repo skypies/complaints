@@ -12,6 +12,7 @@ import (
 	"time"
 	
 	"appengine"
+	"appengine/urlfetch"
 	newappengine "google.golang.org/appengine"
 	//"golang.org/x/net/context"
 
@@ -24,6 +25,8 @@ import (
 
 	"github.com/skypies/flightdb"
 	fdb "github.com/skypies/flightdb/gae"
+
+	"github.com/skypies/flightdb2/metar"
 
 	"github.com/skypies/complaints/complaintdb"
 )
@@ -161,12 +164,16 @@ func classbReport(c appengine.Context, s,e time.Time, opt ReportOptions) ([]Repo
 	meta := ReportMetadata{}
 	h := histogram.Histogram{} // Only use it for the stats
 	rows := []ReportRow{}
+
+	metars,err := metar.FetchFromNOAA(urlfetch.Client(c), "KSFO",
+		s.Add(-6*time.Hour), e.Add(6*time.Hour))
+	if err != nil { return rows, meta, err }
 	
 	reportFunc := func(f *flightdb.Flight) {
 		bestTrack := "FA"
 		if f.HasTag(flightdb.KTagLocalADSBClassBViolation) { bestTrack = "ADSB" }
 
-		_,cbt := f.SFOClassB(bestTrack)
+		_,cbt := f.SFOClassB(bestTrack, metars)
 
 		tmpRows :=[]ReportRow{}
 			
@@ -207,6 +214,7 @@ func classbReport(c appengine.Context, s,e time.Time, opt ReportOptions) ([]Repo
 	}
 
 	// Need to do multiple passes, because of tagA-or-tagB sillness
+	// In each case, limit to SERFR1 flights
 	for _,tag := range tags {
 		theseTags := []string{tag, flightdb.KTagSERFR1}
 		if err := fdb.IterWith(fdb.QueryTimeRangeByTags(theseTags,s,e), reportFunc); err != nil {
@@ -269,11 +277,14 @@ func serfr1Report(c appengine.Context, s,e time.Time, opt ReportOptions) ([]Repo
 	meta := ReportMetadata{}
 	out := []ReportRow{}
 
+	idspecs := []string{}
+	
 	reportFunc := func(f *flightdb.Flight) {
 		classBViolation := f.HasTag(flightdb.KTagReliableClassBViolation)		
 		hasAdsb := false
 		if _,exists := f.Tracks["ADSB"]; exists == true {
 			meta["[B] with data from "+f.Tracks["ADSB"].LongSource()]++
+			idspecs = append(idspecs, fmt.Sprintf("%s@%d", f.Id.ModeS, f.EnterUTC.Unix()))
 		}
 		if t,exists := f.Tracks["FA"]; exists == true {
 			meta["[B] with data from "+f.Tracks["FA"].LongSource()]++
@@ -293,6 +304,11 @@ func serfr1Report(c appengine.Context, s,e time.Time, opt ReportOptions) ([]Repo
 		return nil, nil, err
 	}
 
+	approachUrl := fmt.Sprintf("http://ui-dot-serfr0-fdb.appspot.com/fdb/approach?idspec=%s",
+		strings.Join(idspecs,","))
+		
+	meta[fmt.Sprintf("[Z] %s", approachUrl)] = 1
+		
 	meta["[A] Total SERFR1 flights "] = float64(len(out))
 	return out, meta, nil
 }
@@ -539,14 +555,14 @@ func adsbClassbReport(c appengine.Context, s,e time.Time, opt ReportOptions) ([]
 		for _,f := range flights {
 			row := ACBRow{F:f, Url:flight2Url(f)}
 
-			_,cbt := f.SFOClassB("FA")
+			_,cbt := f.SFOClassB("FA",nil)
 			worst := cbt.FindWorstPoint()
 			row.FAViolation = (worst != nil)
 			if worst != nil { row.FAAnalysis = worst.A }
 
 			if f.HasTrack("ADSB") {
 				row.HadLocalTrack = true
-				_,cbt := f.SFOClassB("ADSB")
+				_,cbt := f.SFOClassB("ADSB",nil)
 				worst := cbt.FindWorstPoint()
 				row.LocalViolation = (worst != nil)
 				if worst != nil { row.LocalAnalysis = worst.A }

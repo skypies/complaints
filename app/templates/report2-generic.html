@@ -1,17 +1,19 @@
-{{define "report-skimmer"}}
+{{define "report2-generic"}}
 
 <html>
   {{template "header"}}
 
   <body>
     <div class="allstack">
-      <h1> Skimmers report:
+      <h1> Report "{{.Name}}", 
         {{.Start.Format "Mon 01/02"}} - {{.End.Format "Mon 01/02"}} : 
         {{len .Rows}} flights
       </h1><br/>
       <div class="box">
         <table>
-          {{range $k,$v := .Metadata}}
+          {{range $k,$v := .Numbers}}
+          <tr><td>{{$k}} : </td><td><b>{{$v}}</b></td></tr>{{end}}
+          {{range $k,$v := .Strings}}
           <tr><td>{{$k}} : </td><td><b>{{$v}}</b></td></tr>{{end}}
         </table>
       </div>
@@ -24,9 +26,12 @@
             <td>[<a href="{{.Url}}" target="_blank">view map</a>]</td>
             <td>{{.F.Id.Designator}}</td>
             <td>[{{.F.Id.Origin}}-{{.F.Id.Destination}}]</td>
-            <td>{{.Source}}</td>
-            <td>{{formatPdt .F.EnterUTC "01/02 15:04:05 MST"}}; </td>
-            <td><pre>{{range .A.Events}}{{.String}}<br/>{{end}}</pre></td>
+<!--            <td>{{formatPdt .F.EnterUTC "01/02 15:04:05 MST"}}; </td>
+            <td>Tags:{{.F.TagList}}</td>-->
+            <td>{{.F.Id.Registration}} <!--, {{.F.Id.ModeS}}--></td>
+<!--            <td>{{.Str}}</td>-->
+            {{range .Cells}}
+            <td>{{.}}</td>{{end}}
           </tr>
           {{end}}
         </table>

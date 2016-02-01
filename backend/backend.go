@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"net/http"
 	"regexp"
+	"sort"
 	"time"
 
 	"github.com/skypies/util/date"
@@ -49,4 +50,40 @@ func templateFormatPdt(t time.Time, format string) string {
 func noopHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte("OK, backend noop\n"))
+}
+
+
+// Yay, sorting things is so easy in go
+func keysByIntValDesc(m map[string]int) []string {
+	// Invert the map
+	inv := map[int][]string{}
+	for k,v := range m { inv[v] = append(inv[v], k) }
+
+	// List the unique vals
+	vals := []int{}
+	for k,_ := range inv { vals = append(vals, k) }
+
+	// Sort the vals
+	sort.Sort(sort.Reverse(sort.IntSlice(vals)))
+
+	// Now list the keys corresponding to each val
+	keys := []string{}
+	for _,val := range vals {
+		for _,key := range inv[val] {
+			keys = append(keys, key)
+		}
+	}
+
+	return keys
+}
+
+func keysByKeyAsc(m map[string]int) []string {
+	// List the unique vals
+	keys := []string{}
+	for k,_ := range m { keys = append(keys, k) }
+
+	// Sort the vals
+	sort.Sort(sort.StringSlice(keys))
+
+	return keys
 }
