@@ -141,6 +141,19 @@ func outputCSV(w *csv.Writer, p types.ComplainerProfile, c types.Complaint) {
 
 // }}}
 
+// {{{ DayWindows
+
+func DayWindows(s,e time.Time) [][]time.Time {
+	out := [][]time.Time{}
+	s = s.Add(-1*time.Second) // Tip s into previous day, so that it counts as an 'intermediate'
+	for _,tMidnight := range date.IntermediateMidnights(s,e) {
+		out = append(out, []time.Time{tMidnight, tMidnight.AddDate(0,0,1).Add(-1*time.Second) })
+	}
+	return out
+}
+
+// }}}
+
 // {{{ summaryReportHandler
 
 func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
@@ -156,12 +169,13 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 
 	start,end,_ := widget.FormValueDateRange(r)
 
-	ctx := appengine.Timeout(appengine.NewContext(r), 60*time.Second)
+	ctx := appengine.Timeout(appengine.NewContext(r), 9000*time.Second)
 	cdb := complaintdb.ComplaintDB{C: ctx}
 
 	w.Header().Set("Content-Type", "text/plain")
+	fmt.Fprintf(w, "(t=%s)\n", time.Now())
 	fmt.Fprintf(w, "Summary of disturbance reports:\n From [%s]\n To   [%s]\n", start, end)
-
+	
 	var countsByHour [24]int
 	countsByDate := map[string]int{}
 	countsByAirline := map[string]int{}
@@ -172,37 +186,41 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 	uniquesByDate := map[string]map[string]int{}
 	uniquesByCity := map[string]map[string]int{}
 	
-	iter := cdb.NewIter(cdb.QueryInSpan(start,end))
+	// An iterator expires after 60s, no matter what; so carve up into short-lived iterators
 	n := 0
-	for {
-		c,err := iter.NextWithErr();
-		if err != nil {
-			http.Error(w, fmt.Sprintf("iterator failed: %v", err), http.StatusInternalServerError)
-			return
-		} else if c == nil {
-			break
-		}
+	for _,dayWindow := range DayWindows(start,end) {
+		iter := cdb.NewIter(cdb.QueryInSpan(dayWindow[0],dayWindow[1]))
+		for {
+			c,err := iter.NextWithErr();
+			if err != nil {
+				http.Error(w, fmt.Sprintf("iterator failed at %s: %v", time.Now(), err),
+					http.StatusInternalServerError)
+				return
+			} else if c == nil {
+				break // we're all done with this iterator
+			}
 
-		n++		
-		uniquesAll[c.Profile.EmailAddress]++
-		countsByHour[c.Timestamp.Hour()]++
+			n++
+			uniquesAll[c.Profile.EmailAddress]++
+			countsByHour[c.Timestamp.Hour()]++
 
-		d := c.Timestamp.Format("2006.01.02")
-		countsByDate[d]++
-		if uniquesByDate[d] == nil { uniquesByDate[d] = map[string]int{} }
-		uniquesByDate[d][c.Profile.EmailAddress]++
+			d := c.Timestamp.Format("2006.01.02")
+			countsByDate[d]++
+			if uniquesByDate[d] == nil { uniquesByDate[d] = map[string]int{} }
+			uniquesByDate[d][c.Profile.EmailAddress]++
 
-		if airline := c.AircraftOverhead.IATAAirlineCode(); airline != "" {
-			countsByAirline[airline]++
-		}
+			if airline := c.AircraftOverhead.IATAAirlineCode(); airline != "" {
+				countsByAirline[airline]++
+			}
 
-		if city := c.Profile.GetStructuredAddress().City; city != "" {
-			countsByCity[city]++
-			if uniquesByCity[city] == nil { uniquesByCity[city] = map[string]int{} }
-			uniquesByCity[city][c.Profile.EmailAddress]++
-		}
-		if equip := c.AircraftOverhead.EquipType; equip != "" {
-			countsByEquip[equip]++
+			if city := c.Profile.GetStructuredAddress().City; city != "" {
+				countsByCity[city]++
+				if uniquesByCity[city] == nil { uniquesByCity[city] = map[string]int{} }
+				uniquesByCity[city][c.Profile.EmailAddress]++
+			}
+			if equip := c.AircraftOverhead.EquipType; equip != "" {
+				countsByEquip[equip]++
+			}
 		}
 	}
 
@@ -236,10 +254,10 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 	for i,n := range countsByHour {
 		fmt.Fprintf(w, " %02d: %5d\n", i, n)
 	}
+	fmt.Fprintf(w, "(t=%s)\n", time.Now())
 }
 
 // }}}
-
 
 // {{{ -------------------------={ E N D }=----------------------------------
 
