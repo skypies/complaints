@@ -70,8 +70,9 @@ func init() {
 	http.HandleFunc("/zip",                     makeRedirectHandler("/report/zip"))
 	http.HandleFunc("/personal-report/results", makeRedirectHandler("/personal-report"))
 
-	http.HandleFunc("/report2",   makeRedirectHandler("/fdb/report3"))
-	http.HandleFunc("/report2/",  makeRedirectHandler("/fdb/report3"))
+	http.HandleFunc("/report2",        makeRedirectHandler("/report3/"))
+	http.HandleFunc("/report2/",       makeRedirectHandler("/report3/"))
+	http.HandleFunc("/report3",        makeRedirectHandler("/report3/"))
 	
 	sessions.Init(kSessionsKey,kSessionsPrevKey)
 }

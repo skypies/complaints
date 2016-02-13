@@ -1,6 +1,7 @@
 package complaints
 
 import(
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -16,13 +17,14 @@ func init() {
 	http.HandleFunc("/fdb/track2", v2TrackHandler)
 	http.HandleFunc("/fdb/trackset2", v2TracksetHandler)
 	http.HandleFunc("/fdb/approach2", v2ApproachHandler)
+	http.HandleFunc("/fdb/json2", v2JsonHandler)
 	http.HandleFunc("/fdb/map2", newui.MapHandler)
 }
 
 // Provides thin wrappers to do DB lookup & data model upgrade, and then passes over
 // to the rendering routines in the New Shiny, flightdb2/ui
 
-// {{{ idspecsToFlightV2s
+// {{{ idspecsToFlightV2s, idspecsToMapLines
 
 func FormValueIdSpecs(r *http.Request) ([]string, error) {
 	ret := []string{}
@@ -62,6 +64,35 @@ func idspecsToFlightV2s(r *http.Request) ([]*newfdb.Flight, error) {
 	return newFlights, nil
 }
 
+func idspecsToMapLines(r *http.Request) ([]newui.MapLine, error) {
+	c := oldappengine.NewContext(r)
+	db := oldfgae.FlightDB{C:c}
+
+	lines := []newui.MapLine{}
+	
+	idspecs,err := FormValueIdSpecs(r)
+	if err != nil {
+		return lines, err
+	}
+
+	for _,idspec := range idspecs {
+		oldF,err := db.LookupById(idspec)
+		if err != nil {
+			return lines, err
+		} else if oldF == nil {
+			return lines, fmt.Errorf("flight '%s' not found", idspec)
+		}
+		newF,err := oldF.V2()
+		if err != nil {
+			return lines, err
+		}
+		flightLines := newui.FlightToMapLines(newF)
+		lines = append(lines, flightLines...)
+	}
+
+	return lines, nil
+}
+
 // }}}
 
 // {{{ v2TrackHandler
@@ -80,13 +111,14 @@ func v2TrackHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ v2TracksetHandler
 
 func v2TracksetHandler(w http.ResponseWriter, r *http.Request) {
-	flights,err := idspecsToFlightV2s(r)
+
+	flightLines, err := idspecsToMapLines(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	
-	newui.OutputTracksAsLinesOnAMap(w, r, flights)
+	newui.OutputMapLinesOnAMap(w, r, flightLines)
 }
 
 // }}}
@@ -100,6 +132,22 @@ func v2ApproachHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	newui.OutputApproachesAsPDF(w, r, flights)
+}
+
+// }}}
+// {{{ v2JsonHandler
+
+func v2JsonHandler(w http.ResponseWriter, r *http.Request) {
+	flights,err := idspecsToFlightV2s(r)
+
+	jsonBytes,err := json.Marshal(flights)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonBytes)
 }
 
 // }}}

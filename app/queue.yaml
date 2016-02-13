@@ -17,9 +17,9 @@ queue:
 
 # This queue is for arbitrary / oneoff batch jobs
 - name: batch
-  rate: 120/m
-  max_concurrent_requests: 4
-  bucket_size: 4
+  rate: 1200/m
+  max_concurrent_requests: 40
+  bucket_size: 40
   target: backend
   retry_parameters:
     min_backoff_seconds: 1

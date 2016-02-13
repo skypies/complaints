@@ -15,6 +15,7 @@ import (
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/taskqueue"
+	"google.golang.org/appengine/urlfetch"
 	//"golang.org/x/net/context"
 
 	"github.com/skypies/geo/sfo"
@@ -47,7 +48,7 @@ func init() {
 func batchFlightScanHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
-	tags := []string{"ADSB"} // Maybe make this configurable ...
+	tags := []string{}//"ADSB"} // Maybe make this configurable ...
 	
 	n := 0
 	str := ""
@@ -71,11 +72,12 @@ func batchFlightScanHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		singleFlightUrl := "/backend/fdb-batch/flight"
 		for _,key := range keys {
-			str += fmt.Sprintf("Enqueing job=%s, day=%s, flight=%s\n",
-				job, day.Format("2006.01.02"), key.Encode())
+			str += fmt.Sprintf("Enqueing day=%s: %s?job=%s&key=%s\n",
+				day.Format("2006.01.02"), singleFlightUrl, job, key.Encode())
 
-			t := taskqueue.NewPOSTTask("/backend/fdb-batch/flight", map[string][]string{
+			t := taskqueue.NewPOSTTask(singleFlightUrl, map[string][]string{
 				"date": {day.Format("2006.01.02")},
 				"key": {key.Encode()},
 				"job": {job},
@@ -115,6 +117,7 @@ func formValueFlightByKey(r *http.Request) (*oldfdb.Flight, error) {
 	return f, nil
 }
 
+// To run a job directly: /backend/fdb-batch/flight?job=...&key=...&
 func batchSingleFlightHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
@@ -129,8 +132,9 @@ func batchSingleFlightHandler(w http.ResponseWriter, r *http.Request) {
 	job := r.FormValue("job")
 	var str string = ""
 	switch job {
-	case "tracktimezone":
-		str, err = jobTrackTimezoneHandler(r,f)
+	case "tracktimezone": str, err = jobTrackTimezoneHandler(r,f)
+	case "oceanictag":    str, err = jobOceanicTagHandler(r,f)
+	case "v2adsb":        str, err = jobV2adsbHandler(r,f)
 	}
 
 	if err != nil {
@@ -187,7 +191,66 @@ func jobTrackTimezoneHandler(r *http.Request, f *oldfdb.Flight) (string, error) 
 }
 
 // }}}
+// {{{ jobOceanicTagHandler
 
+// use non-cloudflare hostname: http://backend-dot-serfr0-1000.appspot.com/
+// /backend/fdb-batch?job=oceanictag&date=range&range_to=2016/01/25&range_from=2016/01/25
+
+func jobOceanicTagHandler(r *http.Request, f *oldfdb.Flight) (string, error) {
+	c := appengine.NewContext(r)
+	str := ""
+	
+	if f.HasTag("OCEANIC") { return "", nil }
+	if !f.IsOceanic() { return "", nil }
+
+	// It's oceanic, but missing a tag ... update
+	f.Tags[oldfdb.KTagOceanic] = true
+	
+	db := oldfgae.FlightDB{C: oldappengine.NewContext(r)}
+	if err := db.UpdateFlight(*f); err != nil {
+		log.Errorf(c, "Persist Flight %s: %v", f, err)
+		return str, err
+	}
+	log.Infof(c, "Updated flight %s", f)
+	str += fmt.Sprintf("--\nFlight was updated\n")
+
+	return str, nil
+}
+
+// }}}
+// {{{ jobV2adsbHandler
+
+// use non-cloudflare hostname: http://backend-dot-serfr0-1000.appspot.com/
+// /backend/fdb-batch?job=v2adsb&date=range&range_to=2016/01/25&range_from=2016/01/25
+
+func jobV2adsbHandler(r *http.Request, f *oldfdb.Flight) (string, error) {
+	c := appengine.NewContext(r)
+	str := ""
+
+	if f.HasTrack("ADSB") { return "", nil } // Already has one
+
+	err,deb := f.GetV2ADSBTrack(urlfetch.Client(c))
+	str += fmt.Sprintf("*getv2ADSB [%v]:-\n", err, deb)
+	if err != nil {
+		return str, err
+	}
+
+	if ! f.HasTrack("ADSB") { return "", nil } // Didn't find one
+
+	f.Analyse() // Retrigger Class-B stuff
+	
+	db := oldfgae.FlightDB{C: oldappengine.NewContext(r)}
+	if err := db.UpdateFlight(*f); err != nil {
+		log.Errorf(c, "Persist Flight %s: %v", f, err)
+		return str, err
+	}
+	log.Infof(c, "Updated flight %s", f)
+	str += fmt.Sprintf("--\nFlight was updated\n")
+
+	return str, nil
+}
+
+// }}}
 
 // {{{ slowHandler
 

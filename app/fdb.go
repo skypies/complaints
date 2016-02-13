@@ -198,11 +198,17 @@ func addflightHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	log += fmt.Sprintf("* FlightExists('%s') -> false\n", f.Id.UniqueIdentifier())
 
+	// Fetch ADSB tracks from the new thing
+	err,deb := f.GetV2ADSBTrack(urlfetch.Client(c))
+	log += "* fetchV2ADSB\n"+deb
+	if err != nil {
+		c.Errorf("ADSB fetch err: %v", err)
+	}	
 	
 	// If we have any locally received ADSB fragments for this flight, add them in
-	if err := db.MaybeAddTrackFragmentsToFlight(f); err != nil {
-		c.Errorf(" /mdb/addflight: addTrackFrags(%s): %v", f.Id, err)
-	}
+	//if err := db.MaybeAddTrackFragmentsToFlight(f); err != nil {
+	//	c.Errorf(" /mdb/addflight: addTrackFrags(%s): %v", f.Id, err)
+	//}
 
 	f.AnalyseFlightPath() // Takes a coarse look at the flight path
 	log += fmt.Sprintf("* Initial tags: %v\n", f.TagList())
@@ -714,15 +720,39 @@ func debugHandler(w http.ResponseWriter, r *http.Request) {
 	str += fmt.Sprintf("** Blob:-\n* Id=%s, Icao24=%s\n* Enter/Leave: %s -> %s\n* Tags: %v\n",
 		blob.Id, blob.Icao24, blob.EnterUTC, blob.LeaveUTC, blob.Tags)
 
-	str += "\n**** Tracks\n\n"
+	v2URL := f.GetV2JsonUrl()
+	str += "\n* V2 URL: "+v2URL+"\n"
+
+	str += "\n**** Tracks Before\n\n"
 	str += fmt.Sprintf("** %s [DEFAULT]\n", f.Track)
-	for _,t := range f.Tracks { str += fmt.Sprintf("** %s\n", t) }
+	for name,t := range f.Tracks { str += fmt.Sprintf("** %s %s\n", name, t) }
+
+	err,deb := f.GetV2ADSBTrack(urlfetch.Client(c))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	str += "\n***\n"+deb
+
+	str += "\n**** Tracks After\n\n"
+	str += fmt.Sprintf("** %s [DEFAULT]\n", f.Track)
+	for name,t := range f.Tracks { str += fmt.Sprintf("** %s %s\n", name, t) }
+
+	str += "--\nPersisting ...\n"
+
+	if err := db.UpdateFlight(*f); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	/*
 
 	consistent,debug := f.TracksAreConsistentDebug()
 	str += fmt.Sprintf("\n** Track consistency (%v)\n\n%s\n", consistent, debug)
 	
 	//str += "\n** Default track\n"
 	//for _,tp := range f.Track { str += fmt.Sprintf(" * %s\n", tp) }
+*/
 	
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(str))

@@ -165,11 +165,19 @@ func classbReport(c appengine.Context, s,e time.Time, opt ReportOptions) ([]Repo
 	h := histogram.Histogram{} // Only use it for the stats
 	rows := []ReportRow{}
 
+	seen := map[string]bool{} // Because we do two passes, we might see same flight twice.
+	
 	metars,err := metar.FetchFromNOAA(urlfetch.Client(c), "KSFO",
 		s.Add(-6*time.Hour), e.Add(6*time.Hour))
 	if err != nil { return rows, meta, err }
 	
 	reportFunc := func(f *flightdb.Flight) {
+		if _,exists := seen[f.UniqueIdentifier()]; exists {
+			return
+		} else {
+			seen[f.UniqueIdentifier()] = true
+		}
+		
 		bestTrack := "FA"
 		if f.HasTag(flightdb.KTagLocalADSBClassBViolation) { bestTrack = "ADSB" }
 

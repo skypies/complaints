@@ -20,7 +20,7 @@
           {{range .Rows}}
           <tr>
             <td>{{if .Seq | eq 0}}<a href="{{.Url}}" target="_blank">
-                {{.F.Id.Designator}} / {{.F.Id.Registration}} /
+                {{.F.Id.Callsign}} / {{.F.Id.Designator}} / {{.F.Id.Registration}} /
                 {{.F.Id.ModeS}}</a>{{end}}
             </td>
             <td>{{formatPdt .TP.TimestampUTC "01/02 15:04:05 MST"}}; </td>

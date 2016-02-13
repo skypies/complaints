@@ -1,4 +1,4 @@
-package complaints
+package backend
 
 import (
 	"html/template"
@@ -23,8 +23,8 @@ import (
 )
 
 func init() {
-	//http.HandleFunc("/fdb/report3", report3Handler)
-	//http.HandleFunc("/fdb/report3/", report3Handler)
+	http.HandleFunc("/report3", report3Handler)
+	http.HandleFunc("/report3/", report3Handler)
 }
 
 // {{{ tagList
@@ -66,7 +66,7 @@ func report3Handler(w http.ResponseWriter, r *http.Request) {
 		var params = map[string]interface{}{
 			"Yesterday": date.NowInPdt().AddDate(0,0,-1),
 			"Reports": report.ListReports(),
-			"FormUrl": "/fdb/report3/",
+			"FormUrl": "/report3/",
 			"Waypoints": sfo.ListWaypoints(),
 		}
 		if err := templates.ExecuteTemplate(w, "report3-form", params); err != nil {
@@ -121,9 +121,9 @@ func report3Handler(w http.ResponseWriter, r *http.Request) {
 
 	tags := tagList(rep.Options)
 
-	db := oldfgae.FlightDB{C: oldappengine.Timeout(oldappengine.NewContext(r), 60*time.Second)}
+	db := oldfgae.FlightDB{C: oldappengine.Timeout(oldappengine.NewContext(r), 600*time.Second)}
 	s,e := rep.Start,rep.End
-	if err := db.IterWith(db.QueryTimeRangeByTags(tags,s,e), reportFunc); err != nil {
+	if err := db.LongIterWith(db.QueryTimeRangeByTags(tags,s,e), reportFunc); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -138,6 +138,13 @@ func report3Handler(w http.ResponseWriter, r *http.Request) {
 		// This is kinda useless, as it isn't limited to SERFR1 things
 		postButtons += ButtonPOST(fmt.Sprintf("%d Non-matches as ClassBApproaches", len(v1idspecComplement)),
 			fmt.Sprintf("/fdb/approach2?%s", rep.ToCGIArgs()), v1idspecComplement)
+
+		postButtons += ButtonPOST(fmt.Sprintf("%d Matches as ClassBApproaches (delta)",
+			len(v1idspecs)), fmt.Sprintf("/fdb/approach2?%s&colorby=delta", rep.ToCGIArgs()), v1idspecs)
+		// This is kinda useless, as it isn't limited to SERFR1 things
+		postButtons += ButtonPOST(fmt.Sprintf("%d Non-matches as ClassBApproaches (delta)",
+			len(v1idspecComplement)), fmt.Sprintf("/fdb/approach2?%s&colorby=delta",
+			rep.ToCGIArgs()), v1idspecComplement)
 	}
 	
 	var params = map[string]interface{}{
