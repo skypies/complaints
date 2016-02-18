@@ -5,6 +5,3 @@ dispatch:
 
 - url: "*/report/*"
   module: backend
-
-- url: "*/report3/*"
-  module: backend

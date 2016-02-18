@@ -16,9 +16,11 @@ import(
 func init() {
 	http.HandleFunc("/fdb/track2", v2TrackHandler)
 	http.HandleFunc("/fdb/trackset2", v2TracksetHandler)
+	http.HandleFunc("/fdb/trackset3", v3TracksetHandler)
 	http.HandleFunc("/fdb/approach2", v2ApproachHandler)
 	http.HandleFunc("/fdb/json2", v2JsonHandler)
 	http.HandleFunc("/fdb/map2", newui.MapHandler)
+	http.HandleFunc("/fdb/vector", vectorHandler)
 }
 
 // Provides thin wrappers to do DB lookup & data model upgrade, and then passes over
@@ -29,11 +31,21 @@ func init() {
 func FormValueIdSpecs(r *http.Request) ([]string, error) {
 	ret := []string{}
 	r.ParseForm()
-	for _,v := range r.Form["idspec"] {
-		for _,str := range strings.Split(v, ",") {
-			ret = append(ret, str)
+
+	if r.FormValue("idspec") != "" {
+		for _,v := range r.Form["idspec"] {
+			for _,str := range strings.Split(v, ",") {
+				ret = append(ret, str)
+			}
+		}
+	} else if r.FormValue("id") != "" {
+		for _,v := range r.Form["id"] {
+			for _,str := range strings.Split(v, ",") {
+				ret = append(ret, str)
+			}
 		}
 	}
+	
 	return ret, nil
 }
 
@@ -152,6 +164,76 @@ func v2JsonHandler(w http.ResponseWriter, r *http.Request) {
 
 // }}}
 
+// {{{ v3TracksetHandler
+
+func v3TracksetHandler(w http.ResponseWriter, r *http.Request) {
+	idspecs,err := FormValueIdSpecs(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	newui.OutputMapLinesOnAStreamingMap(w, r, idspecs)
+}
+
+// }}}
+
+// {{{ vectorHandler
+
+// ?idspec=F12123@144001232[,...]
+// &json=1
+
+func vectorHandler(w http.ResponseWriter, r *http.Request) {
+	c := oldappengine.NewContext(r)
+	db := oldfgae.FlightDB{C:c}
+
+	if r.FormValue("json") == "" {
+		http.Error(w, "vectorHandler is json only at the moment", http.StatusInternalServerError)
+		return
+	}
+
+	idspec := ""
+	if idspecs,err := FormValueIdSpecs(r); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	} else if len(idspecs) != 1 {
+		http.Error(w, "vectorHandler takes exactly one idspec", http.StatusInternalServerError)
+		return
+	} else {
+		idspec = idspecs[0]
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	
+	oldF,err := db.LookupById(idspec)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	} else if oldF == nil {
+		http.Error(w, fmt.Sprintf("flight '%s' not found", idspec), http.StatusInternalServerError)
+		return
+	}
+	newF,err := oldF.V2()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	lines := newui.FlightToMapLines(newF)
+	/*if r.FormValue("opacity") != "" {
+		for i,_ := range lines {
+			lines.Opacity = r.FormValue("opacity")
+		}
+	}*/
+	jsonBytes,err := json.Marshal(lines)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(jsonBytes)
+}
+
+// }}}
 
 // {{{ -------------------------={ E N D }=----------------------------------
 

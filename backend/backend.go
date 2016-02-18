@@ -52,7 +52,6 @@ func noopHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK, backend noop\n"))
 }
 
-
 // Yay, sorting things is so easy in go
 func keysByIntValDesc(m map[string]int) []string {
 	// Invert the map
@@ -81,9 +80,6 @@ func keysByKeyAsc(m map[string]int) []string {
 	// List the unique vals
 	keys := []string{}
 	for k,_ := range m { keys = append(keys, k) }
-
-	// Sort the vals
-	sort.Sort(sort.StringSlice(keys))
-
+	sort.Strings(keys)
 	return keys
 }

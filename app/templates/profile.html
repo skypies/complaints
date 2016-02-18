@@ -17,9 +17,10 @@
         {{if .Message}}<div class="message">{{.Message}}</div>{{end}}
 
         <p><b>Enter your name, and then start typing your address</b>,
-        clicking on yours when it shows up in the list. Make sure the
-        grey boxes underneath get filled out. <b>Don't worry if you don't have a
-        Caller Code</b>; everything works fine without one.</p>
+        clicking on yours when it shows up in the autocomplete list
+        below. Make sure the grey boxes underneath get filled
+        out. <b>Don't worry if you don't have a Caller Code</b>;
+        everything works fine without one.</p>
 
         <div class="box">
           <table border="0">
@@ -70,10 +71,42 @@
         <p> Your complaints will be automatically sent off
           to <code>sfo.noise</code> at the end of each day.</p>
 
+        <p style="text-align:center"><input class="button" type="submit" value="SAVE PROFILE"/></p>
+        <br/>
+        
+        <div class="box">
+          <p> <input type="checkbox" name="DataSharing"
+                     {{if .Profile.DataSharingOK}}checked="1"{{end}}>
+            <b>I agree to share my disturbance report data</b> with
+            individuals working with community and avocacy groups,
+            such as SaveOurSkies Santa Cruz, or Palo Alto Sky
+            Posse.</p><br/>
+
+          <p>To be specific: we would share the time of your report,
+            details of the flight you reported, the loudness/speedbrake
+            fields, and a made up name (e.g. "JaneDoe
+            TwoHundedAndSeven").</p><br/>
+          
+          <p> We wouldn't share your name, your email address, your
+            lat/long, or your postal address. (And of course we can't
+            share your login details, since we never see them - only
+            Google or Facebook see those !)</p>
+        </div>
+        <p/>
+        
+        <div class="box">
+          <p> <input type="checkbox" name="ThirdPartyComms"
+                     {{if .Profile.ThirdPartyCommsOK}}checked="1"{{end}}>
+            <b>I am happy to receive occasional emails</b> about
+            community / adovcacy activities or events.</p><br/>
+
+          <p>Every few months or so, we might send a message on behalf
+          of some cross-community effort against jet noise. If you'd
+          rather not get emails like that, please untick this option.</p>
         </div>
         
-        <p style="text-align:center"><input class="button" type="submit" value="SAVE PROFILE"/></p>
-
+      </div>
+      
       </div>      
     </form>
 

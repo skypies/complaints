@@ -16,7 +16,7 @@ import (
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/taskqueue"
 	"google.golang.org/appengine/urlfetch"
-	//"golang.org/x/net/context"
+	"golang.org/x/net/context"
 
 	"github.com/skypies/geo/sfo"
 	"github.com/skypies/util/date"
@@ -46,7 +46,8 @@ func init() {
 
 // This enqueues tasks for each individual day, or flight
 func batchFlightScanHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+	c,_ := context.WithTimeout(appengine.NewContext(r), 5*time.Minute)
+	//c := appengine.NewContext(r)
 
 	tags := []string{}//"ADSB"} // Maybe make this configurable ...
 	
@@ -227,7 +228,8 @@ func jobV2adsbHandler(r *http.Request, f *oldfdb.Flight) (string, error) {
 	c := appengine.NewContext(r)
 	str := ""
 
-	if f.HasTrack("ADSB") { return "", nil } // Already has one
+	// Allow overwrite, for the (36,0) disastery
+	// if f.HasTrack("ADSB") { return "", nil } // Already has one
 
 	err,deb := f.GetV2ADSBTrack(urlfetch.Client(c))
 	str += fmt.Sprintf("*getv2ADSB [%v]:-\n", err, deb)

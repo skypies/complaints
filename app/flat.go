@@ -12,7 +12,7 @@ import (
 //  2. Add a new template, and have it match the URL, e.g. {{define "/f/foobar"}}
 
 func init() {
-	http.HandleFunc("/about", flat)
+	//http.HandleFunc("/about", flat)
 	http.HandleFunc("/down", flat)
 }
 

@@ -23,8 +23,21 @@ import (
 )
 
 func init() {
+	http.HandleFunc("/report", report3Handler)
+	http.HandleFunc("/report/", report3Handler)
 	http.HandleFunc("/report3", report3Handler)
 	http.HandleFunc("/report3/", report3Handler)
+
+	// See flightdb2/analysis/cannedreports.go ...
+/*
+	http.HandleFunc("/report/serfr1", cannedSerfr1Handler)
+	http.HandleFunc("/report/discrep", cannedDiscrepHandler)
+	http.HandleFunc("/report/classb", cannedClassBHandler)
+	http.HandleFunc("/report/adsb", cannedAdsbClassBHandler)
+	http.HandleFunc("/report/yesterday", cannedSerfr1ComplaintsHandler)
+*/
+
+	
 }
 
 // {{{ tagList
@@ -66,8 +79,9 @@ func report3Handler(w http.ResponseWriter, r *http.Request) {
 		var params = map[string]interface{}{
 			"Yesterday": date.NowInPdt().AddDate(0,0,-1),
 			"Reports": report.ListReports(),
-			"FormUrl": "/report3/",
+			"FormUrl": "/report/",
 			"Waypoints": sfo.ListWaypoints(),
+			"Title": "Reports (DB v1)",
 		}
 		if err := templates.ExecuteTemplate(w, "report3-form", params); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -128,10 +142,12 @@ func report3Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	rep.FinishSummary()
+	
 	postButtons := ButtonPOST(fmt.Sprintf("%d Matches as a VectorMap", len(v1idspecs)),
-		fmt.Sprintf("/fdb/trackset2?%s", rep.ToCGIArgs()), v1idspecs)
+		fmt.Sprintf("/fdb/trackset3?%s", rep.ToCGIArgs()), v1idspecs)
 	postButtons += ButtonPOST(fmt.Sprintf("%d Non-matches as a VectorMap", len(v1idspecComplement)),
-		fmt.Sprintf("/fdb/trackset2?%s", rep.ToCGIArgs()), v1idspecComplement)
+		fmt.Sprintf("/fdb/trackset3?%s", rep.ToCGIArgs()), v1idspecComplement)
 	if rep.Name == "sfoclassb" {
 		postButtons += ButtonPOST(fmt.Sprintf("%d Matches as ClassBApproaches", len(v1idspecs)),
 			fmt.Sprintf("/fdb/approach2?%s", rep.ToCGIArgs()), v1idspecs)

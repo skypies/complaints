@@ -33,7 +33,7 @@ const(
 func init() {
 	http.HandleFunc("/_ah/bounce", bounceHandler)
 	http.HandleFunc("/email", emailHandler)
-	//http.HandleFunc("/email-update", emailUpdateHandler)
+	http.HandleFunc("/email-update", emailUpdateHandler)
 	http.HandleFunc("/emails-for-yesterday", sendEmailsForYesterdayHandler)
 
 	http.HandleFunc("/bksv/submit-user",    bksvSubmitUserHandler)
@@ -75,10 +75,6 @@ func SendEmailToAllUsers(c appengine.Context, subject string) int {
 
 		n := 0
 		for _,cp := range cps {
-
-			// This message update goes only to the opt-outers ...
-			if cp.CcSfo == true && cp.CallerCode != "WOR005" { continue }
-
 			msg := &mail.Message{
 				Sender:   kSenderEmail,
 				ReplyTo:  kSenderEmail,
@@ -175,7 +171,7 @@ func GenerateEmail(c appengine.Context, cap types.ComplaintsAndProfile) (*mail.M
 	}
 
 	msg := &mail.Message{
-		ReplyTo:  cap.Profile.EmailAddress,
+		ReplyTo:  kSenderEmail, // cap.Profile.EmailAddress,
 		Sender:   kSenderEmail, // cap.Profile.EmailAddress,
 		To:       dests,
 		Bcc:      bcc,
@@ -406,7 +402,7 @@ func sendEmailsForYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 
 func emailUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
-	subject := "Stop.jetnoise.net: a proposal to auto-submit your complaints"
+	subject := "stop.jetnoise.net news, 2016.02"
 	n := SendEmailToAllUsers(c, subject)
 
 	w.Write([]byte(fmt.Sprintf("Email update, OK (%d)\n", n)))

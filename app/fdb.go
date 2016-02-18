@@ -720,29 +720,24 @@ func debugHandler(w http.ResponseWriter, r *http.Request) {
 	str += fmt.Sprintf("** Blob:-\n* Id=%s, Icao24=%s\n* Enter/Leave: %s -> %s\n* Tags: %v\n",
 		blob.Id, blob.Icao24, blob.EnterUTC, blob.LeaveUTC, blob.Tags)
 
-	v2URL := f.GetV2JsonUrl()
-	str += "\n* V2 URL: "+v2URL+"\n"
+	str += "** v2 snarf URL: "+ f.GetV2JsonUrl() + "\n"
 
-	str += "\n**** Tracks Before\n\n"
-	str += fmt.Sprintf("** %s [DEFAULT]\n", f.Track)
-	for name,t := range f.Tracks { str += fmt.Sprintf("** %s %s\n", name, t) }
-
-	err,deb := f.GetV2ADSBTrack(urlfetch.Client(c))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	
+	for tName,t := range f.Tracks {
+		str += fmt.Sprintf("\n---- Track %s ----\n", tName)
+		for i, tp := range t {
+			str += fmt.Sprintf("  - %03d %s\n", i, tp)
+		}
 	}
-	str += "\n***\n"+deb
 
-	str += "\n**** Tracks After\n\n"
-	str += fmt.Sprintf("** %s [DEFAULT]\n", f.Track)
-	for name,t := range f.Tracks { str += fmt.Sprintf("** %s %s\n", name, t) }
-
-	str += "--\nPersisting ...\n"
-
-	if err := db.UpdateFlight(*f); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	if false {	
+		f2,_ := f.V2()
+		for tName,t := range f2.Tracks {
+			str += fmt.Sprintf("\n---- Track %s ----\n", tName)
+			for i, tp := range *t {
+				str += fmt.Sprintf("  - %03d %s\n", i, tp)
+			}
+		}
 	}
 
 	/*

@@ -108,6 +108,8 @@ func profileUpdateHandler(w http.ResponseWriter, r *http.Request) {
 			Country: r.FormValue("AddrCountry"),
 		},
 		CcSfo: true, //FormValueCheckbox(r, "CcSfo"),
+		DataSharing: FormValueTriValuedCheckbox(r, "DataSharing"),
+		ThirdPartyComms: FormValueTriValuedCheckbox(r, "ThirdPartyComms"),
 		Lat: lat,
 		Long: long,
 	}

@@ -92,6 +92,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 		"Flightnumber", "Origin", "Destination", "Speed(Knots)", "Altitude(Feet)",
 		"Lat", "Long", "Registration", "Callsign",
 		"VerticalSpeed(FeetPerMin)", "Dist2(km)", "Dist3(km)",
+		"City",
 	}
 	
 	csvWriter := csv.NewWriter(w)
@@ -110,6 +111,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("%.5f", a.Lat), fmt.Sprintf("%.5f", a.Long),
 			a.Registration, a.Callsign, fmt.Sprintf("%.0f",a.VerticalSpeed),
 			fmt.Sprintf("%.1f", c.Dist2KM), fmt.Sprintf("%.1f", c.Dist3KM),
+			c.Profile.GetStructuredAddress().City,
 		}
 
 		if err := csvWriter.Write(r); err != nil {

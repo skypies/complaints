@@ -64,6 +64,17 @@ func FormValueCheckbox(r *http.Request, name string) bool {
 }
 
 // }}}
+// {{{ FormValueTriValuedCheckbox
+
+// 0 == unknown, 1=yes, -1=no
+func FormValueTriValuedCheckbox(r *http.Request, name string) int {
+	if r.FormValue(name) != "" {
+		return 1
+	}
+	return -1
+}
+
+// }}}
 
 
 // {{{ -------------------------={ E N D }=----------------------------------
