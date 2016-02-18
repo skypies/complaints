@@ -155,7 +155,8 @@ func personalReportHandler(w http.ResponseWriter, r *http.Request) {
 	var countsByHour [24]int
 	countsByDate := map[string]int{}
 	countsByAirline := map[string]int{}
-	
+	countsByAirport := map[string]int{}
+
 	iter := cdb.NewIter(cdb.QueryInSpanByEmailAddress(start,end,email))
 	n := 0
 	for {
@@ -165,12 +166,14 @@ func personalReportHandler(w http.ResponseWriter, r *http.Request) {
 		str := fmt.Sprintf("Time: %s, Loudness:%d, Speedbrakes:%v, Flight:%6.6s, Notes:%s",
 			c.Timestamp.Format("2006.01.02 15:04:05"), c.Loudness, c.HeardSpeedbreaks,
 			c.AircraftOverhead.FlightNumber, c.Description)
-		
+
 		n++
 		complaintStrings = append(complaintStrings, str)
-		
+
 		countsByHour[c.Timestamp.Hour()]++
 		countsByDate[c.Timestamp.Format("2006.01.02")]++
+		countsByAirport[c.AircraftOverhead.Origin]++
+		countsByAirport[c.AircraftOverhead.Destination]++
 		if airline := c.AircraftOverhead.IATAAirlineCode(); airline != "" {
 			countsByAirline[airline]++
 		}
@@ -182,6 +185,13 @@ func personalReportHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "\nDisturbance reports, counted by Airline (where known):\n")
 	for _,k := range keysByIntValDesc(countsByAirline) {
 		fmt.Fprintf(w, " %s: % 4d\n", k, countsByAirline[k])
+	}
+
+	fmt.Fprintf(w, "\nDisturbance reports, counted by Airport (where known):\n")
+	for _,k := range keysByIntValDesc(countsByAirport) {
+		if (k != "") {
+			fmt.Fprintf(w, " %s: % 4d\n", k, countsByAirport[k])
+		}
 	}
 
 	fmt.Fprintf(w, "\nDisturbance reports, counted by date:\n")
