@@ -504,13 +504,13 @@ func (fr *Fr24) ListBbox(sw_lat,sw_long,ne_lat,ne_long float64, aircraft *[]Airc
 // {{{ DebugFlightList
 
 func DebugFlightList(aircraft []Aircraft) string {
-	debug := "3Dist  2Dist  Brng   Hdng    Alt      Speed Equp Flight   Latlong\n"
+	debug := "3Dist  2Dist  Brng   Hdng    Alt      Speed Equp Flight   Orig  Dest  Latlong\n"
 
 	for _,a := range aircraft {
 		debug += fmt.Sprintf(
-			"%4.1fKM %4.1fKM %3.0fdeg %3.0fdeg %6.0fft %4.0fkt %s %-8.8s (% 8.4f,%8.4f)\n",
+			"%4.1fKM %4.1fKM %3.0fdeg %3.0fdeg %6.0fft %4.0fkt %s %-8.8s %-5.5s %-5.5s (% 8.4f,%8.4f)\n",
 			a.Dist3, a.Dist, a.BearingFromObserver, a.Track, a.Altitude, a.Speed,
-			a.EquipType, a.BestIdent(), a.Lat, a.Long)
+			a.EquipType, a.BestIdent(), a.Origin, a.Destination, a.Lat, a.Long)
 	}
 
 	return debug
