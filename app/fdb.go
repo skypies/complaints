@@ -82,7 +82,7 @@ func scanHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err1.Error(), http.StatusInternalServerError)
 
 	} else {
-		if flights,err2 := db.LookupList(sfo.KBoxSFO120K); err2 != nil {
+		if flights,err2 := db.LookupList(sfo.KBoxSnarfingCatchment); err2 != nil {
 			c.Errorf(" /mdb/scan: lookup: %v", err2)
 			http.Error(w, err2.Error(), http.StatusInternalServerError)
 		} else {
@@ -112,7 +112,7 @@ func scanHandler(w http.ResponseWriter, r *http.Request) {
 					})
 
 					// We could be smarter about this.
-					t.Delay = time.Minute * 45
+					t.Delay = time.Minute * 60
 
 					if _,err6 := taskqueue.Add(c, t, "addflight"); err6 != nil {
 						c.Errorf(" /mdb/scan: enqueue: %v", err6)
@@ -418,7 +418,7 @@ func flightListHandler(w http.ResponseWriter, r *http.Request) {
 	
 	switch timeRange {
 	case "recent":
-		flights,err = db.LookupRecentByTags(tags,200)
+		flights,err = db.LookupRecentByTags(tags,400)
 	case "today":
 		s,e := date.WindowForToday()
 		flights,err = db.LookupTimeRangeByTags(tags,s,e)
@@ -463,6 +463,7 @@ func lookupHandler(w http.ResponseWriter, r *http.Request) {
 		_,classBTrack := f.SFOClassB("",nil)
 			
 		f.Analyse()  // Repopulate the flight tags; useful when debugging new analysis stuff
+		f.AnalyseFlightPath()  // Repopulate the flight tags; useful when debugging new analysis stuff
 
 		// Todo: collapse all these separate tracks down into the single point/line list thing
 		fr24TrackJSVar := classBTrack.ToJSVar()
@@ -538,7 +539,7 @@ func lookupHandler(w http.ResponseWriter, r *http.Request) {
 		for i,ml := range mapLines { linesStr += fmt.Sprintf("    %d: {%s},\n", i, ml.ToJSStr("")) }
 		linesJS := template.JS(linesStr + "  }\n")
 
-		box := sfo.KBoxSFO120K
+		box := sfo.KBoxSnarfingCatchment
 		if r.FormValue("report") == "level" {
 			box = sfo.KBoxPaloAlto20K
 		} else if r.FormValue("report") == "stack" {
@@ -635,7 +636,7 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 			"MapsAPIKey": kGoogleMapsAPIKey,
 			"Center": sfo.KLatlongSERFR1,
 			"Zoom": 9,
-			// "CaptureArea": fdb.KBoxSFO120K,  // comment out, as we don't want it in this view
+			// "CaptureArea": fdb.KBoxSnarfingCatchment,  // comment out, as we don't want it in this view
 		}
 
 		if r.FormValue("resultformat") == "json" {
@@ -709,19 +710,19 @@ func debugHandler(w http.ResponseWriter, r *http.Request) {
 
 	blob.Flight = []byte{} // Zero this out
 
-	s,e := f.Track.TimesInBox(sfo.KBoxSFO120K)
+	s,e := f.Track.TimesInBox(sfo.KBoxSnarfingCatchment)
 	log := blob.GestationLog
 	blob.GestationLog = ""
-
+	_=log
+	
 	str := fmt.Sprintf("OK\n* Flight found: %s\n* Tracks: %q\n", f, f.TrackList())
 	str += fmt.Sprintf("* Points in default track: %d\n", len(f.Track))
 	str += fmt.Sprintf("* Default's start/end: %s, %s\n", s, e)
-	str += fmt.Sprintf("\n** Gestation log:-\n%s\n", log)
-	str += fmt.Sprintf("** Blob:-\n* Id=%s, Icao24=%s\n* Enter/Leave: %s -> %s\n* Tags: %v\n",
-		blob.Id, blob.Icao24, blob.EnterUTC, blob.LeaveUTC, blob.Tags)
+	// str += fmt.Sprintf("\n** Gestation log:-\n%s\n", log)
+	// str += fmt.Sprintf("** Blob:-\n* Id=%s, Icao24=%s\n* Enter/Leave: %s -> %s\n* Tags: %v\n",
+	//	blob.Id, blob.Icao24, blob.EnterUTC, blob.LeaveUTC, blob.Tags)
 
 	str += "** v2 snarf URL: "+ f.GetV2JsonUrl() + "\n"
-
 	
 	for tName,t := range f.Tracks {
 		str += fmt.Sprintf("\n---- Track %s ----\n", tName)
@@ -730,24 +731,14 @@ func debugHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if false {	
+	if true {	
 		f2,_ := f.V2()
-		for tName,t := range f2.Tracks {
-			str += fmt.Sprintf("\n---- Track %s ----\n", tName)
-			for i, tp := range *t {
-				str += fmt.Sprintf("  - %03d %s\n", i, tp)
-			}
-		}
+
+		str += fmt.Sprintf("** Ids\n* %s\n* %s\n* %#v\n",
+			f2.FullString(), f2.IdentString(), f2.Identity)
+		
+		str += fmt.Sprintf("\n *** /backend/fdb-batch/flight?key=%s&job=retag\n", f.DatastoreKey())
 	}
-
-	/*
-
-	consistent,debug := f.TracksAreConsistentDebug()
-	str += fmt.Sprintf("\n** Track consistency (%v)\n\n%s\n", consistent, debug)
-	
-	//str += "\n** Default track\n"
-	//for _,tp := range f.Track { str += fmt.Sprintf(" * %s\n", tp) }
-*/
 	
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(str))

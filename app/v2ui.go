@@ -8,18 +8,21 @@ import(
 
 	oldappengine "appengine"
 
+	"github.com/skypies/util/widget"
+
 	oldfgae "github.com/skypies/flightdb/gae"
 	newfdb  "github.com/skypies/flightdb2"
 	newui   "github.com/skypies/flightdb2/ui"
 )
 
 func init() {
+	http.HandleFunc("/map", newui.MapHandler)
+
 	http.HandleFunc("/fdb/track2", v2TrackHandler)
-	http.HandleFunc("/fdb/trackset2", v2TracksetHandler)
+	//http.HandleFunc("/fdb/trackset2", v2TracksetHandler)
 	http.HandleFunc("/fdb/trackset3", v3TracksetHandler)
 	http.HandleFunc("/fdb/approach2", v2ApproachHandler)
 	http.HandleFunc("/fdb/json2", v2JsonHandler)
-	http.HandleFunc("/fdb/map2", newui.MapHandler)
 	http.HandleFunc("/fdb/vector", vectorHandler)
 }
 
@@ -98,7 +101,7 @@ func idspecsToMapLines(r *http.Request) ([]newui.MapLine, error) {
 		if err != nil {
 			return lines, err
 		}
-		flightLines := newui.FlightToMapLines(newF)
+		flightLines := newui.FlightToMapLines(newF, "") // Sigh
 		lines = append(lines, flightLines...)
 	}
 
@@ -182,6 +185,7 @@ func v3TracksetHandler(w http.ResponseWriter, r *http.Request) {
 
 // ?idspec=F12123@144001232[,...]
 // &json=1
+// &track={ADSB|fr24|...}
 
 func vectorHandler(w http.ResponseWriter, r *http.Request) {
 	c := oldappengine.NewContext(r)
@@ -219,7 +223,9 @@ func vectorHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	lines := newui.FlightToMapLines(newF)
+	trackName,_ := newF.PreferredTrack(widget.FormValueCommaSepStrings(r, "trackspec"))
+
+	lines := newui.FlightToMapLines(newF, trackName)
 	/*if r.FormValue("opacity") != "" {
 		for i,_ := range lines {
 			lines.Opacity = r.FormValue("opacity")

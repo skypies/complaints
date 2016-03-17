@@ -38,6 +38,9 @@ type ComplainerProfile struct {
 	StructuredAddress PostalAddress
 	Lat,Long          float64 `datastore:",noindex"`
 	CcSfo             bool `datastore:",noindex"`
+
+	DataSharing       int  `datastore:",noindex"` // 0 == unset, 1 == OK/yes, -1 == no
+	ThirdPartyComms   int  `datastore:",noindex"` // 0 == unset, 1 == OK/yes, -1 == no
 }
 
 // Attempt to split into firstname, surname
@@ -104,6 +107,19 @@ func (p *ComplainerProfile)Base64Decode(str string) error {
 	}
 }
 
+
+func (p ComplainerProfile)DataSharingOK() bool {
+	return p.DataSharing >= 0 // The default is "yes"
+}
+
+func (p ComplainerProfile)ThirdPartyCommsOK() bool {
+	return p.ThirdPartyComms >= 0 // The default is "yes"
+}
+
+
+//	DataSharingOK     int  // 0 == unknown, 1 == yes, -1 == no
+//	ThirdPartyComssOK int  // 0 == unknown, 1 == yes, -1 == no
+
 // }}}
 
 // {{{ Complaint{}
@@ -120,7 +136,7 @@ type Complaint struct {
 	Activity         string        `datastore:",noindex"` // What was disturbed
 
 	Profile          ComplainerProfile                    // Embed the whole profile
-
+	
 	// Synthetic fields
 	DatastoreKey     string        `datastore:"-"`
 	Dist2KM          float64       `datastore:"-"`        // Distance from home to aircraft

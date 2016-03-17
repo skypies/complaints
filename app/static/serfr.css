@@ -99,6 +99,11 @@ li { border:0em; margin-top: 0em; }
 
 .about li { margin-bottom: 0.5em; }
 
+pre {
+    text-align: left;
+}
+
+
 span.highlight {
     background-color:yellow;
     font-weight:bold;

@@ -11,10 +11,12 @@
         {{end}}
         flights{{if (len .Tags | ne 0)}} matching tags {{.Tags}}{{end}} : 
        {{len .Flights}} results</h1>
-      <p>Today: [<a href="/fdb/today?tags=SERFR1">SERFR1</a>,
+      <p>Today: [<a href="/fdb/today?tags=AL">Airlines</a>,
+        <a href="/fdb/today?tags=SERFR1">SERFR1</a>,
         <a href="/fdb/today?tags=BRIXX">BRIXX</a>,
         <a href="/fdb/today?tags=ClassB:FA">ActionableClassB</a>]<br/>
-        Yesterday: [<a href="/fdb/yesterday?tags=SERFR1">SERFR1</a>,
+        Yesterday: [<a href="/fdb/yesterday?tags=AL">Airlines</a>,
+        <a href="/fdb/yesterday?tags=SERFR1">SERFR1</a>,
         <a href="/fdb/yesterday?tags=BRIXX">BRIXX</a>,
         <a href="/fdb/yesterday?tags=ClassB:FA">ActionableClassB</a>]<br/>
       </p>

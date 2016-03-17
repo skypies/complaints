@@ -83,3 +83,11 @@ func keysByKeyAsc(m map[string]int) []string {
 	sort.Strings(keys)
 	return keys
 }
+
+func keysByKeyAscNested(m map[string]map[string]int) []string {
+	// List the unique vals
+	keys := []string{}
+	for k,_ := range m { keys = append(keys, k) }
+	sort.Strings(keys)
+	return keys
+}

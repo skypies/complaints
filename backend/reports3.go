@@ -113,28 +113,41 @@ func report3Handler(w http.ResponseWriter, r *http.Request) {
 
 	v1idspecs := []string{}
 	v2idspecs := []string{}
-
-	v1idspecComplement := []string{}
+	v1RejectByRestrict := []string{}
+	v1RejectByReport := []string{}
 	
 	reportFunc := func(oldF *oldfdb.Flight) {
 		newF,err := oldF.V2()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
-		} else {
-			newF.ComputeIndicatedAltitudes(metars)
-			if included,err := rep.Process(newF); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			} else if included {
-				v1idspecs = append(v1idspecs, oldF.UniqueIdentifier())
-				v2idspecs = append(v2idspecs, newF.IdSpec())
-			} else {
-				v1idspecComplement = append(v1idspecComplement, oldF.UniqueIdentifier())
-			}
+			return
+		}
+
+		newF.ComputeIndicatedAltitudes(metars)
+
+		outcome,err := rep.Process(newF)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		switch outcome {
+		case report.RejectedByGeoRestriction:
+			v1RejectByRestrict = append(v1RejectByRestrict, oldF.UniqueIdentifier())
+		case report.RejectedByReport:
+			v1RejectByReport = append(v1RejectByReport, oldF.UniqueIdentifier())
+		case report.Accepted:
+			v1idspecs = append(v1idspecs, oldF.UniqueIdentifier())
+			v2idspecs = append(v2idspecs, newF.IdSpec().String())
 		}
 	}
 
 	tags := tagList(rep.Options)
 
+	for _,wp := range rep.HackWaypoints {
+		tags = append(tags, fmt.Sprintf("%s%s", oldfdb.KWaypointTagPrefix, wp))
+	}
+	
 	db := oldfgae.FlightDB{C: oldappengine.Timeout(oldappengine.NewContext(r), 600*time.Second)}
 	s,e := rep.Start,rep.End
 	if err := db.LongIterWith(db.QueryTimeRangeByTags(tags,s,e), reportFunc); err != nil {
@@ -143,24 +156,33 @@ func report3Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rep.FinishSummary()
+
+	if rep.ResultsFormat == "csv" {
+		rep.OutputAsCSV(w)
+		return
+	}
 	
 	postButtons := ButtonPOST(fmt.Sprintf("%d Matches as a VectorMap", len(v1idspecs)),
-		fmt.Sprintf("/fdb/trackset3?%s", rep.ToCGIArgs()), v1idspecs)
-	postButtons += ButtonPOST(fmt.Sprintf("%d Non-matches as a VectorMap", len(v1idspecComplement)),
-		fmt.Sprintf("/fdb/trackset3?%s", rep.ToCGIArgs()), v1idspecComplement)
+		fmt.Sprintf("http://stop.jetnoise.net/fdb/trackset3?%s", rep.ToCGIArgs()), v1idspecs)
+	postButtons += ButtonPOST(fmt.Sprintf("%d Restriction Rejects as VectorMap",
+		len(v1RejectByRestrict)),
+		fmt.Sprintf("http://stop.jetnoise.net/fdb/trackset3?%s", rep.ToCGIArgs()), v1RejectByRestrict)
+	postButtons += ButtonPOST(fmt.Sprintf("%d Report Rejects as VectorMap",
+		len(v1RejectByReport)),
+		fmt.Sprintf("http://stop.jetnoise.net/fdb/trackset3?%s", rep.ToCGIArgs()), v1RejectByReport)
+	
 	if rep.Name == "sfoclassb" {
 		postButtons += ButtonPOST(fmt.Sprintf("%d Matches as ClassBApproaches", len(v1idspecs)),
 			fmt.Sprintf("/fdb/approach2?%s", rep.ToCGIArgs()), v1idspecs)
-		// This is kinda useless, as it isn't limited to SERFR1 things
-		postButtons += ButtonPOST(fmt.Sprintf("%d Non-matches as ClassBApproaches", len(v1idspecComplement)),
-			fmt.Sprintf("/fdb/approach2?%s", rep.ToCGIArgs()), v1idspecComplement)
-
 		postButtons += ButtonPOST(fmt.Sprintf("%d Matches as ClassBApproaches (delta)",
 			len(v1idspecs)), fmt.Sprintf("/fdb/approach2?%s&colorby=delta", rep.ToCGIArgs()), v1idspecs)
-		// This is kinda useless, as it isn't limited to SERFR1 things
-		postButtons += ButtonPOST(fmt.Sprintf("%d Non-matches as ClassBApproaches (delta)",
-			len(v1idspecComplement)), fmt.Sprintf("/fdb/approach2?%s&colorby=delta",
-			rep.ToCGIArgs()), v1idspecComplement)
+
+		postButtons += ButtonPOST(fmt.Sprintf("%d Report rejects as ClassBApproaches",
+			len(v1RejectByReport)), fmt.Sprintf("/fdb/approach2?%s",
+			rep.ToCGIArgs()), v1RejectByReport)
+		postButtons += ButtonPOST(fmt.Sprintf("%d Report rejects as ClassBApproaches (delta)",
+			len(v1RejectByReport)), fmt.Sprintf("/fdb/approach2?%s&colorby=delta",
+			rep.ToCGIArgs()), v1RejectByReport)
 	}
 	
 	var params = map[string]interface{}{

@@ -1,11 +1,11 @@
-{{define "summary-report-form"}}
+{{define "date-report-form"}}
 
 <html>
   {{template "header"}}
   <body>
-    <h1>Summary of disturbance reports</h1><p/>
+    <h1>{{.Title}}</h1><p/>
 
-    <form action="/report/summary" method="post">
+    <form action="{{.FormUrl}}" method="post">
       <div class="stack">
         <div class="box">
         <table border="0">

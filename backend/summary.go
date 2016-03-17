@@ -1,3 +1,4 @@
+
 package backend
 
 import (
@@ -20,6 +21,8 @@ import (
 
 func init() {
 	http.HandleFunc("/report/summary", summaryReportHandler)
+	http.HandleFunc("/report/users", userReportHandler)
+	http.HandleFunc("/report/community", communityReportHandler)
 	http.HandleFunc("/report/month", monthHandler)
 }
 
@@ -159,9 +162,11 @@ func DayWindows(s,e time.Time) [][]time.Time {
 func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("date") == "" {
 		var params = map[string]interface{}{
+			"Title": "Summary of disturbance reports",
+			"FormUrl": "/report/summary",
 			"Yesterday": date.NowInPdt().AddDate(0,0,-1),
 		}
-		if err := templates.ExecuteTemplate(w, "summary-report-form", params); err != nil {
+		if err := templates.ExecuteTemplate(w, "date-report-form", params); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		return
@@ -255,6 +260,195 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, " %02d: %5d\n", i, n)
 	}
 	fmt.Fprintf(w, "(t=%s)\n", time.Now())
+}
+
+// }}}
+// {{{ communityReportHandler
+
+var cityCols = []string{
+	"Unknown", "Aptos", "Atherton", "Bakersfield", "Ben Lomond", "Berkeley", "Boulder Creek", "Brisbane", "Capitola", "Carmel Valley",
+	"Clovis", "Emerald Hills", "Felton", "La Selva Beach", "Los Altos", "Los Altos Hills", "Los Gatos", "Menlo Park", "Mountain View",
+	"Oakland", "Pacifica", "Palo Alto", "Portola Valley", "Redwood City", "San Bruno", "San Francisco", "Santa Cruz", "Saratoga",
+	"Scotts Valley", "Soquel", "South San Francisco", "Stanford", "Sunnyvale", "Watsonville", "Woodside",
+}
+
+// Start: Sat 2015/08/08
+// End  : Fri 2006/02/12
+
+// Final row: Sat 2016/02/13 -- Fri 2016/02/19
+
+func communityReportHandler(w http.ResponseWriter, r *http.Request) {
+	if r.FormValue("date") == "" {
+		var params = map[string]interface{}{
+			"Title": "Community breakdown of disturbance reports",
+			"FormUrl": "/report/community",
+			"Yesterday": date.NowInPdt().AddDate(0,0,-1),
+		}
+		if err := templates.ExecuteTemplate(w, "date-report-form", params); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	start,end,_ := widget.FormValueDateRange(r)
+
+	ctx := appengine.Timeout(appengine.NewContext(r), 9000*time.Second)
+	cdb := complaintdb.ComplaintDB{C: ctx}
+
+	// Use most-recent city info for all the users, not what got cached per-complaint
+	userCities,err := cdb.GetEmailCityMap()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	filename := start.Format("community-20060102") + end.Format("-20060102.csv")
+	w.Header().Set("Content-Type", "application/csv")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+
+	counts := map[string]map[string]int{}  // {datestr}{city}
+	users := map[string]map[string]int{}   // {datestr}{city}
+	
+	// An iterator expires after 60s, no matter what; so carve up into short-lived iterators
+	n := 0
+
+	currCounts := map[string]int{}
+	currUsers  := map[string]map[string]int{}
+	currN      := 0
+	
+	for _,dayWindow := range DayWindows(start,end) {
+		//daycounts := map[string]int{}             // {city}
+		//dayusers := map[string]map[string]int{}   // {city}{email}
+
+		q := cdb.QueryInSpan(dayWindow[0],dayWindow[1])
+		q = q.Project("Profile.StructuredAddress.City", "Profile.EmailAddress")
+		iter := cdb.NewIter(q)
+		for {
+			c,err := iter.NextWithErr();
+			if err != nil {
+				http.Error(w, fmt.Sprintf("iterator failed at %s: %v", time.Now(), err),
+					http.StatusInternalServerError)
+				return
+			} else if c == nil {
+				break // we're all done with this iterator
+			}
+			n++
+
+			//email,city := c.Profile.EmailAddress,c.Profile.StructuredAddress.City
+			email := c.Profile.EmailAddress
+			city := userCities[email]
+			if city == "" { city = "Unknown" }
+			
+			if currUsers[city] == nil { currUsers[city] = map[string]int{} }
+			currUsers[city][email]++
+			currCounts[city]++			
+		}
+		currN++  // number of days processed since last flush.
+
+		// End of a day; should we flush the counters ?
+		flushStr := ""
+		if true || r.FormValue("byweek") != "" {
+			if currN == 7 {
+				flushStr = dayWindow[0].Format("2006.01.02")
+			}
+		} else {
+			flushStr = dayWindow[0].Format("2006.01.02")
+		}
+
+		if flushStr != "" {
+			counts[flushStr] = currCounts
+			users[flushStr] = map[string]int{}
+			for city,_ := range currUsers {
+				users[flushStr][city] = len(currUsers[city])
+			}
+			currCounts = map[string]int{}
+			currUsers  = map[string]map[string]int{}
+			currN      = 0
+		}
+	}
+
+	cols := []string{"Date"}
+	cols = append(cols, cityCols...)
+	csvWriter := csv.NewWriter(w)
+	csvWriter.Write(cols)
+
+	for _,datestr := range keysByKeyAscNested(counts) {
+		row := []string{datestr}
+		for _,town := range cityCols {
+			n := counts[datestr][town]
+			row = append(row, fmt.Sprintf("%d", n))
+		}
+		csvWriter.Write(row)
+	}
+
+	csvWriter.Write(cols)
+	for _,datestr := range keysByKeyAscNested(users) {
+		row := []string{datestr}
+		for _,town := range cityCols {
+			n := users[datestr][town]
+			row = append(row, fmt.Sprintf("%d", n))
+		}
+		csvWriter.Write(row)
+	}
+
+	csvWriter.Flush()
+	
+	//fmt.Fprintf(w, "(t=%s, n=%d)\n", time.Now(), n)
+}
+
+// }}}
+// {{{ userReportHandler
+
+func userReportHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := appengine.Timeout(appengine.NewContext(r), 9000*time.Second)
+	cdb := complaintdb.ComplaintDB{C: ctx}
+
+	profiles,err := cdb.GetAllProfiles()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if true {
+		nOK,nNotOK,nDefault := 0,0,0
+		for _,p := range profiles {
+			switch {
+			case p.DataSharing<0: nNotOK++
+			case p.DataSharing>0: nOK++
+			case p.DataSharing==0: nDefault++
+			}
+		}
+		w.Header().Set("Content-Type", "text/plain")
+		fmt.Fprintf(w, "nOK=%d, nDefault=%d, nNotOk=%d\n", nOK, nDefault, nNotOK)
+		return
+	}
+	
+	filename := date.NowInPdt().Format("users-as-of-20060102.csv")
+	w.Header().Set("Content-Type", "application/csv")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+
+	cols := []string{"EMAIL", "NAME", "CALLERCODE", "STREET", "CITY", "ZIP", "ALLINONELINE"}
+	csvWriter := csv.NewWriter(w)
+	csvWriter.Write(cols)
+
+	for _,p := range profiles {
+		street := p.StructuredAddress.Street
+		if p.StructuredAddress.Number != "" {
+			street = p.StructuredAddress.Number + " " + street
+		}
+		row := []string{
+			p.EmailAddress,
+			p.FullName,
+			p.CallerCode,
+			street,
+			p.StructuredAddress.City,
+			p.StructuredAddress.Zip,
+			p.Address,
+		}
+		csvWriter.Write(row)
+	}
+
+	csvWriter.Flush()
 }
 
 // }}}

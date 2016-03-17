@@ -77,10 +77,14 @@ func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem
 
 // }}}
 
-// {{{ cdb.emailToRootKey
+// {{{ cdb.EmailToRootKey
 
 func (cdb ComplaintDB) emailToRootKey(email string) *datastore.Key {
 	return datastore.NewKey(cdb.C, kComplainerKind, email, 0, nil)
+}
+// Sigh
+func (cdb ComplaintDB) EmailToRootKey(email string) *datastore.Key {
+	return cdb.emailToRootKey(email)
 }
 
 // }}}
@@ -91,6 +95,27 @@ func (cdb ComplaintDB) GetAllProfiles() (cps []types.ComplainerProfile, err erro
 	cps = []types.ComplainerProfile{}
 	_, err = q.GetAll(cdb.C, &cps)
 	return
+}
+
+// }}}
+// {{{ cdb.GetEmailCityMap
+
+func (cdb ComplaintDB) GetEmailCityMap() (map[string]string, error) {
+	cities := map[string]string{}
+
+	q := datastore.NewQuery(kComplainerKind).Project("EmailAddress", "StructuredAddress.City")
+	profiles := []types.ComplainerProfile{}
+	if _,err := q.GetAll(cdb.C, &profiles); err != nil {
+		return cities, err
+	}
+
+	for _,profile := range profiles {
+		city := profile.StructuredAddress.City
+		if city == "" { city = "Unknown" }
+		cities[profile.EmailAddress] = city
+	}
+
+	return cities, nil
 }
 
 // }}}
