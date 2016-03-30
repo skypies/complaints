@@ -22,6 +22,7 @@ func init() {
 	//http.HandleFunc("/fdb/trackset2", v2TracksetHandler)
 	http.HandleFunc("/fdb/trackset3", v3TracksetHandler)
 	http.HandleFunc("/fdb/approach2", v2ApproachHandler)
+	http.HandleFunc("/fdb/descent2", v2DescentHandler)
 	http.HandleFunc("/fdb/json2", v2JsonHandler)
 	http.HandleFunc("/fdb/vector", vectorHandler)
 }
@@ -147,6 +148,19 @@ func v2ApproachHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	newui.OutputApproachesAsPDF(w, r, flights)
+}
+
+// }}}
+// {{{ v2DescentHandler
+
+func v2DescentHandler(w http.ResponseWriter, r *http.Request) {
+	flights,err := idspecsToFlightV2s(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	newui.OutputDescentAsPDF(w, r, *(flights[0]))
 }
 
 // }}}

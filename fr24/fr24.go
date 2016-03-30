@@ -3,6 +3,9 @@ package fr24
 // http://blog.cykey.ca/post/88174516880/analyzing-flightradar24s-internal-api-structure
 // https://github.com/danmir/pyFlightRadar/blob/master/get_planes.py
 
+// https://data-live.flightradar24.com/zones/fcgi/feed.js?bounds=38.21192132426342,35.74295392808907,-126.55300781250037,-115.7080078125&faa=1&mlat=1&flarm=1&adsb=1&gnd=1&air=1&vehicles=1&estimated=1&maxage=900&gliders=1&stats=1&
+
+
 // {{{ Global setup
 
 import (
@@ -412,7 +415,8 @@ func (fr *Fr24) getHostname() error {
 // {"krk.data.fr24.com":250,"bma.data.fr24.com":250,"arn.data.fr24.com":250,"lhr.data.fr24.com":250}
 func (fr *Fr24) EnsureHostname() error {
 	if fr.host == "" {
-		fr.host = "krk.data.fr24.com"
+		fr.host = "data-live.flightradar24.com" //"krk.data.fr24.com"
+
 		return nil
 		/*
 		if err := fr.getHostname(); err != nil {
@@ -422,6 +426,8 @@ func (fr *Fr24) EnsureHostname() error {
 	}
 	return nil
 }
+
+func (fr *Fr24)SetHost(h string) {fr.host = h}
 
 // }}}
 
@@ -556,8 +562,8 @@ func (s byDist3) Less(i, j int) bool { return s[i].Dist3 < s[j].Dist3 }
 
 func (fr *Fr24) FindOverhead(observerPos geo.Latlong, overhead *Aircraft, grabAnything bool) (debug string, err error) {
 	
-	debug = fmt.Sprintf("*** FindOverhead for %s, at %s\n", observerPos,
-		date.NowInPdt())
+	debug = fmt.Sprintf("*** FindOverhead for %s, at %s\n", observerPos, date.NowInPdt())
+	debug += fmt.Sprintf("* url: http://%s%s?array=1&bounds=%s\n", fr.host, kListUrlPath, "...")
 	
 	// Create a bounding box that's ~40m square, centred on the input lat,long
 	// This is a grievous fudge http://www.movable-type.co.uk/scripts/latlong.html

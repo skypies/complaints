@@ -558,9 +558,12 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 	//cdb.C.Infof("adding complaint for [%s] %s", cp.CallerCode, overhead.FlightNumber)
 
 	// abw hack hack
-	grabAnything := (cp.CallerCode == "QWERTY")
-	c.Debug,_ = fr.FindOverhead(geo.Latlong{cp.Lat,cp.Long}, &overhead, grabAnything)	
-
+	grabAny := (cp.CallerCode == "QWERTY")
+	if debug,err := fr.FindOverhead(geo.Latlong{cp.Lat,cp.Long}, &overhead, grabAny); err != nil {
+		cdb.C.Errorf("FindOverhead failed for %s: %v", cp.EmailAddress, err)
+	} else {
+		c.Debug = debug
+	}
 	if overhead.Id != "" {
 		c.AircraftOverhead = overhead
 	}
