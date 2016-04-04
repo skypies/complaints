@@ -163,13 +163,13 @@ func report3Handler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	postButtons := ButtonPOST(fmt.Sprintf("%d Matches as a VectorMap", len(v1idspecs)),
-		fmt.Sprintf("http://stop.jetnoise.net/fdb/trackset3?%s", rep.ToCGIArgs()), v1idspecs)
+		fmt.Sprintf("http://stop.jetnoise.net/fdb/trackset2?%s", rep.ToCGIArgs()), v1idspecs)
 	postButtons += ButtonPOST(fmt.Sprintf("%d Restriction Rejects as VectorMap",
 		len(v1RejectByRestrict)),
-		fmt.Sprintf("http://stop.jetnoise.net/fdb/trackset3?%s", rep.ToCGIArgs()), v1RejectByRestrict)
+		fmt.Sprintf("http://stop.jetnoise.net/fdb/trackset2?%s", rep.ToCGIArgs()), v1RejectByRestrict)
 	postButtons += ButtonPOST(fmt.Sprintf("%d Report Rejects as VectorMap",
 		len(v1RejectByReport)),
-		fmt.Sprintf("http://stop.jetnoise.net/fdb/trackset3?%s", rep.ToCGIArgs()), v1RejectByReport)
+		fmt.Sprintf("http://stop.jetnoise.net/fdb/trackset2?%s", rep.ToCGIArgs()), v1RejectByReport)
 	
 	if rep.Name == "sfoclassb" {
 		postButtons += ButtonPOST(fmt.Sprintf("%d Matches as ClassBApproaches", len(v1idspecs)),

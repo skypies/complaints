@@ -8,8 +8,6 @@ import(
 
 	oldappengine "appengine"
 
-	"github.com/skypies/util/widget"
-
 	oldfgae "github.com/skypies/flightdb/gae"
 	newfdb  "github.com/skypies/flightdb2"
 	newui   "github.com/skypies/flightdb2/ui"
@@ -19,12 +17,11 @@ func init() {
 	http.HandleFunc("/map", newui.MapHandler)
 
 	http.HandleFunc("/fdb/track2", v2TrackHandler)
-	//http.HandleFunc("/fdb/trackset2", v2TracksetHandler)
-	http.HandleFunc("/fdb/trackset3", v3TracksetHandler)
+	http.HandleFunc("/fdb/trackset2", v2TracksetHandler)
 	http.HandleFunc("/fdb/approach2", v2ApproachHandler)
 	http.HandleFunc("/fdb/descent2", v2DescentHandler)
 	http.HandleFunc("/fdb/json2", v2JsonHandler)
-	http.HandleFunc("/fdb/vector", vectorHandler)
+	http.HandleFunc("/fdb/vector2", v2VectorHandler)
 }
 
 // Provides thin wrappers to do DB lookup & data model upgrade, and then passes over
@@ -127,14 +124,13 @@ func v2TrackHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ v2TracksetHandler
 
 func v2TracksetHandler(w http.ResponseWriter, r *http.Request) {
-
-	flightLines, err := idspecsToMapLines(r)
+	idspecs,err := FormValueIdSpecs(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	
-	newui.OutputMapLinesOnAMap(w, r, flightLines)
+	newui.OutputMapLinesOnAStreamingMap(w, r, idspecs, "/fdb/vector2")
 }
 
 // }}}
@@ -168,7 +164,7 @@ func v2DescentHandler(w http.ResponseWriter, r *http.Request) {
 
 func v2JsonHandler(w http.ResponseWriter, r *http.Request) {
 	flights,err := idspecsToFlightV2s(r)
-
+	
 	jsonBytes,err := json.Marshal(flights)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -180,77 +176,31 @@ func v2JsonHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
-
-// {{{ v3TracksetHandler
-
-func v3TracksetHandler(w http.ResponseWriter, r *http.Request) {
-	idspecs,err := FormValueIdSpecs(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	
-	newui.OutputMapLinesOnAStreamingMap(w, r, idspecs)
-}
-
-// }}}
-
-// {{{ vectorHandler
+// {{{ v2VectorHandler
 
 // ?idspec=F12123@144001232[,...]
 // &json=1
 // &track={ADSB|fr24|...}
 
-func vectorHandler(w http.ResponseWriter, r *http.Request) {
+func v2VectorHandler(w http.ResponseWriter, r *http.Request) {
 	c := oldappengine.NewContext(r)
 	db := oldfgae.FlightDB{C:c}
 
 	if r.FormValue("json") == "" {
-		http.Error(w, "vectorHandler is json only at the moment", http.StatusInternalServerError)
+		http.Error(w, "vectorHandler is json only at the moment", http.StatusBadRequest)
 		return
 	}
 
-	idspec := ""
-	if idspecs,err := FormValueIdSpecs(r); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	} else if len(idspecs) != 1 {
-		http.Error(w, "vectorHandler takes exactly one idspec", http.StatusInternalServerError)
-		return
-	} else {
-		idspec = idspecs[0]
-	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	
-	oldF,err := db.LookupById(idspec)
+	flights,err := idspecsToFlightV2s(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	} else if oldF == nil {
-		http.Error(w, fmt.Sprintf("flight '%s' not found", idspec), http.StatusInternalServerError)
-		return
-	}
-	newF,err := oldF.V2()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	} else if len(flights) != 1 {
+		http.Error(w, "vectorHandler takes exactly one idspec", http.StatusBadRequest)
 		return
 	}
 
-	trackName,_ := newF.PreferredTrack(widget.FormValueCommaSepStrings(r, "trackspec"))
-
-	lines := newui.FlightToMapLines(newF, trackName)
-	/*if r.FormValue("opacity") != "" {
-		for i,_ := range lines {
-			lines.Opacity = r.FormValue("opacity")
-		}
-	}*/
-	jsonBytes,err := json.Marshal(lines)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Write(jsonBytes)
+	newui.OutputFlightAsVectorJSON(w, r, flights[0])
 }
 
 // }}}

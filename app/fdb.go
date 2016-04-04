@@ -198,12 +198,12 @@ func addflightHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	log += fmt.Sprintf("* FlightExists('%s') -> false\n", f.Id.UniqueIdentifier())
 
-	// Fetch ADSB tracks from the new thing
+	// Fetch ADSB (and MLAT!) tracks from Skypi, via the new DB
 	err,deb := f.GetV2ADSBTrack(urlfetch.Client(c))
 	log += "* fetchV2ADSB\n"+deb
 	if err != nil {
 		c.Errorf("ADSB fetch err: %v", err)
-	}	
+	}
 	
 	// If we have any locally received ADSB fragments for this flight, add them in
 	//if err := db.MaybeAddTrackFragmentsToFlight(f); err != nil {
