@@ -183,9 +183,6 @@ func v2JsonHandler(w http.ResponseWriter, r *http.Request) {
 // &track={ADSB|fr24|...}
 
 func v2VectorHandler(w http.ResponseWriter, r *http.Request) {
-	c := oldappengine.NewContext(r)
-	db := oldfgae.FlightDB{C:c}
-
 	if r.FormValue("json") == "" {
 		http.Error(w, "vectorHandler is json only at the moment", http.StatusBadRequest)
 		return
