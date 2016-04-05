@@ -71,6 +71,18 @@ func ButtonPOST(anchor, action string, idspecs []string) string {
 }
 
 // }}}
+// {{{ maybeButtonPOST
+
+func maybeButtonPOST(idspecs []string, title string, url string) string {
+	if len(idspecs) == 0 { return "" }
+
+	return ButtonPOST(
+		fmt.Sprintf("%d %s", len(idspecs), title),
+		fmt.Sprintf("http://stop.jetnoise.net%s", url),
+		idspecs)
+}
+
+// }}}
 
 // {{{ report3Handler
 
@@ -161,6 +173,7 @@ func report3Handler(w http.ResponseWriter, r *http.Request) {
 		rep.OutputAsCSV(w)
 		return
 	}
+
 	
 	postButtons := ButtonPOST(fmt.Sprintf("%d Matches as a VectorMap", len(v1idspecs)),
 		fmt.Sprintf("http://stop.jetnoise.net/fdb/trackset2?%s", rep.ToCGIArgs()), v1idspecs)
@@ -170,6 +183,11 @@ func report3Handler(w http.ResponseWriter, r *http.Request) {
 	postButtons += ButtonPOST(fmt.Sprintf("%d Report Rejects as VectorMap",
 		len(v1RejectByReport)),
 		fmt.Sprintf("http://stop.jetnoise.net/fdb/trackset2?%s", rep.ToCGIArgs()), v1RejectByReport)
+
+	url := fmt.Sprintf("/fdb/descent2?sample=15&%s", rep.ToCGIArgs())
+	postButtons += maybeButtonPOST(v1idspecs, "Matchs as DescentGraph", url)
+	postButtons += maybeButtonPOST(v1RejectByRestrict, "Restriction Rejects as DescentGraph",url)
+	postButtons += maybeButtonPOST(v1RejectByReport, "Report Rejects DescentGraph", url)
 	
 	if rep.Name == "sfoclassb" {
 		postButtons += ButtonPOST(fmt.Sprintf("%d Matches as ClassBApproaches", len(v1idspecs)),

@@ -150,13 +150,54 @@ func v2ApproachHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ v2DescentHandler
 
 func v2DescentHandler(w http.ResponseWriter, r *http.Request) {
+	/*
 	flights,err := idspecsToFlightV2s(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	
-	newui.OutputDescentAsPDF(w, r, *(flights[0]))
+	newui.OutputDescentsAsPDF(w, r, flights)
+*/
+
+	c := oldappengine.NewContext(r)
+	db := oldfgae.FlightDB{C:c}
+
+	idspecs,err := FormValueIdSpecs(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	dp := newui.DescentPDFInit(w, r)
+
+	if len(idspecs) > 10 {
+		dp.LineThickness = 0.1
+		dp.LineOpacity = 0.25
+	}
+	
+	for _,idspec := range idspecs {
+		oldF,err := db.LookupById(idspec)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		} else if oldF == nil {
+			http.Error(w, fmt.Sprintf("flight '%s' not found", idspec), http.StatusInternalServerError)
+			return
+		}
+		newF,err := oldF.V2()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if err := newui.DescentPDFAddFlight(r, dp, newF); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	
+	newui.DescentPDFFinalize(w,r,dp)
 }
 
 // }}}
