@@ -22,12 +22,12 @@ func init() {
 	http.HandleFunc("/fdb/descent2", v2DescentHandler)
 	http.HandleFunc("/fdb/json2", v2JsonHandler)
 	http.HandleFunc("/fdb/vector2", v2VectorHandler)
+	http.HandleFunc("/fdb/visualize2", v2VisualizeHandler)
 }
 
 // Provides thin wrappers to do DB lookup & data model upgrade, and then passes over
 // to the rendering routines in the New Shiny, flightdb2/ui
-
-// {{{ idspecsToFlightV2s, idspecsToMapLines
+// {{{ FormValueIdSpecs, idspecsToFlightV2s
 
 func FormValueIdSpecs(r *http.Request) ([]string, error) {
 	ret := []string{}
@@ -75,35 +75,6 @@ func idspecsToFlightV2s(r *http.Request) ([]*newfdb.Flight, error) {
 	}
 
 	return newFlights, nil
-}
-
-func idspecsToMapLines(r *http.Request) ([]newui.MapLine, error) {
-	c := oldappengine.NewContext(r)
-	db := oldfgae.FlightDB{C:c}
-
-	lines := []newui.MapLine{}
-	
-	idspecs,err := FormValueIdSpecs(r)
-	if err != nil {
-		return lines, err
-	}
-
-	for _,idspec := range idspecs {
-		oldF,err := db.LookupById(idspec)
-		if err != nil {
-			return lines, err
-		} else if oldF == nil {
-			return lines, fmt.Errorf("flight '%s' not found", idspec)
-		}
-		newF,err := oldF.V2()
-		if err != nil {
-			return lines, err
-		}
-		flightLines := newui.FlightToMapLines(newF, "") // Sigh
-		lines = append(lines, flightLines...)
-	}
-
-	return lines, nil
 }
 
 // }}}
@@ -239,6 +210,18 @@ func v2VectorHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newui.OutputFlightAsVectorJSON(w, r, flights[0])
+}
+
+// }}}
+// {{{ v2VisualizeHandler
+
+func v2VisualizeHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.FormValue("viewtype") {
+	case "vector":   v2TracksetHandler(w,r)
+	case "descent":  v2DescentHandler(w,r)
+	case "track":    v2TrackHandler(w,r)
+	default:         http.Error(w, "Specify viewtype={vector|descent|track}", http.StatusBadRequest)
+	}		
 }
 
 // }}}

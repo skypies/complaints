@@ -1,0 +1,1 @@
+../../../flightdb2/ui/templates/checkboxes.js
