@@ -140,7 +140,7 @@ func v2DescentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dp := newui.DescentPDFInit(w, r)
+	dp := newui.DescentPDFInit(w, r, len(idspecs))
 
 	if len(idspecs) > 10 {
 		dp.LineThickness = 0.1

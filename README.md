@@ -7,7 +7,7 @@ Prerequisites:
 * define your Go workspace: `export GOPATH=~/go`
 
 Download and run the site locally:
-* `goapp get github.com/skypies/complaints/app` (pulls down all dependencies)
+* `go get github.com/skypies/complaints/app` (pulls down all dependencies)
 * `mv complaints/config/test-values.go.sample complaints/config/test-values.go` (setup test config)
 * `goapp serve $GOPATH/github.com/skypies/complaints/app` (build & run locally)
 * Look at <http://localhost:8080/> (appengine admin panel is <http://localhost:8000/>)
