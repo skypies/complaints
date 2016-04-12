@@ -17,14 +17,14 @@ indexes:
 
 - kind: ComplaintKind
   properties:
+  - name: Profile.StructuredAddress.Zip
   - name: Timestamp
-  - name: Profile.EmailAddress
-  - name: Profile.StructuredAddress.City
 
 - kind: ComplaintKind
   properties:
-  - name: Profile.StructuredAddress.Zip
   - name: Timestamp
+  - name: Profile.EmailAddress
+  - name: Profile.StructuredAddress.City
 
 - kind: ComplaintKind
   ancestor: yes
@@ -36,12 +36,6 @@ indexes:
   properties:
   - name: Timestamp
     direction: desc
-
-- kind: ComplaintKind
-  properties:
-  - name: Timestamp
-  - name: Profile.EmailAddress
-  - name: Profile.StructuredAddress.City
 
 - kind: Flight
   properties:
