@@ -1,13 +1,13 @@
 cron:
 - description: Daily complaints
-  url: /emails-for-yesterday
+  url: /backend/emails-for-yesterday
   schedule: every day 00:10
   timezone: America/Los_Angeles
 
-- description: Daily complaints to BKSV
-  url: /bksv/scan-yesterday
-  schedule: every day 02:02
-  timezone: America/Los_Angeles
+#- description: Daily complaints to BKSV
+#  url: /bksv/scan-yesterday
+#  schedule: every day 02:02
+#  timezone: America/Los_Angeles
 
 - description: FlightDB scanning
   url: /fdb/scan

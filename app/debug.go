@@ -9,12 +9,27 @@ import (
 
 	"github.com/skypies/geo/sfo"
 
+	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/fr24"
 )
 
 func init() {
 	// http.HandleFunc("/debfr24", debugHandler2)
+	//http.HandleFunc("/counthack", debugHandler3)
 }
+
+// Hack up the counts.
+func debugHandler3(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	cdb := complaintdb.ComplaintDB{C:c}
+
+	cdb.AddDailyCount(complaintdb.DailyCount{
+		Datestring: "2016.04.12",
+		NumComplaints: 10231,
+		NumComplainers: 621,
+	})
+}
+
 
 func debugHandler2(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)

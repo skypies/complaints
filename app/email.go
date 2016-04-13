@@ -34,7 +34,9 @@ func init() {
 	http.HandleFunc("/_ah/bounce", bounceHandler)
 	http.HandleFunc("/email", emailHandler)
 	http.HandleFunc("/email-update", emailUpdateHandler)
-	http.HandleFunc("/emails-for-yesterday", sendEmailsForYesterdayHandler)
+
+	// Moved to /backend/
+	//http.HandleFunc("/emails-for-yesterday", sendEmailsForYesterdayHandler)
 
 	http.HandleFunc("/bksv/submit-user",    bksvSubmitUserHandler)
 	http.HandleFunc("/bksv/scan-yesterday", bksvScanYesterdayHandler)
