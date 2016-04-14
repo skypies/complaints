@@ -18,27 +18,46 @@ const (
 
 // {{{ ComplaintsAreEquivalent
 
+// Some users should be coalesced less conservatively *cough*
+var rateLimitAddrs = map[string]int{
+	"syco1234@gmail.com": 1,
+	"test@example.com": 1,
+}
+
 func ComplaintsAreEquivalent(this, next types.Complaint) bool {
 	fn1 := this.AircraftOverhead.FlightNumber
 	fn2 := next.AircraftOverhead.FlightNumber
 	d1 := this.Description
 	d2 := next.Description
+
+	_,rateLimit := rateLimitAddrs[this.Profile.EmailAddress]
+
+	thresh := kComplaintCoalesceThreshold
+	if rateLimit {
+		thresh = 5*60
+	}
 	
-	// If there are different and non-empty descriptions, *never* coaleasce
-  if d1 != "" && d2 != "" && d1 != d2 { return false }
-	
+	if !rateLimit {
+		// If there are different and non-empty descriptions, *never* coaleasce
+		if d1 != "" && d2 != "" && d1 != d2 { return false }
+	}
+
 	// Else - if same (non-empty) flightnumber, coalesce (regardless of gap between them)
 	if fn1 == fn2 && fn1 != "" { return true }
-
+	
 	// Else, if time has passed, do not coalesce
-	if next.Timestamp.Sub(this.Timestamp) > (time.Duration(kComplaintCoalesceThreshold)*time.Second) {
+	if next.Timestamp.Sub(this.Timestamp) > (time.Duration(thresh)*time.Second) {
 		return false
 	}
 
-	// So: not much time has passed; the descriptions weren't explicitly distinct; and flights differ.
-  if d1 != d2 { return false }  // one is empty, but that's enough reason not to coalesce
+	if rateLimit {
+		return true
+	}
+	
+	// So: not much time has passed; the descrips weren't explicitly distinct; and flights differ.
+	if d1 != d2 { return false }  // one is empty, but that's enough reason not to coalesce
 	if fn1 == fn2 { return true } // identical descriptions & flights; coalesce
-	if fn1 == "" { return true }  // identical descriptions, but new has a non-empty flight; coalesce
+	if fn1 == "" { return true }  // identical descriptions, but new has non-empty flight; coalesce
 
 	return false
 }
