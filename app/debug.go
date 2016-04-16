@@ -3,11 +3,13 @@ package complaints
 import (	
 	"fmt"
 	"net/http"
+	"time"
 	
 	"appengine"
 	"appengine/urlfetch"
 
 	"github.com/skypies/geo/sfo"
+	"github.com/skypies/util/date"
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/fr24"
@@ -15,11 +17,26 @@ import (
 
 func init() {
 	// http.HandleFunc("/debfr24", debugHandler2)
-	//http.HandleFunc("/counthack", debugHandler3)
+	//http.HandleFunc("/counthack", debugHandler4)
+	http.HandleFunc("/debbksv", debugHandler3)
+}
+
+func debugHandler3(w http.ResponseWriter, r *http.Request) {
+	cdb := complaintdb.NewComplaintDB(r)
+	tStart := time.Now()
+	
+	start,end := date.WindowForYesterday()
+	keys,err := cdb.GetComplaintKeysInSpan(start,end)
+
+	str := fmt.Sprintf("OK\nret: %d\nerr: %v\nElapsed: %s\ns: %s\ne: %s\n",
+		len(keys), err, time.Since(tStart), start, end)
+	
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(str))
 }
 
 // Hack up the counts.
-func debugHandler3(w http.ResponseWriter, r *http.Request) {
+func debugHandler4(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	cdb := complaintdb.ComplaintDB{C:c}
 
@@ -29,7 +46,6 @@ func debugHandler3(w http.ResponseWriter, r *http.Request) {
 		NumComplainers: 621,
 	})
 }
-
 
 func debugHandler2(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)

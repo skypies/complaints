@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	kComplaintVersion = 2
+	kComplaintVersion = 2 // Obsolete concept
 	kComplaintCoalesceThreshold = 45
 )
 

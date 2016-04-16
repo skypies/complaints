@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"net/http"
 	"sort"
 	"time"
 
@@ -35,6 +36,13 @@ var(
 type ComplaintDB struct {
 	C appengine.Context
 	Memcache bool
+}
+
+func NewComplaintDB(r *http.Request) ComplaintDB {
+	return ComplaintDB{
+		C:        appengine.NewContext(r),
+		Memcache: false,
+	}
 }
 
 // }}}
@@ -177,6 +185,51 @@ func (cdb ComplaintDB) PutProfile(cp types.ComplainerProfile) error {
 	_, err := datastore.Put(cdb.C, cdb.emailToRootKey(cp.EmailAddress), &cp)
 	cdb.C.Infof(">>> PutProfile: %v [err=%v]", cp, err)
 	return err
+}
+
+// }}}
+
+// {{{ cdb.GetComplainersWithinSpan
+
+func (cdb ComplaintDB)GetComplainersWithinSpan(start,end time.Time) ([]string, error) {
+	q := datastore.
+		NewQuery(kComplaintKind).
+		Project("Profile.EmailAddress").//Distinct(). // Sigh, can't do that *and* filter
+		Filter("Timestamp >= ", start).
+		Filter("Timestamp < ", end).
+		Limit(-1)
+
+	var data = []types.Complaint{}
+	if _,err := q.GetAll(cdb.C, &data); err != nil {
+		return []string{}, err
+	}
+	
+	uniques := map[string]int{}
+	for _,c := range data {
+		uniques[c.Profile.EmailAddress]++
+	}
+
+	ret := []string{}
+	for e,_ := range uniques {
+		ret = append(ret, e)
+	}
+	
+	return ret, nil
+}
+
+// }}}
+// {{{ cdb.GetComplaintKeysInSpan
+
+// Now the DB is clean, we can do this simple query instead of going user by user
+func (cdb ComplaintDB)GetComplaintKeysInSpan(start,end time.Time) ([]*datastore.Key, error) {
+	q := datastore.
+		NewQuery(kComplaintKind).
+		Filter("Timestamp >= ", start).
+		Filter("Timestamp < ", end).
+		KeysOnly()
+
+	keys, err := q.GetAll(cdb.C, nil)
+	return keys,err
 }
 
 // }}}
@@ -414,9 +467,7 @@ func (cdb ComplaintDB) GetComplaintsWithSpeedbrakes() ([]types.Complaint, error)
 // }}}
 // {{{ cdb.GetComplaintsInSpan
 
-// The way you want to do this is the *Broken version below. Until complaint coalescing
-// is properly figured out, you need to do this hideous thing instead.
-// I guess the only good thing to say is that it should hit memcache for each user :/
+// DO NOT USE ... the better way is below !
 func (cdb ComplaintDB)GetComplaintsInSpan(start,end time.Time) ([]types.Complaint, error) {
 	profiles,err := cdb.GetAllProfiles()
 	if err != nil { return nil,err }
@@ -459,6 +510,37 @@ func (cdb ComplaintDB)GetComplaintsInSpanNew(start,end time.Time) ([]types.Compl
 
 // }}}
 
+// {{{ cdb.GetAnyComplaintByKey
+
+func (cdb ComplaintDB) GetAnyComplaintByKey(keyString string) (*types.Complaint, error) {
+	k,err := datastore.DecodeKey(keyString)
+	if err != nil { return nil,err }
+
+	complaint := types.Complaint{}
+	if err := datastore.Get(cdb.C, k, &complaint); err != nil {
+		return nil,err
+	}
+
+	FixupComplaint(&complaint, k)
+	
+	return &complaint, nil
+}
+
+// }}}
+// {{{ cdb.UpdateAnyComplaint
+
+func (cdb ComplaintDB) UpdateAnyComplaint(complaint types.Complaint) error {
+	if k,err := datastore.DecodeKey(complaint.DatastoreKey); err != nil {
+		return err
+
+	} else {
+		complaint.Version = kComplaintVersion
+		_,err := datastore.Put(cdb.C, k, &complaint)
+		return err
+	}
+}
+
+// }}}
 // {{{ cdb.GetComplaintByKey
 
 func (cdb ComplaintDB) GetComplaintByKey(keyString string, ownerEmail string) (*types.Complaint, error) {

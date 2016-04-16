@@ -121,6 +121,38 @@ func (p ComplainerProfile)ThirdPartyCommsOK() bool {
 //	ThirdPartyComssOK int  // 0 == unknown, 1 == yes, -1 == no
 
 // }}}
+// {{{ Submission{}
+
+type SubmissionOutcome int
+const(
+	SubmissionNotAttempted SubmissionOutcome = iota
+	SubmissionAccepted
+	SubmissionFailed
+)
+func (so SubmissionOutcome)String() string {
+	switch so {
+	case SubmissionNotAttempted: return "tbd"
+	case SubmissionAccepted: return "OK"
+	case SubmissionFailed: return "fail"
+	default: return fmt.Sprintf("?%d?", so)
+	}
+}
+
+// Fields about backend submission
+type Submission struct {
+	T            time.Time
+	Outcome      SubmissionOutcome
+	Response   []byte      `datastore:",noindex"` // JSON response, in full
+	Key          string    `datastore:",noindex"` // Foreign key, from backend
+	Attempts     int
+	Log          string    `datastore:",noindex"`
+}
+
+func (s Submission)String() string {
+	return fmt.Sprintf("{%s@%s(%d):%db}", s.Outcome, s.T, s.Attempts, len(s.Key))
+}
+
+// }}}
 
 // {{{ Complaint{}
 
@@ -136,6 +168,8 @@ type Complaint struct {
 	Activity         string        `datastore:",noindex"` // What was disturbed
 
 	Profile          ComplainerProfile                    // Embed the whole profile
+
+	Submission       // embedded; details about submitting the complaint to a backend
 	
 	// Synthetic fields
 	DatastoreKey     string        `datastore:"-"`
@@ -149,11 +183,12 @@ func (a ComplaintsByTimeDesc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ComplaintsByTimeDesc) Less(i, j int) bool { return a[i].Timestamp.After(a[j].Timestamp) }
 
 func (c Complaint) String() string {
-	return fmt.Sprintf("<%s>@%s [%-6.6s] %d \"%s\"",
+	return fmt.Sprintf("<%s>@%s [%-6.6s] %d %s \"%s\"",
 		c.Profile.EmailAddress,
 		c.Timestamp,
 		c.AircraftOverhead.FlightNumber,
 		c.Loudness,
+		c.Submission.String(),
 		c.Description,
 	)
 }

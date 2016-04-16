@@ -3,15 +3,13 @@ package bksv
 // Package for posting a {ComplainerProfile,Complaint} to BKSV's web form
 
 import (
-	//"bytes"
-	//"net/http/httputil"
-	
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"regexp"
+	"time"
 
 	"github.com/skypies/util/date"
 	
@@ -55,6 +53,7 @@ func GetSubmitkey(client *http.Client) (string, string, error) {
 				return debug,"",fmt.Errorf("GetSubmitKey/init response did not have a submitkey")
 
 			} else {
+				debug += fmt.Sprintf("We got submitkey=%s\n", submitkey)
 				return debug,submitkey,nil
 			}
 		}
@@ -177,6 +176,151 @@ func PostComplaint(client *http.Client, p types.ComplainerProfile, c types.Compl
 	}
 
 	return debug,nil
+}
+
+// }}}
+
+// {{{ PopulateForm
+
+func PopulateForm(c types.Complaint, submitkey string) url.Values {
+	first,last := c.Profile.SplitName()
+	addr := c.Profile.GetStructuredAddress()
+	if c.Activity == "" { c.Activity = "Loud noise" }
+
+	vals := url.Values{
+		"response":         {"json"},
+
+		"contactmethod":    {"App"},
+		"app_key":          {"TUC8uDJMooVMvf7hew93nhUGcWgw"},
+		
+		"caller_code":      {c.Profile.CallerCode},
+		"name":             {first},
+		"surname":          {last},
+		"address1":         {addr.Street},
+		"address2":         {""},
+		"zipcode":          {addr.Zip},
+		"city":             {addr.City},
+		"state":            {addr.State},
+		"email":            {c.Profile.EmailAddress},
+
+		"airports":         {"KSFO"},  // KOAK, KSJC, KSAN
+		"month":            {date.InPdt(c.Timestamp).Format("1")},
+		"day":              {date.InPdt(c.Timestamp).Format("2")},
+		"year":             {date.InPdt(c.Timestamp).Format("2006")},
+		"hour":             {date.InPdt(c.Timestamp).Format("15")},
+		"min":              {date.InPdt(c.Timestamp).Format("4")},
+		
+		"aircraftcategory": {"J"},
+		"eventtype":        {"Loud noise"}, // perhaps map c.Activity to something ?
+		"comments":         {c.Description},
+		"responserequired": {"N"},
+		"enquirytype":      {"C"},
+
+		"submit":           {"Submit complaint"},
+		"submitkey":        {submitkey},
+
+		"nowebtrak": {"1"},
+		"defaulttime": {"0"},
+		"webtraklinkback": {""},
+		"title": {""},
+		"homephone": {""},
+		"workphone": {""},
+		"cellphone": {""},
+	}
+
+	if c.AircraftOverhead.FlightNumber != "" {
+		vals.Add("acid", c.AircraftOverhead.Callsign)
+		vals.Add("aacode", c.AircraftOverhead.Id2)
+		vals.Add("tailnumber", c.AircraftOverhead.Registration)
+		vals.Add("aircrafttype", c.AircraftOverhead.EquipType)
+			
+		//vals.Add("adflag", "??") // Operation type (A, D or O for Arr, Dept or Overflight)
+		//vals.Add("beacon", "??") // Squawk SSR code (eg 210)
+	}
+
+	return vals
+}
+
+// }}}
+// {{{ PostComplaint2
+
+// https://complaints-staging.bksv.com/sfo2?json=1&resp=json
+// {"result":"1",
+//  "title":"Complaint Received",
+//  "body":"Thank you. We have received your complaint."}
+
+func PostComplaint2(client *http.Client, c types.Complaint) (*types.Submission, error) {
+	// Initialize a new submission object, inheriting from previous
+	s := types.Submission{
+		Attempts:  c.Submission.Attempts + 1,
+		Log:       c.Submission.Log + fmt.Sprintf("\n--------=={ %s }==-----------\n", time.Now()),
+		Key:       c.Submission.Key,
+		T:         time.Now().UTC(),
+		Outcome:   types.SubmissionFailed, // Be pessimistic right up until the end
+	}
+
+	// Usually, this is a first attempt, so we need to get a key
+	if s.Key == "" {
+		debug,key,err := GetSubmitkey(client)
+		s.Log += debug
+		if err != nil {
+			s.Log += fmt.Sprintf("GetSubmitKey err: %v", err)
+			return &s, err
+		}
+		s.Key = key
+		s.Log += fmt.Sprintf("----{ time: %s }----\n  --{ key: %s }--\n", s.T, s.Key)
+	} else {
+		s.Log += fmt.Sprintf("----{ time: %s }----\n  --{ pre-existing key: %s }--\n", s.T, s.Key)
+	}
+
+	vals := PopulateForm(c, s.Key)
+	s.Log += "Submitting these vals:-\n"
+	for k,v := range vals { s.Log += fmt.Sprintf(" * %-20.20s: %v\n", k, v) }
+	
+	resp,err := client.PostForm("https://"+bksvHost+bksvPath, vals)
+	if err != nil { return &s,err }
+
+	defer resp.Body.Close()
+	body,_ := ioutil.ReadAll(resp.Body)
+	s.Response = []byte(body)
+	if resp.StatusCode >= 400 {
+		s.Log += fmt.Sprintf("ComplaintPOST: HTTP err '%s'\nBody:-\n%s\n--\n", resp.Status, body)
+		return &s,fmt.Errorf("ComplaintPOST: HTTP err %s", resp.Status)
+	}
+
+	var jsonMap map[string]interface{}
+	if err := json.Unmarshal([]byte(body), &jsonMap); err != nil {
+		s.Log += fmt.Sprintf("ComplaintPOST: JSON unmarshal '%v'\nBody:-\n%s\n--\n", err, body)
+		return &s,fmt.Errorf("ComplaintPOST: JSON unmarshal %v", err)
+		/* Fall back ?
+			if !regexp.MustCompile(`(?i:received your complaint)`).MatchString(string(body)) {
+				debug += fmt.Sprintf("BKSV body ...\n%s\n------\n", string(body))
+				return debug,fmt.Errorf("Returned response did not say 'received your complaint'")
+			} else {
+				debug += "Success !\n"+string(body)
+			}
+      */			
+	}
+
+	indentedBytes,_ := json.MarshalIndent(jsonMap, "", "  ")
+	s.Log += "\n-- JsonMap:-\n"+string(indentedBytes)+"\n--\n"
+	
+	v := jsonMap["result"];
+	if v == nil {
+		s.Log += fmt.Sprintf("ComplaintPOST: json no 'result'\n")
+		return &s,fmt.Errorf("ComplaintPOST: jsonmap had no 'result'")
+	}
+
+	result := v.(string)
+	if result != "1" {
+		s.Log += fmt.Sprintf("Json result not '1'\n")
+		return &s,fmt.Errorf("ComplaintPOST: result='%s'", result)
+	}
+	
+	s.Log += "Json Success !\n"
+	s.Outcome = types.SubmissionAccepted
+
+	return &s,nil
 }
 
 // }}}
