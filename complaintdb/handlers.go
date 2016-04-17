@@ -7,6 +7,7 @@ import(
 	"sort"
 
 	"github.com/skypies/util/date"
+	"github.com/skypies/util/widget"
 	"github.com/skypies/complaints/complaintdb/types"
 )
 
@@ -51,16 +52,18 @@ func complaintDebugHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ yesterdayDebugHandler
 
 // ?all=1 (will list thousands !)
-// ?today=1 (not yesterday, but today)
+// ?offset=d (how many days to go back from today; default is 1d, i.e. yesterday)
+
 
 func yesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
 	cdb := NewComplaintDB(r)
 
-	start,end := date.WindowForYesterday()
-
-	if r.FormValue("today") != "" {
-		start,end = date.WindowForToday()  // HACKERY
+	offset := 1
+	start,end := date.WindowForToday()
+	if r.FormValue("offset") != "" {
+		offset = int(widget.FormValueInt64(r, "offset"))
 	}
+	start,end = start.AddDate(0,0,-1*offset), end.AddDate(0,0,-1*offset)
 
 	keys,err := cdb.GetComplaintKeysInSpan(start,end)
 	// complaints,err := cdb.GetComplaintsInSpanNew(start,end)
@@ -94,6 +97,7 @@ func yesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str := "<html><body>\n"
+	str += fmt.Sprintf("<pre>Start: %s\nEnd  : %s\n</pre>\n", start, end)
 	str += "<table border=0>\n"
 
 	countkeys := []string{}
