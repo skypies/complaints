@@ -274,7 +274,7 @@ func flights2params(flights []ftype.Flight) []map[string]interface{} {
 	var flightsParams = []map[string]interface{}{}
 	for _,f := range flights {
 		flightsParams = append(flightsParams, map[string]interface{}{
-			"Url": fmt.Sprintf("/fdb/lookup?map=1&id=%s", f.Id.UniqueIdentifier()),
+			"Url": fmt.Sprintf("/fdb/tracks3?idspec=%s", f.Id.UniqueIdentifier()),
 			"Oneline": f.String(),
 			"ExtraNotes": "aasdasd",
 			"F": f,
