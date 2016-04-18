@@ -172,19 +172,21 @@ func rootHandler (w http.ResponseWriter, r *http.Request) {
 	}
 
 	message := ""
+	disableReporting := false
 	if cap.Profile.FullName == "" {
 		message += "<li>We don't have your full name</li>"
+		disableReporting = true
 	}
 	if cap.Profile.StructuredAddress.Zip == "" {
 		message += "<li>We don't have an accurate address</li>"
+		disableReporting = true
 	}
 	if message != "" {
 		message = fmt.Sprintf("<p><b>We've found some problems with your profile:</b></p><ul>%s</ul>"+
-			"<p> Without this data, your complaints might be exluded, so please "+
-			"<a href=\"/profile\"><b>update your profile</b></a> !</p>", message)
+			"<p> Without this data, your complaints won't be counted, so please "+
+			"<a href=\"/profile\"><b>update your profile</b></a> before submitting any more complaints !</p>", message)
 	}
-	
-	
+		
 	var params = map[string]interface{}{
 		//"Message": template.HTML("Hi!"),
 		"Cap": *cap,
@@ -193,6 +195,7 @@ func rootHandler (w http.ResponseWriter, r *http.Request) {
 		"Modes": modes,
 		"ComplaintDefaults": complaintDefaults,
 		"Message": template.HTML(message),
+		"DisableReporting": disableReporting,
 	}
 	
 	if err := templates.ExecuteTemplate(w, "main", params); err != nil {

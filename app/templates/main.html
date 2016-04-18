@@ -15,10 +15,12 @@
       </p>
       {{end}}
       
+      {{if not .DisableReporting}}
       <div class="box" style="background-color: #eeffee;">
         {{template "complaint-form" .ComplaintDefaults}}
       </div>
       <p/>
+      {{end}}
 
       <div class="box">
       {{if (len .Complaints | eq 0)}}
