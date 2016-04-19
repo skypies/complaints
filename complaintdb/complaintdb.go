@@ -27,6 +27,8 @@ import (
 var(
 	kComplaintKind = "ComplaintKind"
 	kComplainerKind = "ComplainerKind"
+
+	KMaxComplaintsPerDay = 200
 )
 
 // }}}
@@ -233,6 +235,15 @@ func (cdb ComplaintDB)GetComplaintKeysInSpan(start,end time.Time) ([]*datastore.
 }
 
 // }}}
+// {{{ cdb.GetComplaintKeysInSpanByEmailAddress
+
+func (cdb ComplaintDB)GetComplaintKeysInSpanByEmailAddress(start,end time.Time, ea string) ([]*datastore.Key, error) {
+	q := cdb.QueryInSpanByEmailAddress(start, end, ea).KeysOnly()
+	keys, err := q.GetAll(cdb.C, nil)
+	return keys,err
+}
+
+// }}}
 
 // {{{ BytesFromShardedMemcache
 
@@ -397,13 +408,8 @@ func (cdb ComplaintDB) GetComplaintsInSpanByEmailAddress(ea string, start,end ti
 		memKey = fmt.Sprintf("comp-in-span:%s:%d-%d", ea, start.Unix(), end.Unix())
 		//cdb.C.Infof(" ##== comp-in-span cacheable [%s]", memKey)
 	}	
-	
-	q := datastore.
-		NewQuery(kComplaintKind).
-		Ancestor(cdb.emailToRootKey(ea)).
-		Filter("Timestamp >= ", start).
-		Filter("Timestamp < ", end).
-		Order("Timestamp")
+
+	q := cdb.QueryInSpanByEmailAddress(start, end, ea)
 
 	return cdb.getComplaintsByQuery(q,memKey)
 }
@@ -636,6 +642,14 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 	client := urlfetch.Client(cdb.C)
 	fr := fr24.Fr24{Client: client}
 	overhead := fr24.Aircraft{}
+
+	// Check we're not over a daily cap for this user
+	s,e := date.WindowForToday()
+	if prevKeys,err := cdb.GetComplaintKeysInSpanByEmailAddress(s,e,cp.EmailAddress); err != nil {
+		return err
+	} else if len(prevKeys) >= KMaxComplaintsPerDay {
+		return fmt.Errorf("Too many complaints filed today")
+	}
 
 	//cdb.C.Infof("adding complaint for [%s] %s", cp.CallerCode, overhead.FlightNumber)
 
