@@ -9,15 +9,20 @@ import (
 	"appengine/datastore"
 	"appengine/taskqueue"
 
+	"github.com/skypies/util/date"
+
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
 )
 
 func init() {
 	http.HandleFunc("/backend/cdb-batch", upgradeHandler)
-	http.HandleFunc("/backend/cdb-batch-user", upgradeUserHandler)
+	//http.HandleFunc("/backend/cdb-batch-user", upgradeUserHandler)
+	//http.HandleFunc("/backend/cdb-batch-user", fixupthing)
 }
 
+
+// {{{ upgradeHandler
 
 // Grab all users, and enqueue them for batch processing
 func upgradeHandler(w http.ResponseWriter, r *http.Request) {
@@ -45,6 +50,9 @@ func upgradeHandler(w http.ResponseWriter, r *http.Request) {
 	c.Infof("enqueued %d batch", len(cps))
 	w.Write([]byte(fmt.Sprintf("OK, enqueued %d", len(cps))))
 }
+
+// }}}
+// {{{ upgradeUserHandler
 
 // Upgrade the set of complaints for each user.
 func upgradeUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -118,3 +126,61 @@ func upgradeUserHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(fmt.Sprintf("OK, upgraded %s\n%s", email, str)))
 }
+
+// }}}
+
+// {{{ fixupthing
+
+// Fixup the three days where email addresses got stamped upon
+func fixupthing(w http.ResponseWriter, r *http.Request) {
+	c := appengine.Timeout(appengine.NewContext(r), 300*time.Second)
+	cdb := complaintdb.ComplaintDB{C:c, Memcache:false}
+
+	email := r.FormValue("email")
+	str := fmt.Sprintf("(lookup for %s)\n", email)
+
+	// Add/remove seconds to ensure the specified dates are included as 'intermediate'
+	for _,window := range date.DateRangeToPacificTimeWindows("2016/04/14","2016/04/16") {
+		s,e := window[0],window[1]
+		//str += fmt.Sprintf("--{ %s, %s }--\n", s,e)
+
+		complaints,err := cdb.GetComplaintsInSpanByEmailAddress(email,s,e)
+		if err != nil {
+			c.Errorf("fixupthing/%s: GetAll failed: %v", email, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		nOK,nBad := 0,0
+		for _,comp := range complaints {
+			if comp.Profile.EmailAddress == email {
+				nOK++
+			} else {
+				nBad++
+
+				comp.Profile.EmailAddress = email
+				if err := cdb.UpdateComplaint(comp, email); err != nil {
+					c.Errorf("fixupthing/%s: update-complaint failed: %v", email, err)
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+			}
+		}
+
+		str += fmt.Sprintf("%s: ok: %4d, bad: %4d\n", s, nOK, nBad)
+	}
+	
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(fmt.Sprintf("OK, fixupthing\n%s", str)))
+}
+
+// }}}
+
+
+// {{{ -------------------------={ E N D }=----------------------------------
+
+// Local variables:
+// folded-file: t
+// end:
+
+// }}}
