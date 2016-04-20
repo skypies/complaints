@@ -73,16 +73,6 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := appengine.Timeout(appengine.NewContext(r), 60*time.Second)
-
-	cdb := complaintdb.ComplaintDB{C: c}
-	cap, err := cdb.GetAllByEmailAddress(session.Values["email"].(string), true)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	_ = cap
-
 	filename := date.NowInPdt().Format("complaints-20060102.csv")
 	w.Header().Set("Content-Type", "application/csv")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
@@ -98,7 +88,18 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	csvWriter := csv.NewWriter(w)
 	csvWriter.Write(cols)
 
-	for _,c := range cap.Complaints {
+	email := session.Values["email"].(string)
+	ctx := appengine.Timeout(appengine.NewContext(r), 60*time.Second)
+	cdb := complaintdb.ComplaintDB{C: ctx}
+	iter := cdb.NewIter(cdb.QueryAllByEmailAddress(email))
+	for {
+		c,err := iter.NextWithErr();
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if c == nil { break }
+	
 		a := c.AircraftOverhead
 		speedbrakes := ""
 		if c.HeardSpeedbreaks { speedbrakes = "y" }
@@ -118,6 +119,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
+
 	csvWriter.Flush()
 }
 
@@ -211,7 +213,6 @@ func personalReportHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
-
 
 // {{{ -------------------------={ E N D }=----------------------------------
 
