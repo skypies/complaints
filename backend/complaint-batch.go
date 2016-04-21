@@ -19,6 +19,7 @@ func init() {
 	http.HandleFunc("/backend/cdb-batch", upgradeHandler)
 	//http.HandleFunc("/backend/cdb-batch-user", upgradeUserHandler)
 	//http.HandleFunc("/backend/cdb-batch-user", fixupthing)
+	//http.HandleFunc("/backend/purge", purgeuserHandler)
 }
 
 
@@ -128,7 +129,6 @@ func upgradeUserHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
-
 // {{{ fixupthing
 
 // Fixup the three days where email addresses got stamped upon
@@ -176,6 +176,43 @@ func fixupthing(w http.ResponseWriter, r *http.Request) {
 
 // }}}
 
+// {{{ purgeuserHandler
+
+// /backend/purge?email=foo@bar&forrealz=1
+
+func purgeuserHandler(w http.ResponseWriter, r *http.Request) {
+	c := appengine.Timeout(appengine.NewContext(r), 300*time.Second)
+	cdb := complaintdb.ComplaintDB{C:c, Memcache:false}
+	email := r.FormValue("email")
+
+	str := fmt.Sprintf("(purgeuser for %s)\n", email)
+
+	q := cdb.QueryAllByEmailAddress(email).KeysOnly()
+	keys, err := q.GetAll(cdb.C, nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	str += fmt.Sprintf("purge: %d complaints found\n", len(keys))
+
+	if r.FormValue("forrealz") == "1" {
+		maxRm := 400
+		for len(keys)>maxRm {
+			if err := datastore.DeleteMulti(c, keys[0:maxRm-1]); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			keys = keys[maxRm:]
+		}
+		str += "all deleted :O\n"
+	}
+	
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(fmt.Sprintf("OK, purge\n%s", str)))
+}
+
+// }}}
 
 // {{{ -------------------------={ E N D }=----------------------------------
 
