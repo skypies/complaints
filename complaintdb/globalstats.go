@@ -162,19 +162,23 @@ func (cdb ComplaintDB)ResetGlobalStats() {
 		DatastoreKey: key.Encode(),
 	}
 	
+	//start := date.ArbitraryDatestring2MidnightPdt("2015/08/09", "2006/01/02").Add(-1 * time.Second)
+	start := date.ArbitraryDatestring2MidnightPdt("2016/03/15", "2006/01/02").Add(-1 * time.Second)
 	end,_ := date.WindowForYesterday()  // end is the final day we count for; yesterday
-	start := end.AddDate(0,0,-100)
+
 	midnights := date.IntermediateMidnights(start, end.Add(time.Minute))
 	for _,m := range midnights {
 		dayStart,dayEnd := date.WindowForTime(m)
+		cdb.C.Infof("Lookup: %s", m)
 
 		dc := DailyCount{Datestring: date.Time2Datestring(dayStart)}
 		
 		for _,p := range profiles {
-			if comp,err := cdb.GetComplaintsInSpanByEmailAddress(p.EmailAddress, dayStart, dayEnd); err!=nil {
+			if keys,err := cdb.GetComplaintKeysInSpanByEmailAddress(dayStart,dayEnd,p.EmailAddress); err != nil {
+				//if comp,err := cdb.GetComplaintsInSpanByEmailAddress(p.EmailAddress, dayStart, dayEnd); err!=nil {
 				cdb.C.Errorf("Reset/Lookup fail, %v", err)
-			} else if len(comp) > 0 {
-				dc.NumComplaints += len(comp)
+			} else if len(keys) > 0 {
+				dc.NumComplaints += len(keys)
 				dc.NumComplainers += 1
 			}
 		}

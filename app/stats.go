@@ -3,6 +3,8 @@ package complaints
 import (
 	"fmt"
 	"net/http"
+	"time"
+
 	"appengine"
 
 	"github.com/skypies/complaints/complaintdb"
@@ -16,7 +18,8 @@ func init() {
 // {{{ statsResetHandler
 
 func statsResetHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+	c := appengine.Timeout(appengine.NewContext(r), 600*time.Second)
+	//c := appengine.NewContext(r)
 	cdb := complaintdb.ComplaintDB{C: c}
 
 	cdb.ResetGlobalStats()
