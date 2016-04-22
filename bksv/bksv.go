@@ -191,7 +191,8 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 		"response":         {"json"},
 
 		"contactmethod":    {"App"},
-		"app_key":          {"TUC8uDJMooVMvf7hew93nhUGcWgw"},
+		//"app_key":          {"TUC8uDJMooVMvf7hew93nhUGcWgw"},
+		"apiKey":           {"399734e01c8cd5c21205599689cc77f2a50467f28e6f5d58a69f2b097d71b839c20e0051175107e74130ae9a3bbaccbe51ec5742e6ca3e51ff40cc1a8f401009"},
 		
 		"caller_code":      {c.Profile.CallerCode},
 		"name":             {first},
@@ -217,7 +218,7 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 		"enquirytype":      {"C"},
 
 		"submit":           {"Submit complaint"},
-		"submitkey":        {submitkey},
+		//"submitkey":        {submitkey},
 
 		"nowebtrak": {"1"},
 		"defaulttime": {"0"},
@@ -319,6 +320,96 @@ func PostComplaint2(client *http.Client, c types.Complaint) (*types.Submission, 
 	
 	s.Log += "Json Success !\n"
 	s.Outcome = types.SubmissionAccepted
+
+	return &s,nil
+}
+
+// }}}
+// {{{ PostComplaint3
+
+// https://complaints-staging.bksv.com/sfo2?json=1&resp=json
+// {"result":"1",
+//  "title":"Complaint Received",
+//  "body":"Thank you. We have received your complaint."}
+
+func PostComplaint3(client *http.Client, c types.Complaint) (*types.Submission, error) {
+	// Initialize a new submission object, inheriting from previous
+	s := types.Submission{
+		Attempts:  c.Submission.Attempts + 1,
+		Log:       c.Submission.Log + fmt.Sprintf("\n--------=={ PostComplaint %s }==-----------\n", time.Now()),
+		Key:       c.Submission.Key,
+		T:         time.Now().UTC(),
+		Outcome:   types.SubmissionFailed, // Be pessimistic right up until the end
+	}
+
+	s.Log += fmt.Sprintf("----{ time: %s }----\n  --{ keyless submission }--\n", s.T)
+
+	vals := PopulateForm(c, "")
+	s.Log += "Submitting these vals:-\n"
+	for k,v := range vals { s.Log += fmt.Sprintf(" * %-20.20s: %v\n", k, v) }
+	
+	resp,err := client.PostForm("https://"+bksvHost+bksvPath, vals)
+	if err != nil { return &s,err }
+
+	defer resp.Body.Close()
+	body,_ := ioutil.ReadAll(resp.Body)
+	s.Response = []byte(body)
+	if resp.StatusCode >= 400 {
+		s.Log += fmt.Sprintf("ComplaintPOST: HTTP err '%s'\nBody:-\n%s\n--\n", resp.Status, body)
+		return &s,fmt.Errorf("ComplaintPOST: HTTP err %s", resp.Status)
+	}
+
+	var jsonMap map[string]interface{}
+	if err := json.Unmarshal([]byte(body), &jsonMap); err != nil {
+		s.Log += fmt.Sprintf("ComplaintPOST: JSON unmarshal '%v'\nBody:-\n%s\n--\n", err, body)
+		return &s,fmt.Errorf("ComplaintPOST: JSON unmarshal %v", err)
+		/* Fall back ?
+			if !regexp.MustCompile(`(?i:received your complaint)`).MatchString(string(body)) {
+				debug += fmt.Sprintf("BKSV body ...\n%s\n------\n", string(body))
+				return debug,fmt.Errorf("Returned response did not say 'received your complaint'")
+			} else {
+				debug += "Success !\n"+string(body)
+			}
+      */			
+	}
+
+	indentedBytes,_ := json.MarshalIndent(jsonMap, "", "  ")
+	s.Log += "\n-- JsonMap:-\n"+string(indentedBytes)+"\n--\n"
+
+/*
+-- JsonMap:-
+{
+  "body": "Thank you. We have received your complaint.",
+  "details": {
+    "address_id": 1967,
+    "complaint_id": 1.120211e+06,
+    "device_id": 1,
+    "person_id": 2083
+  },
+  "result": "1",
+  "title": "Complaint Received"
+}
+--
+*/
+	
+	v := jsonMap["result"];
+	if v == nil {
+		s.Log += fmt.Sprintf("ComplaintPOST: json no 'result'\n")
+		return &s,fmt.Errorf("ComplaintPOST: jsonmap had no 'result'")
+	}
+
+	result := v.(string)
+	if result != "1" {
+		s.Log += fmt.Sprintf("Json result not '1'\n")
+		return &s,fmt.Errorf("ComplaintPOST: result='%s'", result)
+	}
+
+	s.Log += "Json Success !\n"
+	s.Outcome = types.SubmissionAccepted
+
+	// Extract the foreign key for this complaint
+	detailsMap := jsonMap["details"].(map[string]interface{})
+	s.Key = fmt.Sprintf("%.0f", detailsMap["complaint_id"].(float64))
 
 	return &s,nil
 }

@@ -4,6 +4,11 @@ cron:
   schedule: every day 00:10
   timezone: America/Los_Angeles
 
+#- description: Tmptmp
+#  url: /stats-reset
+#  schedule: every day 10:38
+#  timezone: America/Los_Angeles
+
 #- description: Daily complaints to BKSV
 #  url: /bksv/scan-yesterday
 #  schedule: every day 02:02

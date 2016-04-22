@@ -34,17 +34,26 @@ func complaintDebugHandler(w http.ResponseWriter, r *http.Request) {
 
 	c.Submission.Log = "..."
 	c.Debug = "..."
-	json,_ := json.MarshalIndent(c, "", "  ")
+	jsonText,_ := json.MarshalIndent(c, "", "  ")
 
-	str := "====/// Complaint lookup, for key=" + r.FormValue("key") + " ///====\n\n"
-	str += fmt.Sprintf("* %s\n\n", c)
+	str := "======/// Complaint lookup ///=====\n\n"
+	str += fmt.Sprintf("* %s\n* %s\n\n", r.FormValue("key"), c)
 
-	str += "\n====/// Complaint object ///====\n\n"+string(json)
+	if len(c.Submission.Response) > 0 {
+	var jsonMap map[string]interface{}
+		if err := json.Unmarshal(c.Submission.Response, &jsonMap); err != nil {
+			return
+		}
+		indentedBytes,_ := json.MarshalIndent(jsonMap, "", "  ")
+		str += "\n======/// Submission response ///======\n\n"+string(indentedBytes)+"\n--\n"
+	}
+
+	str += "\n======/// Complaint object ///======\n\n"+string(jsonText)+"\n"
 	str += "\n======/// Aircraft ID debug ///======\n\n"+idDebug
 	str += "\n======/// Submission Log ///======\n\n"+subLog
-	
+
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte("OK\n--\n"+str))
+	w.Write([]byte("OK\n\n"+str))
 
 }
 

@@ -130,7 +130,7 @@ func bksvScanYesterdayHandler2(w http.ResponseWriter, r *http.Request) {
 	start,end := date.WindowForYesterday()
 
 	if r.FormValue("today") != "" {
-		start,end = date.WindowForToday()  // HACKERY
+		start,end = date.WindowForToday()  // For testing only
 	}
 	
 	keys,err := cdb.GetComplaintKeysInSpan(start,end)
@@ -163,6 +163,7 @@ func bksvScanYesterdayHandler2(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(fmt.Sprintf("OK, enqueued %d (took %s)\n%s", i, time.Since(tStart), str)))
 }
 
@@ -182,19 +183,13 @@ func bksvSubmitComplaintHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// HACK HACK
-	//
-	complaint.Profile.EmailAddress = "fakedata@jetnoise.net"
-	//
-	// HACK HACK
-
 	if complaint.Submission.Outcome == types.SubmissionAccepted {
 		http.Error(w, fmt.Sprintf("Complaint already submitted ! (%s)", complaint),
 			http.StatusInternalServerError)
 		return
 	}
 
-	submission, postErr := bksv.PostComplaint2(client, *complaint)
+	submission, postErr := bksv.PostComplaint3(client, *complaint)
 	complaint.Submission = *submission // Overwrite the whole embedded object
 
 	// Persist the complaint, even if post failed, to save the Submission details
@@ -211,6 +206,7 @@ func bksvSubmitComplaintHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
+	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte("OK\n--\n"+submission.Log+"\n--\n"))
 }
 
