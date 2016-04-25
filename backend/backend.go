@@ -9,12 +9,15 @@ import (
 	"time"
 
 	"github.com/skypies/util/date"
+
+	"github.com/skypies/complaints/complaintdb"
 )
 
 func init() {
 	http.HandleFunc("/", noopHandler)
 	http.HandleFunc("/_ah/start", noopHandler)
 	http.HandleFunc("/_ah/stop", noopHandler)
+	http.HandleFunc("/backend/yesterday/debug", complaintdb.YesterdayDebugHandler)
 }
 
 var (

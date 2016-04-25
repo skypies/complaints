@@ -13,7 +13,7 @@ import(
 
 func init() {
 	http.HandleFunc("/cdb/comp/debug", complaintDebugHandler)
-	http.HandleFunc("/cdb/yesterday/debug", yesterdayDebugHandler)
+	http.HandleFunc("/cdb/yesterday/debug", YesterdayDebugHandler)
 }
 
 // {{{ complaintDebugHandler
@@ -58,13 +58,13 @@ func complaintDebugHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
-// {{{ yesterdayDebugHandler
+// {{{ YesterdayDebugHandler
 
 // ?all=1 (will list thousands !)
 // ?offset=d (how many days to go back from today; default is 1d, i.e. yesterday)
 
 
-func yesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
+func YesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
 	cdb := NewComplaintDB(r)
 
 	offset := 1
@@ -84,6 +84,7 @@ func yesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
 	counts := map[string]int{}
 	problems := []types.Complaint{}
 	good := []types.Complaint{}
+	retries := []types.Complaint{}
 	
 	//for _,c := range complaints {
 	for _,k := range keys {
@@ -102,6 +103,10 @@ func yesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		if c.Submission.Outcome == types.SubmissionAccepted {
 			counts[fmt.Sprintf("[B] AttemptsToSucceed: %02d", c.Submission.Attempts)]++
+
+			if c.Submission.Attempts > 1 {
+				retries = append(retries, *c)
+			}
 		}
 	}
 
@@ -117,18 +122,25 @@ func yesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	str += "</table>\n"
 
+	url := "https://stop.jetnoise.net/cdb/comp/debug"
+	
 	str += "<p>\n"
 	for _,c := range good {
-		str += fmt.Sprintf(" <a href=\"/cdb/comp/debug?key=%s\" target=\"_blank\">Good</a>: %s",
-			c.DatastoreKey, c)
+		str += fmt.Sprintf(" <a href=\"%s?key=%s\" target=\"_blank\">Good</a>: %s",url,c.DatastoreKey,c)
 		str += "<br/>\n"
 	}
 	str += "</p>\n"
 
- 		str += "<p>\n"
+	str += "<p>\n"
 	for _,c := range problems {
-		str += fmt.Sprintf(" <a href=\"/cdb/comp/debug?key=%s\" target=\"_blank\">Problem</a>: %s",
-			c.DatastoreKey, c)
+		str += fmt.Sprintf(" <a href=\"%s?key=%s\" target=\"_blank\">Prob</a>: %s",url,c.DatastoreKey,c)
+		str += "<br/>\n"
+	}
+	str += "</p>\n"
+
+	str += "<p>\n"
+	for _,c := range retries {
+		str += fmt.Sprintf(" <a href=\"%s?key=%s\" target=\"_blank\">Retry</a>: %s",url,c.DatastoreKey,c)
 		str += "<br/>\n"
 	}
 	str += "</p>\n"

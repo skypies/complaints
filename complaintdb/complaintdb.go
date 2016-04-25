@@ -42,7 +42,7 @@ type ComplaintDB struct {
 
 func NewComplaintDB(r *http.Request) ComplaintDB {
 	return ComplaintDB{
-		C:        appengine.NewContext(r),
+		C:        appengine.Timeout(appengine.NewContext(r), 300 * time.Second),
 		Memcache: false,
 	}
 }

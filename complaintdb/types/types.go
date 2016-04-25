@@ -183,7 +183,7 @@ func (a ComplaintsByTimeDesc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ComplaintsByTimeDesc) Less(i, j int) bool { return a[i].Timestamp.After(a[j].Timestamp) }
 
 func (c Complaint) String() string {
-	return fmt.Sprintf("<%s>@%s [%-6.6s] %d %s \"%s\"",
+	return fmt.Sprintf("{%s}@%s [%-6.6s] %d %s \"%s\"",
 		c.Profile.EmailAddress,
 		c.Timestamp,
 		c.AircraftOverhead.FlightNumber,

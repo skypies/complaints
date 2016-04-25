@@ -349,13 +349,17 @@ func PostComplaint3(client *http.Client, c types.Complaint) (*types.Submission, 
 	for k,v := range vals { s.Log += fmt.Sprintf(" * %-20.20s: %v\n", k, v) }
 	
 	resp,err := client.PostForm("https://"+bksvHost+bksvPath, vals)
-	if err != nil { return &s,err }
+	if err != nil {
+		s.Log += fmt.Sprintf("ComplaintPOST: Posting error: %v\n", err)
+		return &s,err
+	}
 
 	defer resp.Body.Close()
 	body,_ := ioutil.ReadAll(resp.Body)
+	s.Log += fmt.Sprintf("ComplaintPOST: HTTP response '%s'\n", resp.Status)
 	s.Response = []byte(body)
 	if resp.StatusCode >= 400 {
-		s.Log += fmt.Sprintf("ComplaintPOST: HTTP err '%s'\nBody:-\n%s\n--\n", resp.Status, body)
+		s.Log += fmt.Sprintf("ComplaintPOST: HTTP Body:-\n%s\n--\n", body)
 		return &s,fmt.Errorf("ComplaintPOST: HTTP err %s", resp.Status)
 	}
 
