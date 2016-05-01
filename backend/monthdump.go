@@ -24,7 +24,7 @@ func init() {
 
 // {{{ monthTaskHandler
 
-// http://stop.jetnoise.net/backend/monthdump?year=2015&month=9
+// http://backend-dot-serfr0-1000.appspot.com/backend/monthdump?year=2016&month=4
 
 func monthTaskHandler(w http.ResponseWriter, r *http.Request) {
 	//ctx,_ := context.WithTimeout(appengine.NewContext(r), 599*time.Second)

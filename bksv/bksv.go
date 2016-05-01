@@ -1,5 +1,13 @@
 package bksv
 
+// Better regex for caller code
+// Better language for promoting caller code
+// Flag for 'first ever' complaint ?
+// device.UUIDs ... use Guy's lib, and submit.
+// IDs for complainants, and complaints
+// Cutover: 1st May.
+// Share the published report URLs with bert et al.
+
 // Package for posting a {ComplainerProfile,Complaint} to BKSV's web form
 
 import (
@@ -348,9 +356,10 @@ func PostComplaint3(client *http.Client, c types.Complaint) (*types.Submission, 
 	s.Log += "Submitting these vals:-\n"
 	for k,v := range vals { s.Log += fmt.Sprintf(" * %-20.20s: %v\n", k, v) }
 	
+	tStart := time.Now()
 	resp,err := client.PostForm("https://"+bksvHost+bksvPath, vals)
 	if err != nil {
-		s.Log += fmt.Sprintf("ComplaintPOST: Posting error: %v\n", err)
+		s.Log += fmt.Sprintf("ComplaintPOST: Posting error (dur=%s): %v\n", time.Since(tStart), err)
 		return &s,err
 	}
 

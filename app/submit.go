@@ -9,7 +9,7 @@ import (
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/taskqueue"
 	"google.golang.org/appengine/urlfetch"
-	//"golang.org/x/net/context"
+	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
 
@@ -173,7 +173,8 @@ func bksvScanYesterdayHandler2(w http.ResponseWriter, r *http.Request) {
 // stop.jetnoise.net/bksv/submit-complaint?complaintkey=asdasdsdasdasdasdasdasda
 
 func bksvSubmitComplaintHandler(w http.ResponseWriter, r *http.Request) {
-	client := urlfetch.Client(appengine.NewContext(r))
+	ctx,_ := context.WithTimeout(appengine.NewContext(r), 60*time.Second)
+	client := urlfetch.Client(ctx)
 	cdb := complaintdb.NewComplaintDB(r)
 
 	complaint, err := cdb.GetAnyComplaintByKey(r.FormValue("complaintkey"))
