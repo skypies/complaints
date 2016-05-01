@@ -3,13 +3,9 @@
   <body>
     <p>Hello, {{.Profile.FullName}} !</p>
 
-    {{if not .Profile.CcSfo}}<p>[Reminder: these disturbance reports
-    were <b>not submitted</b> to sfo.noise. If you'd like these
-    reports to be submitted automatically every day, go to
-    <a href="http://complaints.serfr1.org/profile">your profile</a>
-    and tick the tickbox.]</p>
-    {{end}}
-    
+    <p>All of these complaints have already been auto-submitted to
+    SFO. <b>PLEASE DO NOT FORWARD THIS EMAIL TO SFO.Noise</b> !</p>
+     
     <p>This is a {{if len .Complaints | ge 1}}single
     report{{else}}list of {{ len .Complaints }} reports{{end}}
     relating to jets on the new <b>NextGen</b> flight paths for SFO,

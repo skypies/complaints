@@ -44,7 +44,7 @@ func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 	bksv_ok := 0
 	
 	for _,cp := range cps {
-		if cp.CcSfo == false { continue }
+		// if cp.CcSfo == false { continue }  // We do not care about this value.
 
 		var complaints = []types.Complaint{}
 		complaints, err = cdb.GetComplaintsInSpanByEmailAddress(cp.EmailAddress, start, end)
