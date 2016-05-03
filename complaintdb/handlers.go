@@ -103,7 +103,8 @@ func YesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		if c.Submission.Outcome == types.SubmissionAccepted {
 			counts[fmt.Sprintf("[B] AttemptsToSucceed: %02d", c.Submission.Attempts)]++
-
+			counts[fmt.Sprintf("[C] SecondsForSuccess: %02d", int(c.D.Seconds()))]++
+			
 			if c.Submission.Attempts > 1 {
 				retries = append(retries, *c)
 			}

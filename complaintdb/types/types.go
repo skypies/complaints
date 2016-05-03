@@ -141,6 +141,7 @@ func (so SubmissionOutcome)String() string {
 // Fields about backend submission
 type Submission struct {
 	T            time.Time
+	D            time.Duration // Of most recent submission
 	Outcome      SubmissionOutcome
 	Response   []byte      `datastore:",noindex"` // JSON response, in full
 	Key          string    `datastore:",noindex"` // Foreign key, from backend
@@ -149,7 +150,7 @@ type Submission struct {
 }
 
 func (s Submission)String() string {
-	return fmt.Sprintf("{%s@%s(%d):%db}", s.Outcome, s.T, s.Attempts, len(s.Key))
+	return fmt.Sprintf("{%s@%s(%d)-%s:%db}", s.Outcome, s.T, s.Attempts, s.D, len(s.Key))
 }
 
 // }}}

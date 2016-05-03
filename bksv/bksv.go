@@ -356,10 +356,10 @@ func PostComplaint3(client *http.Client, c types.Complaint) (*types.Submission, 
 	s.Log += "Submitting these vals:-\n"
 	for k,v := range vals { s.Log += fmt.Sprintf(" * %-20.20s: %v\n", k, v) }
 	
-	tStart := time.Now()
 	resp,err := client.PostForm("https://"+bksvHost+bksvPath, vals)
+	s.D = time.Since(s.T)
 	if err != nil {
-		s.Log += fmt.Sprintf("ComplaintPOST: Posting error (dur=%s): %v\n", time.Since(tStart), err)
+		s.Log += fmt.Sprintf("ComplaintPOST: Posting error (dur=%s): %v\n", s.D, err)
 		return &s,err
 	}
 
