@@ -154,6 +154,18 @@ func (s Submission)String() string {
 }
 
 // }}}
+// {{{ Browser{}
+
+// Fields about backend submission
+type Browser struct {
+	UUID, Name, Version, Vendor, Platform string `datastore:",noindex"`
+}
+
+func (b Browser)String() string {
+	return fmt.Sprintf("{%sv%s/%s/%s %s}", b.Name, b.Version, b.Platform, b.Vendor, b.UUID)
+}
+
+// }}}
 
 // {{{ Complaint{}
 
@@ -171,6 +183,7 @@ type Complaint struct {
 	Profile          ComplainerProfile                    // Embed the whole profile
 
 	Submission       // embedded; details about submitting the complaint to a backend
+	Browser          Browser // Details about the browser used
 	
 	// Synthetic fields
 	DatastoreKey     string        `datastore:"-"`

@@ -57,6 +57,13 @@ func form2Complaint(r *http.Request) types.Complaint {
 		HeardSpeedbreaks: FormValueCheckbox(r, "speedbrakes"),
 		Loudness:  int(FormValueInt64(r, "loudness")),
 		Activity:  r.FormValue("activity"),
+		Browser: types.Browser{
+			UUID: r.FormValue("browser_uuid"),
+			Name: r.FormValue("browser_name"),
+			Version: r.FormValue("browser_version"),
+			Vendor: r.FormValue("browser_vendor"),
+			Platform: r.FormValue("browser_platform"),
+		},
 	}
 
 	// This field is set during updates (it identifies a complaint to update)

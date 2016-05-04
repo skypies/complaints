@@ -199,7 +199,6 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 		"response":         {"json"},
 
 		"contactmethod":    {"App"},
-		//"app_key":          {"TUC8uDJMooVMvf7hew93nhUGcWgw"},
 		"apiKey":           {"399734e01c8cd5c21205599689cc77f2a50467f28e6f5d58a69f2b097d71b839c20e0051175107e74130ae9a3bbaccbe51ec5742e6ca3e51ff40cc1a8f401009"},
 		
 		"caller_code":      {c.Profile.CallerCode},
@@ -235,6 +234,12 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 		"homephone": {""},
 		"workphone": {""},
 		"cellphone": {""},
+
+		"browser_name":     {c.Browser.Name},
+		"browser_version":  {c.Browser.Version},
+		"browser_vendor":   {c.Browser.Vendor},
+		"browser_uuid":     {c.Browser.UUID},
+		"browser_platform": {c.Browser.Platform},
 	}
 
 	if c.AircraftOverhead.FlightNumber != "" {
@@ -244,7 +249,7 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 		vals.Add("aircrafttype", c.AircraftOverhead.EquipType)
 			
 		//vals.Add("adflag", "??") // Operation type (A, D or O for Arr, Dept or Overflight)
-		//vals.Add("beacon", "??") // Squawk SSR code (eg 210)
+		//vals.Add("beacon", "??") // Squawk SSR code (eg 2100)
 	}
 
 	return vals

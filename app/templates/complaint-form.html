@@ -1,6 +1,16 @@
 {{define "complaint-form"}}
 
 <form action="{{if .NewForm}}/add-complaint{{else}}/update-complaint{{end}}" method="post">
+
+  <input type="text" name="browser_uuid" value="" id="browser_uuid" />
+  <input type="hidden" name="browser_name" value="" id="browser_name" />
+  <input type="hidden" name="browser_version" value="" id="browser_version" />
+  <input type="hidden" name="browser_vendor" value="" id="browser_vendor" />
+  <input type="hidden" name="browser_platform" value="" id="browser_platform" />
+  <script type="text/javascript"> 
+    {{template "js-browser-id"}}
+  </script>
+  
   <div>
     {{if .NewForm}}
     Jet noise overhead ? <input id="complain" class="button" type="submit" value="REPORT IT"/><br/><br/>
