@@ -13,6 +13,7 @@ import (
 	"appengine/taskqueue"
 
 	"github.com/skypies/util/date"
+	"github.com/skypies/util/histogram"
 	"github.com/skypies/util/widget"
 	
 	"github.com/skypies/complaints/complaintdb"
@@ -159,6 +160,8 @@ func DayWindows(s,e time.Time) [][]time.Time {
 
 // {{{ summaryReportHandler
 
+// stop.jetnoise.net/report/summary?date=day&day=2016/05/04&peeps=1
+
 func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("date") == "" {
 		var params = map[string]interface{}{
@@ -229,10 +232,18 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Generate histogram(s)
+	histByUser := histogram.Histogram{ValMax:200, NumBuckets:50}
+	for _,v := range uniquesAll {
+		histByUser.Add(histogram.ScalarVal(v))
+	}
+	
 	fmt.Fprintf(w, "\nTotals:\n Days                : %d\n"+
 		" Disturbance reports : %d\n People reporting    : %d\n",
 		len(countsByDate), n, len(uniquesAll))
 
+	fmt.Fprintf(w, "\nComplaints per user, histogram (0-200):\n %s\n", histByUser)
+	
 	fmt.Fprintf(w, "\nDisturbance reports, counted by City (where known):\n")
 	for _,k := range keysByIntValDesc(countsByCity) {
 		fmt.Fprintf(w, " %-40.40s: %5d (%4d people reporting)\n", k, countsByCity[k],
@@ -259,6 +270,14 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 	for i,n := range countsByHour {
 		fmt.Fprintf(w, " %02d: %5d\n", i, n)
 	}
+
+	if r.FormValue("peeps") != "" {
+		fmt.Fprintf(w, "\nDisturbance reports, counted by user:\n")
+		for _,k := range keysByIntValDesc(uniquesAll) {
+			fmt.Fprintf(w, " %-60.60s: %5d\n", k, uniquesAll[k])
+		}
+	}
+
 	fmt.Fprintf(w, "(t=%s)\n", time.Now())
 }
 
