@@ -40,25 +40,6 @@ func init() {
 	
 }
 
-// {{{ tagList
-
-// This is a v1 hack, although not needed for a bit ...
-func tagList(opt report.Options) []string {
-	tags := []string{}
-	tags = append(tags, opt.Tags...)
-
-	for _,proc := range opt.Procedures {
-		switch proc {
-		case "SERFR": tags = append(tags, oldfdb.KTagSERFR1)
-		case "BRIXX": tags = append(tags, oldfdb.KTagBRIXX)
-		}
-	}
-
-	return tags
-}
-
-// }}}
-
 // {{{ ButtonPOST
 
 func ButtonPOST(anchor, action string, idspecs []string) string {
@@ -154,9 +135,9 @@ func report3Handler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	tags := tagList(rep.Options)
+	tags := rep.Options.Tags
 
-	for _,wp := range rep.HackWaypoints {
+	for _,wp := range rep.Waypoints {
 		tags = append(tags, fmt.Sprintf("%s%s", oldfdb.KWaypointTagPrefix, wp))
 	}
 	
