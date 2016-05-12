@@ -173,7 +173,7 @@ type Complaint struct {
 	Version          int           `datastore:",noindex"` // undef or 0 means unversioned thingy.
 	Description      string        `datastore:",noindex"`
 	Timestamp        time.Time
-	AircraftOverhead fr24.Aircraft `datastore:",noindex"`
+	AircraftOverhead fr24.Aircraft
 	Debug            string        `datastore:",noindex"` // Debugging; mostly about flight lookup
 
 	HeardSpeedbreaks bool

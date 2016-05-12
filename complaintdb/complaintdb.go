@@ -511,6 +511,40 @@ func (cdb ComplaintDB)GetComplaintsInSpanNew(start,end time.Time) ([]types.Compl
 
 // }}}
 
+// {{{ cdb.GetComplaintTimesInSpanByFlight
+
+type timeAsc []time.Time
+func (a timeAsc) Len() int           { return len(a) }
+func (a timeAsc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a timeAsc) Less(i, j int) bool { return a[i].Before(a[j]) }
+
+func (cdb ComplaintDB)GetComplaintTimesInSpanByFlight(start,end time.Time, flight string) ([]time.Time, error) {
+	
+	q := datastore.
+		NewQuery(kComplaintKind).
+		Project("Timestamp").
+		Filter("Timestamp >= ", start).
+		Filter("Timestamp < ", end).
+		Filter("AircraftOverhead.FlightNumber = ", flight).
+		Limit(-1)
+
+	var data = []types.Complaint{}
+	if _,err := q.GetAll(cdb.C, &data); err != nil {
+		return []time.Time{}, err
+	}
+
+	times := []time.Time{}
+	for _,c := range data {
+		times = append(times, c.Timestamp)
+	}
+
+	sort.Sort(timeAsc(times))
+	
+	return times, nil
+}
+
+// }}}
+
 // {{{ cdb.GetAnyComplaintByKey
 
 func (cdb ComplaintDB) GetAnyComplaintByKey(keyString string) (*types.Complaint, error) {

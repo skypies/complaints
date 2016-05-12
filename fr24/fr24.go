@@ -54,34 +54,34 @@ type Fr24 struct {
 //   0, -1920, "SWA482", 0]
 type Aircraft struct {
 	//`datastore:"-"` // for all these ??
-	Dist                float64  // in KM
-	Dist3               float64  // in KM (3D dist, taking altitude into account)
-	BearingFromObserver float64  // bearing from the house
-	Fr24Url             string   // Flightradar's playback view
+	Dist                float64  `datastore:",noindex"`// in KM
+	Dist3               float64  `datastore:",noindex"`// in KM (3D dist, taking altitude into account)
+	BearingFromObserver float64  `datastore:",noindex"`// bearing from the house
+	Fr24Url             string   `datastore:",noindex"`// Flightradar's playback view
 
 	
-	Id string            // Flightradar's ID for this instance of this flight
-	Id2 string           // Better known as ModeS
-	Lat float64
-	Long float64
-	Track float64
+	Id string            `datastore:",noindex"`// Flightradar's ID for this instance of this flight
+	Id2 string           `datastore:",noindex"`// Better known as ModeS
+	Lat float64 `datastore:",noindex"`
+	Long float64 `datastore:",noindex"`
+	Track float64 `datastore:",noindex"`
 
-	Altitude float64
-	Speed float64
-	Squawk string
-	Radar string
-	EquipType string
+	Altitude float64 `datastore:",noindex"`
+	Speed float64 `datastore:",noindex"`
+	Squawk string `datastore:",noindex"`
+	Radar string `datastore:",noindex"`
+	EquipType string `datastore:",noindex"`
 	
-	Registration string
-	Epoch float64
-	Origin string
-	Destination string
+	Registration string `datastore:",noindex"`
+	Epoch float64 `datastore:",noindex"`
+	Origin string `datastore:",noindex"`
+	Destination string `datastore:",noindex"`
 	FlightNumber string
 	
-	Unknown float64
-	VerticalSpeed float64
-	Callsign string
-	Unknown2 float64
+	Unknown float64 `datastore:",noindex"`
+	VerticalSpeed float64 `datastore:",noindex"`
+	Callsign string `datastore:",noindex"`
+	Unknown2 float64 `datastore:",noindex"`
 }
 
 // Why is this not getting invoked correctly ?/
