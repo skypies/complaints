@@ -189,7 +189,8 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 	countsByAirline := map[string]int{}
 	countsByEquip := map[string]int{}
 	countsByCity := map[string]int{}
-
+	countsByAirport := map[string]int{}
+	
 	uniquesAll := map[string]int{}
 	uniquesByDate := map[string]map[string]int{}
 	uniquesByCity := map[string]map[string]int{}
@@ -219,6 +220,17 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 
 			if airline := c.AircraftOverhead.IATAAirlineCode(); airline != "" {
 				countsByAirline[airline]++
+
+				whitelist := map[string]int{"SFO":1, "SJC":1, "OAK":1}
+				if _,exists := whitelist[c.AircraftOverhead.Destination]; exists {
+					countsByAirport[fmt.Sprintf("%s arrival", c.AircraftOverhead.Destination)]++
+				} else if _,exists := whitelist[c.AircraftOverhead.Origin]; exists {
+					countsByAirport[fmt.Sprintf("%s departure", c.AircraftOverhead.Origin)]++
+				} else {
+					countsByAirport["airport unknown"]++ // overflights, and/or empty airport fields
+				}
+			} else {
+				countsByAirport["flight unidenitifed"]++
 			}
 
 			if city := c.Profile.GetStructuredAddress().City; city != "" {
@@ -244,6 +256,11 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintf(w, "\nComplaints per user, histogram (0-200):\n %s\n", histByUser)
 	
+	fmt.Fprintf(w, "\nDisturbance reports, counted by airport:\n")
+	for _,k := range keysByKeyAsc(countsByAirport) {
+		fmt.Fprintf(w, " %-20.20s: %5d\n", k, countsByAirport[k])
+	}
+
 	fmt.Fprintf(w, "\nDisturbance reports, counted by City (where known):\n")
 	for _,k := range keysByIntValDesc(countsByCity) {
 		fmt.Fprintf(w, " %-40.40s: %5d (%4d people reporting)\n", k, countsByCity[k],
