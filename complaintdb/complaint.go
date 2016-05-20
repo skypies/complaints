@@ -72,10 +72,13 @@ func FixupComplaint(c *types.Complaint, key *datastore.Key) {
 	// 1. GAE datastore helpfully converts timezones to UTC upon storage; fix that
 	c.Timestamp = date.InPdt(c.Timestamp)
 
-	// 2. Compute the flight details URL, if within 7 days
+	// 2. Compute the flight details URL, if within 24 days
 	age := date.NowInPdt().Sub(c.Timestamp)
-	if age < time.Hour*24*7 {
-		c.AircraftOverhead.Fr24Url = c.AircraftOverhead.PlaybackUrl()
+	if age < time.Hour*24 {
+		// c.AircraftOverhead.Fr24Url = c.AircraftOverhead.PlaybackUrl()
+
+		c.AircraftOverhead.Fr24Url = "http://flightaware.com/live/flight/" +
+			c.AircraftOverhead.FlightNumber
 		// Or: http://flightaware.com/live/flight/UAL337/history/20151215/ [0655Z/KLAX/KSFO]
 		// date is UTC of departure time; might be tricky to guess :/
 	}

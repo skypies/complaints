@@ -20,11 +20,11 @@
 
   <span class="flightdetails">
     {{if not .Complaint.C.AircraftOverhead.EquipType}}<i>(manually entered)</i>
-    {{else}}({{.Complaint.C.AircraftOverhead.EquipType}}
-    <span>
-      {{.Complaint.C.AircraftOverhead.Speed}}k, {{.Complaint.C.AircraftOverhead.Altitude}}ft
-    </span>
-    {{.Complaint.C.AircraftOverhead.VerticalSpeed}}/m)
+    {{else}}({{.Complaint.C.AircraftOverhead.Origin}}:{{.Complaint.C.AircraftOverhead.Destination}}
+    {{.Complaint.C.AircraftOverhead.EquipType}}
+      <span>
+      {{.Complaint.C.AircraftOverhead.Speed}}k, {{.Complaint.C.AircraftOverhead.Altitude}}ft)
+      </span>
     {{end}}
   </span>
 
