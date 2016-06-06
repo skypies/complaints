@@ -149,7 +149,7 @@ func SendComplaintsWithSpan(c appengine.Context, start,end time.Time) (err error
 	blacklist := map[string]bool{}
 	for _,e := range blacklistAddrs { blacklist[e] = true }
 	
-	cdb := complaintdb.ComplaintDB{C:c, Memcache:true}
+	cdb := complaintdb.ComplaintDB{C:c, Req:r, Memcache:true}
 	var cps = []types.ComplainerProfile{}
 	cps, err = cdb.GetAllProfiles()
 	if err != nil { return }

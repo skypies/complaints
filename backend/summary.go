@@ -84,7 +84,7 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 	ctx.Infof("Yow: START : %s", s)
 	ctx.Infof("Yow: END   : %s", e)
 
-	cdb := complaintdb.ComplaintDB{C: ctx}
+	cdb := complaintdb.ComplaintDB{C: ctx, Req: r}
 
 	filename := s.Format("complaints-20060102") + e.Format("-20060102.csv")
 	w.Header().Set("Content-Type", "application/csv")
@@ -184,7 +184,7 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 	start,end,_ := widget.FormValueDateRange(r)
 
 	ctx := appengine.Timeout(appengine.NewContext(r), 9000*time.Second)
-	cdb := complaintdb.ComplaintDB{C: ctx}
+	cdb := complaintdb.ComplaintDB{C: ctx, Req: r}
 
 	w.Header().Set("Content-Type", "text/plain")
 	fmt.Fprintf(w, "(t=%s)\n", time.Now())
@@ -389,7 +389,7 @@ func communityReportHandler(w http.ResponseWriter, r *http.Request) {
 	start,end,_ := widget.FormValueDateRange(r)
 
 	ctx := appengine.Timeout(appengine.NewContext(r), 9000*time.Second)
-	cdb := complaintdb.ComplaintDB{C: ctx}
+	cdb := complaintdb.ComplaintDB{C: ctx, Req: r}
 
 	// Use most-recent city info for all the users, not what got cached per-complaint
 	userCities,err := cdb.GetEmailCityMap()
@@ -497,7 +497,7 @@ func communityReportHandler(w http.ResponseWriter, r *http.Request) {
 
 func userReportHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.Timeout(appengine.NewContext(r), 9000*time.Second)
-	cdb := complaintdb.ComplaintDB{C: ctx}
+	cdb := complaintdb.ComplaintDB{C: ctx, Req: r}
 
 	profiles,err := cdb.GetAllProfiles()
 	if err != nil {

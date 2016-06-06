@@ -112,6 +112,14 @@ func hintComplaints(in []types.Complaint, isSuperHinter bool) []HintedComplaint 
 func rootHandler (w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	session := sessions.Get(r)
+
+	tStart := time.Now()
+	debugf := func(step string, fmtstr string, varargs ...interface{}) {
+		payload := fmt.Sprintf(fmtstr, varargs...)
+		c.Debugf("[%s] %9.6f %s", step, time.Since(tStart).Seconds(), payload)
+	}
+	
+	debugf("root_001", "session obtained")
 	
 	// No session ? Get them to login
 	if session.Values["email"] == nil {
@@ -144,7 +152,8 @@ func rootHandler (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	cdb := complaintdb.ComplaintDB{C: c}
+	cdb := complaintdb.NewComplaintDB(r)
+	c.Debugf("root[002] about get cdb.GetAllByEmailAddress")
 	cap, err := cdb.GetAllByEmailAddress(session.Values["email"].(string), modes["expanded"])
 	if cap==nil && err==nil {
 		// No profile exists; daisy-chain into profile page
@@ -154,6 +163,7 @@ func rootHandler (w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	debugf("root_001", "cdb.GetAllByEmailAddress done")
 
 	modes["admin"] = user.Current(c)!=nil && user.Current(c).Admin
 	modes["superuser"] = modes["admin"] || cap.Profile.EmailAddress == "meekGee@gmail.com"

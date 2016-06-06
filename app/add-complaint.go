@@ -87,8 +87,7 @@ func form2Complaint(r *http.Request) types.Complaint {
 // {{{ buttonHandler
 
 func buttonHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	cdb := complaintdb.ComplaintDB{C: c}
+	cdb := complaintdb.NewComplaintDB(r)
 	resp := "OK"
 	cc := r.FormValue("c")
 
@@ -117,7 +116,7 @@ func complaintUpdateFormHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	email := session.Values["email"].(string)
 
-	cdb := complaintdb.ComplaintDB{C: c}
+	cdb := complaintdb.NewComplaintDB(r)
 	key := r.FormValue("k")
 
 	if complaint, err := cdb.GetComplaintByKey(key, email); err != nil {
@@ -147,6 +146,9 @@ func complaintUpdateFormHandler(w http.ResponseWriter, r *http.Request) {
 
 func addComplaintHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
+	cdb := complaintdb.NewComplaintDB(r)
+
+	cdb.Debugf("ac_001", "context established at %s", date.NowInPdt())
 	session := sessions.Get(r)
 	if session.Values["email"] == nil {
 		c.Errorf("session was empty; no cookie ?")
@@ -155,16 +157,19 @@ func addComplaintHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := session.Values["email"].(string)
-	
-	cdb := complaintdb.ComplaintDB{C: c}
+	cdb.Debugf("ac_002", "have email")
+
 	complaint := form2Complaint(r)
 	//complaint.Timestamp = complaint.Timestamp.AddDate(0,0,-3)
+	cdb.Debugf("ac_003", "calling cdb.ComplainByEmailAddress")
 	err := cdb.ComplainByEmailAddress(email, &complaint)
 	if err != nil {
 		c.Errorf("cdb.Complain failed: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	cdb.Debugf("ac_900", "all done, about to redirect")
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
@@ -182,7 +187,7 @@ func addHistoricalComplaintHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	email := session.Values["email"].(string)
 	
-	cdb := complaintdb.ComplaintDB{C: c}
+	cdb := complaintdb.NewComplaintDB(r)
 	complaint := form2Complaint(r)
 
 	err := cdb.AddHistoricalComplaintByEmailAddress(email, &complaint)
@@ -210,7 +215,7 @@ func updateComplaintHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	email := session.Values["email"].(string)
 
-	cdb := complaintdb.ComplaintDB{C: c}
+	cdb := complaintdb.NewComplaintDB(r)
 	new := form2Complaint(r)
 	newFlightNumber := r.FormValue("manualflightnumber")
 	newTimeString := r.FormValue("manualtimestring")
@@ -280,7 +285,7 @@ func deleteComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	c.Infof("Deleting %d complaints for %s", len(keyStrings), email)
 
-	cdb := complaintdb.ComplaintDB{C: c}
+	cdb := complaintdb.NewComplaintDB(r)
 	err := cdb.DeleteComplaints(keyStrings, email)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -291,6 +296,12 @@ func deleteComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 
 // }}}
 
+/*
+
+Prob 1: waiting 350ms before "context established" in handler.
+https://console.cloud.google.com/logs?expandAll=true&filters=request_id:5755f59100ff019af7ea9e5de20001737e7365726672302d3130303000013100010101&project=serfr0-1000&resource=appengine.googleapis.com%2Fmodule_id%2Fdefault%2Fversion_id%2F1&logName=appengine.googleapis.com%2Frequest_log&minLogLevel=0&moduleId=default&versionId=1&lastVisibleTimestampNanos=1465251217105207000
+
+ */
 
 // {{{ -------------------------={ E N D }=----------------------------------
 

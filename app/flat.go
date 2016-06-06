@@ -17,9 +17,6 @@ func init() {
 }
 
 func flat(w http.ResponseWriter, r *http.Request) {
-	//c := appengine.NewContext(r)
-	//cdb := complaintdb.ComplaintDB{C: appengine.NewContext(r)}
-
 	pagename := r.URL.Path
 
 	if err := templates.ExecuteTemplate(w, pagename, nil); err != nil {

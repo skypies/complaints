@@ -42,7 +42,7 @@ func complaintsForHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := appengine.Timeout(appengine.NewContext(r), 60*time.Second)
-	cdb := complaintdb.ComplaintDB{C: ctx}
+	cdb := complaintdb.ComplaintDB{C:ctx, Req:r}
 
 	times, err := cdb.GetComplaintTimesInSpanByFlight(s,e,flightnumber)
 	if err != nil {

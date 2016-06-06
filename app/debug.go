@@ -37,8 +37,7 @@ func debugHandler3(w http.ResponseWriter, r *http.Request) {
 
 // Hack up the counts.
 func debugHandler4(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	cdb := complaintdb.ComplaintDB{C:c}
+	cdb := complaintdb.NewComplaintDB(r)
 
 	cdb.AddDailyCount(complaintdb.DailyCount{
 		Datestring: "2016.04.12",

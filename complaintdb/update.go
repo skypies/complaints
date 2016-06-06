@@ -23,13 +23,16 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 	overhead := fr24.Aircraft{}
 
 	// Check we're not over a daily cap for this user
+	cdb.Debugf("cbe_010", "doing rate limit check")
 	s,e := date.WindowForToday()
 	if prevKeys,err := cdb.GetComplaintKeysInSpanByEmailAddress(s,e,cp.EmailAddress); err != nil {
 		return err
 	} else if len(prevKeys) >= KMaxComplaintsPerDay {
 		return fmt.Errorf("Too many complaints filed today")
+	} else {
+		cdb.Debugf("cbe_011", "rate limit check passed (%d); calling FindOverhead", len(prevKeys))
 	}
-
+	
 	//cdb.C.Infof("adding complaint for [%s] %s", cp.CallerCode, overhead.FlightNumber)
 
 	// abw hack hack
@@ -39,6 +42,7 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 	} else {
 		c.Debug = debug
 	}
+	cdb.Debugf("cbe_020", "FindOverhead returned")
 	if overhead.Id != "" {
 		c.AircraftOverhead = overhead
 	}
@@ -46,6 +50,7 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 	if cp.CallerCode == "WOR004" || cp.CallerCode == "WOR005" {
 		elev := 0.0
 		oh2,deb2,err2 := flightid.FindOverhead(client,geo.Latlong{cp.Lat,cp.Long},elev, grabAny)
+		cdb.Debugf("cbe_021]", "new.FindOverhead also returned")
 		c.Debug += fmt.Sprintf("\n ***** V2 testing : (%v) %s\n\n%s\n", err2, oh2, deb2)
 		if oh2 == nil && overhead.FlightNumber != "" {
 			t := c.Debug
@@ -63,16 +68,22 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 	c.Profile = cp // Copy the profile fields into every complaint
 	
 	// Too much like the last complaint by this user ? Just update that one.
+	cdb.Debugf("cbe_030", "retrieving prev complaint")
 	if prev, err := cdb.GetNewestComplaintByEmailAddress(cp.EmailAddress); err != nil {
 		cdb.C.Errorf("complainByProfile/GetNewest: %v", err)
 	} else if prev != nil && ComplaintsAreEquivalent(*prev, *c) {
+		cdb.Debugf("cbe_031", "returned, equiv; about to UpdateComlaint()")
 		// The two complaints are in fact one complaint. Overwrite the old one with data from new one.
 		Overwrite(prev, c)
-		return cdb.UpdateComplaint(*prev, cp.EmailAddress)
+		err := cdb.UpdateComplaint(*prev, cp.EmailAddress)
+		cdb.Debugf("cbe_032", "updated in place (all done)")
+		return err
 	}
+	cdb.Debugf("cbe_033", "rerturned, distinct; about tot put()")
 
 	key := datastore.NewIncompleteKey(cdb.C, kComplaintKind, cdb.emailToRootKey(cp.EmailAddress))	
 	_, err := datastore.Put(cdb.C, key, c)
+	cdb.Debugf("cbe_034", "new entity added (all done)")
 
 	// TEMP
 /*
@@ -93,8 +104,11 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 func (cdb ComplaintDB) ComplainByEmailAddress(ea string, c *types.Complaint) error {
 	var cp *types.ComplainerProfile
 	var err error
+
+	cdb.Debugf("cbe_001", "ComplainByEmailAddress starting")
 	cp, err = cdb.GetProfileByEmailAddress(ea)
 	if err != nil { return err }
+	cdb.Debugf("cbe_002", "profile obtained")
 
 	return cdb.complainByProfile(*cp, c)
 }

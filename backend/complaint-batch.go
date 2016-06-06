@@ -28,7 +28,7 @@ func init() {
 // Grab all users, and enqueue them for batch processing
 func upgradeHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
-	cdb := complaintdb.ComplaintDB{C:c, Memcache:false}
+	cdb := complaintdb.ComplaintDB{C:c, Req:r, Memcache:false}
 
 	var cps = []types.ComplainerProfile{}
 	cps, err := cdb.GetAllProfiles()
@@ -58,7 +58,7 @@ func upgradeHandler(w http.ResponseWriter, r *http.Request) {
 // Upgrade the set of complaints for each user.
 func upgradeUserHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.Timeout(appengine.NewContext(r), 300*time.Second)
-	cdb := complaintdb.ComplaintDB{C:c, Memcache:false}
+	cdb := complaintdb.ComplaintDB{C:c, Req:r, Memcache:false}
 
 	email := r.FormValue("email")
 	cp,err := cdb.GetProfileByEmailAddress(email)
@@ -134,7 +134,7 @@ func upgradeUserHandler(w http.ResponseWriter, r *http.Request) {
 // Fixup the three days where email addresses got stamped upon
 func fixupthing(w http.ResponseWriter, r *http.Request) {
 	c := appengine.Timeout(appengine.NewContext(r), 300*time.Second)
-	cdb := complaintdb.ComplaintDB{C:c, Memcache:false}
+	cdb := complaintdb.ComplaintDB{C:c, Req:r, Memcache:false}
 
 	email := r.FormValue("email")
 	str := fmt.Sprintf("(lookup for %s)\n", email)
@@ -182,7 +182,7 @@ func fixupthing(w http.ResponseWriter, r *http.Request) {
 
 func purgeuserHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.Timeout(appengine.NewContext(r), 300*time.Second)
-	cdb := complaintdb.ComplaintDB{C:c, Memcache:false}
+	cdb := complaintdb.ComplaintDB{C:c, Req:r, Memcache:false}
 	email := r.FormValue("email")
 
 	str := fmt.Sprintf("(purgeuser for %s)\n", email)

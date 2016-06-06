@@ -30,7 +30,7 @@ func zipHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := appengine.Timeout(appengine.NewContext(r), 60*time.Second)  // Default has a 5s timeout
-	cdb := complaintdb.ComplaintDB{C: ctx, Memcache:false}
+	cdb := complaintdb.ComplaintDB{C: ctx, Req: r, Memcache:false}
 	
 	zip := r.FormValue("zip")
 	s,e,_ := widget.FormValueDateRange(r)	

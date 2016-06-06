@@ -90,7 +90,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	email := session.Values["email"].(string)
 	ctx := appengine.Timeout(appengine.NewContext(r), 60*time.Second)
-	cdb := complaintdb.ComplaintDB{C: ctx}
+	cdb := complaintdb.ComplaintDB{C:ctx, Req:r}
 	iter := cdb.NewIter(cdb.QueryAllByEmailAddress(email))
 	for {
 		c,err := iter.NextWithErr();
@@ -148,7 +148,7 @@ func personalReportHandler(w http.ResponseWriter, r *http.Request) {
 	start,end,_ := widget.FormValueDateRange(r)
 
 	ctx := appengine.Timeout(appengine.NewContext(r), 60*time.Second)
-	cdb := complaintdb.ComplaintDB{C: ctx}
+	cdb := complaintdb.ComplaintDB{C:ctx, Req:r}
 
 	w.Header().Set("Content-Type", "text/plain")
 	// w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", "sc.txt"))

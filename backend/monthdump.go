@@ -33,6 +33,7 @@ func monthTaskHandler(w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.ComplaintDB{
 		//C: oldappengine.NewContext(r),
 		C:oldappengine.Timeout(oldappengine.NewContext(r), 599*time.Second),
+		Req:r,
 	}
 	
 	year,err := strconv.ParseInt(r.FormValue("year"), 10, 64)

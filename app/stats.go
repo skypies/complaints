@@ -20,7 +20,7 @@ func init() {
 func statsResetHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.Timeout(appengine.NewContext(r), 600*time.Second)
 	//c := appengine.NewContext(r)
-	cdb := complaintdb.ComplaintDB{C: c}
+	cdb := complaintdb.ComplaintDB{C: c, Req:r}
 
 	cdb.ResetGlobalStats()
 	
@@ -32,7 +32,7 @@ func statsResetHandler(w http.ResponseWriter, r *http.Request) {
 
 func statsHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
-	cdb := complaintdb.ComplaintDB{C: c}
+	cdb := complaintdb.ComplaintDB{C: c, Req:r}
 
 	if gs,err := cdb.LoadGlobalStats(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

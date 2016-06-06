@@ -56,8 +56,9 @@ func SendEmailToAdmin(c appengine.Context, subject, htmlbody string) {
 // }}}
 // {{{ SendEmailToAllUsers
 
-func SendEmailToAllUsers(c appengine.Context, subject string) int {
-	cdb := complaintdb.ComplaintDB{C: c}
+func SendEmailToAllUsers(r *http.Request, subject string) int {
+	c := appengine.NewContext(r)
+	cdb := complaintdb.NewComplaintDB(r)
 
 	if cps,err := cdb.GetAllProfiles(); err != nil {
 		c.Errorf("SendEmailToAllUsers/GetAllProfiles: %v", err)
@@ -93,6 +94,8 @@ func SendEmailToAllUsers(c appengine.Context, subject string) int {
 // {{{ GenerateSingleComplaintEmail
 
 func GenerateSingleComplaintEmail(c appengine.Context, profile types.ComplainerProfile, complaint types.Complaint) (*mail.Message, error) {
+	return nil, fmt.Errorf("GenerateSingleComplaintEmail has been retired")
+
 	if profile.CcSfo == false {
 		return nil, fmt.Errorf("singlecomplaint called, but CcSFO false")
 	}
@@ -184,13 +187,14 @@ func GenerateEmail(c appengine.Context, cap types.ComplaintsAndProfile) (*mail.M
 
 var blacklistAddrs = []string{}
 
-func SendComplaintsWithSpan(c appengine.Context, start,end time.Time) (err error) {
+func SendComplaintsWithSpan(r *http.Request, start,end time.Time) (err error) {
+	c := appengine.NewContext(r)
 	c.Infof("--- Emails, %s -> %s", start, end)
 
 	blacklist := map[string]bool{}
 	for _,e := range blacklistAddrs { blacklist[e] = true }
 	
-	cdb := complaintdb.ComplaintDB{C:c, Memcache:true}
+	cdb := complaintdb.ComplaintDB{C:c, Req:r, Memcache:true}
 	var cps = []types.ComplainerProfile{}
 	cps, err = cdb.GetAllProfiles()
 	if err != nil { return }
@@ -302,7 +306,7 @@ func SendComplaintsWithSpan(c appengine.Context, start,end time.Time) (err error
 
 func sendEmailsForWindow(w http.ResponseWriter, r *http.Request, start,end time.Time) {
 	c := appengine.NewContext(r)
-	if err := SendComplaintsWithSpan(c, start, end); err != nil {
+	if err := SendComplaintsWithSpan(r, start, end); err != nil {
 		c.Errorf("Couldn't send email: %v", err)
 	}
 	w.Write([]byte("OK"))
@@ -324,7 +328,7 @@ func bounceHandler(w http.ResponseWriter, r *http.Request) {
 func emailHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	session := sessions.Get(r)
-	cdb := complaintdb.ComplaintDB{C: c}
+	cdb := complaintdb.NewComplaintDB(r)
 
 	cp, err := cdb.GetProfileByEmailAddress(session.Values["email"].(string))
 	if err != nil {
@@ -398,9 +402,8 @@ func sendEmailsForYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ emailUpdateHandler
 
 func emailUpdateHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
 	subject := "stop.jetnoise.net news, 2016.02"
-	n := SendEmailToAllUsers(c, subject)
+	n := SendEmailToAllUsers(r, subject)
 
 	w.Write([]byte(fmt.Sprintf("Email update, OK (%d)\n", n)))
 }

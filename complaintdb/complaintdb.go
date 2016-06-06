@@ -31,15 +31,29 @@ var(
 // {{{ type ComplaintDB
 
 type ComplaintDB struct {
+	Req *http.Request  // To allow the construction of 'newappengine' contexts, for gaeutil
 	C appengine.Context
 	Memcache bool
+	StartTime time.Time
+
 }
 
 func NewComplaintDB(r *http.Request) ComplaintDB {
 	return ComplaintDB{
+		Req:      r,
 		C:        appengine.Timeout(appengine.NewContext(r), 300 * time.Second),
 		Memcache: false,
+		StartTime: time.Now(),
 	}
+}
+
+// }}}
+
+// {{{ cdb.Debugf
+
+func (cdb ComplaintDB)Debugf(step string, fmtstr string, varargs ...interface{}) {
+	payload := fmt.Sprintf(fmtstr, varargs...)
+	cdb.C.Debugf("[%s] %9.6f %s", step, time.Since(cdb.StartTime).Seconds(), payload)
 }
 
 // }}}
@@ -49,18 +63,22 @@ func NewComplaintDB(r *http.Request) ComplaintDB {
 func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem, error) {
 	counts := []types.CountItem{}
 
+	cdb.Debugf("gDailyCounts_001", "starting")
 	gs,_ := cdb.LoadGlobalStats()
+	cdb.Debugf("gDailyCounts_002", "global stats loaded")
 	stats := map[string]*DailyCount{}
 	if gs != nil {
 		for i,dc := range gs.Counts {
 			stats[date.Datestring2MidnightPdt(dc.Datestring).Format("Jan 02")] = &gs.Counts[i]
 		}
 	}
+	cdb.Debugf("gDailyCounts_003", "global stats munged; loading daily")
 	
 	if dailys,err := cdb.GetDailyCounts(ea); err != nil {
 		return counts, err
 
 	} else {
+		cdb.Debugf("gDailyCounts_004", "daily stats loaded")
 		for _,daily := range dailys {
 			// cdb.C.Infof(" -- we have a daily: %#v", daily)
 			item := types.CountItem{
@@ -75,6 +93,7 @@ func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem
 			}
 			counts = append(counts, item)
 		}
+		cdb.Debugf("gDailyCounts_004", "daily stats munged")
 	}
 
 	return counts, nil
@@ -591,12 +610,15 @@ func (cdb ComplaintDB) GetComplaintByKey(keyString string, ownerEmail string) (*
 
 func (cdb ComplaintDB) GetAllByEmailAddress(ea string, everything bool) (*types.ComplaintsAndProfile, error) {
 	var cap types.ComplaintsAndProfile
+
+	cdb.Debugf("GABEA_001", "cdb.GetAllByEmailAddress starting (everything=%v)", everything)
 	
 	if cp,err := cdb.GetProfileByEmailAddress(ea); err == datastore.ErrNoSuchEntity {
 		return nil,nil  // No such profile exists
 	} else if err != nil {
 		return nil,err  // A real problem occurred
 	} else {
+		cdb.Debugf("GABEA_002", "profile retrieved")
 		cap.Profile = *cp
 	}
 
@@ -604,6 +626,7 @@ func (cdb ComplaintDB) GetAllByEmailAddress(ea string, everything bool) (*types.
 		if c,err := cdb.GetComplaintsByEmailAddress(ea); err != nil {
 			return nil,err
 		} else {
+			cdb.Debugf("GABEA_003", "EVERYTHING retrieved")
 			cap.Complaints = c
 		}
 
@@ -613,6 +636,7 @@ func (cdb ComplaintDB) GetAllByEmailAddress(ea string, everything bool) (*types.
 		if c,err := cdb.GetComplaintsInSpanByEmailAddress(ea,s,e); err != nil {
 			return nil,err
 		} else {
+			cdb.Debugf("GABEA_004", "WindowForToday retrieved; now getting counts")
 			cap.Complaints = c
 		}
 	}
@@ -620,6 +644,7 @@ func (cdb ComplaintDB) GetAllByEmailAddress(ea string, everything bool) (*types.
 	if counts,err := cdb.getDailyCountsByEmailAdress(ea); err != nil {
 		return nil,err
 	} else {
+		cdb.Debugf("GABEA_005", "counts retrieved")
 		cap.Counts = counts
 	}
 	

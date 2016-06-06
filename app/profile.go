@@ -33,7 +33,6 @@ func profileFormHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	c := appengine.NewContext(r)
 	session := sessions.Get(r)
 	if session.Values["email"] == nil {
 		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
@@ -42,7 +41,7 @@ func profileFormHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	email := session.Values["email"].(string)
 
-	cdb := complaintdb.ComplaintDB{C: c}
+	cdb := complaintdb.NewComplaintDB(r)
 	cp, _ := cdb.GetProfileByEmailAddress(email)
 
 	if cp.EmailAddress == "" {
@@ -114,7 +113,7 @@ func profileUpdateHandler(w http.ResponseWriter, r *http.Request) {
 		Long: long,
 	}
 	
-	cdb := complaintdb.ComplaintDB{C: c}
+	cdb := complaintdb.NewComplaintDB(r)
 	err = cdb.PutProfile(cp)
 	if err != nil {
 		c.Errorf("profileUpdate: cdb.Put: %v", err)
