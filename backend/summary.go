@@ -3,6 +3,8 @@ package backend
 
 import (
 	"encoding/csv"
+	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -11,6 +13,7 @@ import (
 	
 	"appengine"
 	"appengine/taskqueue"
+	"appengine/urlfetch"
 
 	"github.com/skypies/util/date"
 	"github.com/skypies/util/histogram"
@@ -18,6 +21,8 @@ import (
 	
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
+
+	fdb "github.com/skypies/flightdb2"
 )
 
 func init() {
@@ -25,6 +30,7 @@ func init() {
 	http.HandleFunc("/report/users", userReportHandler)
 	http.HandleFunc("/report/community", communityReportHandler)
 	http.HandleFunc("/report/month", monthHandler)
+	http.HandleFunc("/report/debug", debugHandler)
 }
 
 // {{{ monthHandler
@@ -190,15 +196,32 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 	countsByEquip := map[string]int{}
 	countsByCity := map[string]int{}
 	countsByAirport := map[string]int{}
+
+	countsByProcedure := map[string]int{}        // complaint counts, per arrival/departure procedure
+	flightCountsByProcedure := map[string]int{}  // how many flights flew that procedure overall
+	proceduresByCity := map[string]map[string]int{} // For each city, breakdown by procedure
 	
 	uniquesAll := map[string]int{}
 	uniquesByDate := map[string]map[string]int{}
 	uniquesByCity := map[string]map[string]int{}
-	
+
 	// An iterator expires after 60s, no matter what; so carve up into short-lived iterators
 	n := 0
 	for _,dayWindow := range DayWindows(start,end) {
+
+		// Get condensed flight data (for :NORCAL:)
+		flightsWithComplaintsButNoProcedureToday := map[string]int{}
+		cfMap,err := GetProcedureMap(r,dayWindow[0],dayWindow[1])
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		for _,cf := range cfMap {
+			if cf.Procedure.String() != "" { flightCountsByProcedure[cf.Procedure.String()]++ }
+		}
+		
 		iter := cdb.NewIter(cdb.QueryInSpan(dayWindow[0],dayWindow[1]))
+
 		for {
 			c,err := iter.NextWithErr();
 			if err != nil {
@@ -220,7 +243,15 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 
 			if airline := c.AircraftOverhead.IATAAirlineCode(); airline != "" {
 				countsByAirline[airline]++
+				//dayCallsigns[c.AircraftOverhead.Callsign]++
 
+				if cf,exists := cfMap[c.AircraftOverhead.FlightNumber]; exists && cf.Procedure.String()!=""{
+					countsByProcedure[cf.Procedure.String()]++
+				} else {
+					countsByProcedure["procedure unknown"]++
+					flightsWithComplaintsButNoProcedureToday[c.AircraftOverhead.FlightNumber]++
+				}
+				
 				whitelist := map[string]int{"SFO":1, "SJC":1, "OAK":1}
 				if _,exists := whitelist[c.AircraftOverhead.Destination]; exists {
 					countsByAirport[fmt.Sprintf("%s arrival", c.AircraftOverhead.Destination)]++
@@ -230,18 +261,31 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 					countsByAirport["airport unknown"]++ // overflights, and/or empty airport fields
 				}
 			} else {
-				countsByAirport["flight unidenitifed"]++
+				countsByAirport["flight unidentified"]++
+				countsByProcedure["flight unidentified"]++
 			}
 
 			if city := c.Profile.GetStructuredAddress().City; city != "" {
 				countsByCity[city]++
 				if uniquesByCity[city] == nil { uniquesByCity[city] = map[string]int{} }
 				uniquesByCity[city][c.Profile.EmailAddress]++
+
+				if proceduresByCity[city] == nil { proceduresByCity[city] = map[string]int{} }
+				if flightnumber := c.AircraftOverhead.FlightNumber; flightnumber != "" {
+					if cf,exists := cfMap[flightnumber]; exists && cf.Procedure.String()!=""{
+						proceduresByCity[city][cf.Procedure.Name]++
+					}
+				}
 			}
 			if equip := c.AircraftOverhead.EquipType; equip != "" {
 				countsByEquip[equip]++
 			}
 		}
+
+		unknowns := len(flightsWithComplaintsButNoProcedureToday)
+		flightCountsByProcedure["procedure unknown"] = unknowns
+		
+		//for k,_ := range dayCallsigns { fmt.Fprintf(w, "** %s\n", k) }
 	}
 
 	// Generate histogram(s)
@@ -255,7 +299,19 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 		len(countsByDate), n, len(uniquesAll))
 
 	fmt.Fprintf(w, "\nComplaints per user, histogram (0-200):\n %s\n", histByUser)
-	
+
+/*
+	fmt.Fprintf(w, "\nDisturbance reports, counted by procedure type:\n")
+	for _,k := range keysByKeyAsc(countsByProcedure) {
+		avg := 0.0
+		if flightCountsByProcedure[k] > 0 {
+			avg = float64(countsByProcedure[k]) / float64(flightCountsByProcedure[k])
+		}
+		fmt.Fprintf(w, " %-20.20s: %5d (%4d such flights; %3.0f complaints/flight)\n",
+			k, countsByProcedure[k], flightCountsByProcedure[k], avg)	
+	}
+*/
+
 	fmt.Fprintf(w, "\nDisturbance reports, counted by airport:\n")
 	for _,k := range keysByKeyAsc(countsByAirport) {
 		fmt.Fprintf(w, " %-20.20s: %5d\n", k, countsByAirport[k])
@@ -263,8 +319,12 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintf(w, "\nDisturbance reports, counted by City (where known):\n")
 	for _,k := range keysByIntValDesc(countsByCity) {
-		fmt.Fprintf(w, " %-40.40s: %5d (%4d people reporting)\n", k, countsByCity[k],
-			len(uniquesByCity[k]))
+		
+		//nSerfr := proceduresByCity[k]["SERFR2"]
+		//fmt.Fprintf(w, " %-40.40s: %5d (%4d people reporting) (%3d SERFR, %3d non-SERFR)\n",
+		//	k, countsByCity[k], len(uniquesByCity[k]), nSerfr, (countsByCity[k]-nSerfr) )
+		fmt.Fprintf(w, " %-40.40s: %5d (%4d people reporting)\n",
+			k, countsByCity[k], len(uniquesByCity[k]))
 	}
 	fmt.Fprintf(w, "\nDisturbance reports, counted by date:\n")
 	for _,k := range keysByKeyAsc(countsByDate) {
@@ -488,6 +548,78 @@ func userReportHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
+
+// {{{ ReadEncodedData
+
+func ReadEncodedData(resp *http.Response, encoding string, data interface{}) error {
+	switch encoding {
+	case "gob": return gob.NewDecoder(resp.Body).Decode(data)
+	default:    return json.NewDecoder(resp.Body).Decode(data)
+	}
+}
+
+// }}}
+// {{{ GetProcedureMap
+
+func GetProcedureMap(r *http.Request, s,e time.Time) (map[string]fdb.CondensedFlight,error) {
+	ret := map[string]fdb.CondensedFlight{}
+
+	return ret, nil
+	
+	client := urlfetch.Client(appengine.Timeout(appengine.NewContext(r), 16 * time.Second))
+	
+	encoding := "gob"	
+	url := fmt.Sprintf("http://fdb.serfr1.org/api/procedures?encoding=%s&tags=:NORCAL:&s=%d&e=%d",
+		encoding, s.Unix(), e.Unix())
+
+	condensedFlights := []fdb.CondensedFlight{}
+
+	if resp,err := client.Get(url); err != nil {
+		return ret,err
+	} else {
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return ret,fmt.Errorf("Bad status for %s: %v", url, resp.Status)
+		} else if err := ReadEncodedData(resp, encoding, &condensedFlights); err != nil {
+			return ret,err
+		}
+	}
+
+	for _,cf := range condensedFlights {
+		ret[cf.BestFlightNumber] = cf
+	}
+	
+	return ret,nil
+}
+
+// }}}
+
+// {{{ debugHandler
+
+func debugHandler(w http.ResponseWriter, r *http.Request) {
+	s,e := date.WindowForYesterday()
+	s = s.Add(-24 * time.Hour)
+	e = e.Add(-24 * time.Hour)
+
+	tStart := time.Now()
+	procMap,err := GetProcedureMap(r,s,e)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	str := "OK!\n\n"
+	str += fmt.Sprintf("* fetch+decode: %s\n* entries: %d\n\n", time.Since(tStart), len(procMap))
+	
+	//for k,v := range procMap { str += fmt.Sprintf("%-10.10s %s\n", k, v) }
+	
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(str))	
+}
+
+// }}}
+
 
 // {{{ -------------------------={ E N D }=----------------------------------
 
