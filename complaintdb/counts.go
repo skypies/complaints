@@ -98,7 +98,7 @@ func (cdb *ComplaintDB) GetDailyCounts(email string) ([]DailyCount, error) {
 	} else {
 		c = dcs
 	}
-	cdb.Debugf("GDC_002", "memcache lookup done (%d entries)", len(c))
+	cdb.Debugf("GDC_002", "singleton lookup done (%d entries)", len(c))
 
 	end,_ := date.WindowForYesterday()  // end is the final day we count for; yesterday
 	start := end  // by default, this will trigger no lookups (start=end means no missing)
@@ -143,7 +143,7 @@ func (cdb *ComplaintDB) GetDailyCounts(email string) ([]DailyCount, error) {
 		}
 		sort.Sort(DailyCountDesc(c))
 
-		// Now push back into memcache
+		// Now push back into datastore+memcache
 		if err := cdb.putDailyCountSingleton(k,c); err != nil {
 			cdb.C.Errorf("error storing counts singleton item: %v", err)
 		}

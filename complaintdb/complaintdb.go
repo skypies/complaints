@@ -63,22 +63,22 @@ func (cdb ComplaintDB)Debugf(step string, fmtstr string, varargs ...interface{})
 func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem, error) {
 	counts := []types.CountItem{}
 
-	cdb.Debugf("gDailyCounts_001", "starting")
+	cdb.Debugf("gDCBEA_001", "starting")
 	gs,_ := cdb.LoadGlobalStats()
-	cdb.Debugf("gDailyCounts_002", "global stats loaded")
+	cdb.Debugf("gDCBEA_002", "global stats loaded")
 	stats := map[string]*DailyCount{}
 	if gs != nil {
 		for i,dc := range gs.Counts {
 			stats[date.Datestring2MidnightPdt(dc.Datestring).Format("Jan 02")] = &gs.Counts[i]
 		}
 	}
-	cdb.Debugf("gDailyCounts_003", "global stats munged; loading daily")
+	cdb.Debugf("gDCBEA_003", "global stats munged; loading daily")
 	
 	if dailys,err := cdb.GetDailyCounts(ea); err != nil {
 		return counts, err
 
 	} else {
-		cdb.Debugf("gDailyCounts_004", "daily stats loaded")
+		cdb.Debugf("gDCBEA_004", "daily stats loaded (%d days)", len(dailys))
 		for _,daily := range dailys {
 			// cdb.C.Infof(" -- we have a daily: %#v", daily)
 			item := types.CountItem{
@@ -93,7 +93,7 @@ func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem
 			}
 			counts = append(counts, item)
 		}
-		cdb.Debugf("gDailyCounts_004", "daily stats munged")
+		cdb.Debugf("gDCBEA_005", "daily stats munged")
 	}
 
 	return counts, nil
