@@ -1,3 +1,4 @@
+
 package complaintdb
 
 import (
@@ -79,7 +80,7 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 		cdb.Debugf("cbe_032", "updated in place (all done)")
 		return err
 	}
-	cdb.Debugf("cbe_033", "rerturned, distinct; about tot put()")
+	cdb.Debugf("cbe_033", "returned, distinct/first; about to put()")
 
 	key := datastore.NewIncompleteKey(cdb.C, kComplaintKind, cdb.emailToRootKey(cp.EmailAddress))	
 	_, err := datastore.Put(cdb.C, key, c)

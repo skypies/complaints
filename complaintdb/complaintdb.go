@@ -343,9 +343,13 @@ type memResults struct {
 
 func (cdb ComplaintDB)getMaybeCachedComplaintsByQuery(q *datastore.Query, memKey string) ([]*datastore.Key, []types.Complaint, error) {
 
+	cdb.Debugf("gMCCBQ_100", "getMaybeCachedComplaintsByQuery (memcache=%v)", cdb.Memcache)
+
 	if cdb.Memcache && memKey != "" {
+		cdb.Debugf("gMCCBQ_102", "checking memcache '%s'", memKey)
 		if b,found := BytesFromShardedMemcache(cdb.C, memKey); found == true {
 			buf := bytes.NewBuffer(b)
+			cdb.Debugf("gMCCBQ_103", "memcache hit (%d bytes)", buf.Len())
 			results := memResults{}
 			if err := gob.NewDecoder(buf).Decode(&results); err != nil {
 				cdb.C.Errorf("cdb memcache multiget decode: %v", err)
@@ -353,6 +357,8 @@ func (cdb ComplaintDB)getMaybeCachedComplaintsByQuery(q *datastore.Query, memKey
 				cdb.C.Infof(" #=== Found all items ? Considered cache hit !")
 				return results.Keys, results.Vals, nil
 			}
+		} else {
+			cdb.Debugf("gMCCBQ_103", "memcache miss")
 		}
 	}
 
@@ -361,7 +367,9 @@ func (cdb ComplaintDB)getMaybeCachedComplaintsByQuery(q *datastore.Query, memKey
 
 	//tolerantContext := appengine.Timeout(cdb.C, 30*time.Second)  // Default context has a 5s timeout
 
+	cdb.Debugf("gMCCBQ_104", "calling GetAll() ...")
 	keys, err := q.GetAll(cdb.C, &data)
+	cdb.Debugf("gMCCBQ_105", "... call done (n=%d)", len(keys))
 	if err != nil { return nil, nil, err }
 
 	if cdb.Memcache && memKey != "" {
@@ -371,10 +379,13 @@ func (cdb ComplaintDB)getMaybeCachedComplaintsByQuery(q *datastore.Query, memKey
 			cdb.C.Errorf(" #=== cdb error encoding item: %v", err)
 		} else {
 			b := buf.Bytes()
+			cdb.Debugf("gMCCBQ_106", "storing to memcache ...")
 			BytesToShardedMemcache(cdb.C, memKey, b)
+			cdb.Debugf("gMCCBQ_106", "... stored")
 		}
 	}
 
+	cdb.Debugf("gMCCBQ_106", "all done with getMaybeCachedComplaintsByQuery")
 	return keys, data, nil
 }
 

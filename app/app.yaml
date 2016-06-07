@@ -4,6 +4,11 @@ runtime: go
 api_version: go1
 instance_class: F1
 
+automatic_scaling:
+  # Default is 8; but there are latency issues that I think are
+  # explained by requests blocking each other on the same (single) OS thread.
+  max_concurrent_requests: 4
+
 inbound_services:
 - mail_bounce
 
