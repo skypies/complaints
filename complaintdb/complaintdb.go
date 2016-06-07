@@ -61,7 +61,6 @@ func (cdb ComplaintDB)Debugf(step string, fmtstr string, varargs ...interface{})
 // {{{ cdb.getDailyCountsByEmailAdress
 
 func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem, error) {
-	counts := []types.CountItem{}
 
 	cdb.Debugf("gDCBEA_001", "starting")
 	gs,_ := cdb.LoadGlobalStats()
@@ -74,27 +73,29 @@ func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem
 	}
 	cdb.Debugf("gDCBEA_003", "global stats munged; loading daily")
 	
-	if dailys,err := cdb.GetDailyCounts(ea); err != nil {
-		return counts, err
-
-	} else {
-		cdb.Debugf("gDCBEA_004", "daily stats loaded (%d days)", len(dailys))
-		for _,daily := range dailys {
-			// cdb.C.Infof(" -- we have a daily: %#v", daily)
-			item := types.CountItem{
-				Key: daily.Timestamp().Format("Jan 02"),
-				Count: daily.NumComplaints,
-			}
-			if dc,exists := stats[item.Key]; exists {
-				item.TotalComplainers = dc.NumComplainers
-				item.TotalComplaints = dc.NumComplaints
-				item.IsMaxComplainers = dc.IsMaxComplainers
-				item.IsMaxComplaints = dc.IsMaxComplaints
-			}
-			counts = append(counts, item)
-		}
-		cdb.Debugf("gDCBEA_005", "daily stats munged")
+	dailys,err := cdb.GetDailyCounts(ea)
+	if err != nil {
+		return []types.CountItem{}, err
 	}
+
+	counts := []types.CountItem{}
+
+	cdb.Debugf("gDCBEA_004", "daily stats loaded (%d dailys, %d stats)", len(dailys), len(stats))
+	for _,daily := range dailys {
+		// cdb.C.Infof(" -- we have a daily: %#v", daily)
+		item := types.CountItem{
+			Key: daily.Timestamp().Format("Jan 02"),
+			Count: daily.NumComplaints,
+		}
+		if dc,exists := stats[item.Key]; exists {
+			item.TotalComplainers = dc.NumComplainers
+			item.TotalComplaints = dc.NumComplaints
+			item.IsMaxComplainers = dc.IsMaxComplainers
+			item.IsMaxComplaints = dc.IsMaxComplaints
+		}
+		counts = append(counts, item)
+	}
+	cdb.Debugf("gDCBEA_005", "daily stats munged (%d counts)", len(counts))
 
 	return counts, nil
 }
