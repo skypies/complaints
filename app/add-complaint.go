@@ -145,10 +145,11 @@ func complaintUpdateFormHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ addComplaintHandler
 
 func addComplaintHandler(w http.ResponseWriter, r *http.Request) {
+	tStart := time.Now()
 	c := appengine.NewContext(r)
 	cdb := complaintdb.NewComplaintDB(r)
 
-	cdb.Debugf("ac_001", "context established at %s", date.NowInPdt())
+	cdb.Debugf("ac_001", "context established (took %s) at %s", time.Since(tStart), date.NowInPdt())
 	session := sessions.Get(r)
 	if session.Values["email"] == nil {
 		c.Errorf("session was empty; no cookie ?")

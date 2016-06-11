@@ -143,7 +143,8 @@ func GenerateEmail(c appengine.Context, cap types.ComplaintsAndProfile) (*mail.M
 
 var blacklistAddrs = []string{}
 
-func SendComplaintsWithSpan(c appengine.Context, start,end time.Time) (err error, str string) {
+func SendComplaintsWithSpan(r *http.Request, start,end time.Time) (err error, str string) {
+	c := appengine.NewContext(r)
 	c.Infof("--- Emails, %s -> %s", start, end)
 
 	blacklist := map[string]bool{}
@@ -224,7 +225,7 @@ func SendComplaintsWithSpan(c appengine.Context, start,end time.Time) (err error
 
 func sendEmailsForWindow(w http.ResponseWriter, r *http.Request, start,end time.Time) {
 	c := appengine.NewContext(r)
-	err,deb := SendComplaintsWithSpan(c, start, end)
+	err,deb := SendComplaintsWithSpan(r, start, end)
 
 	if err != nil {
 		c.Errorf("Couldn't send email: %v", err)

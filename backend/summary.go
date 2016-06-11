@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	//"strings"
 	"time"
 	
 	"appengine"
@@ -202,6 +203,7 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 	proceduresByCity := map[string]map[string]int{} // For each city, breakdown by procedure
 	
 	uniquesAll := map[string]int{}
+	uniquesPerDay := map[string]int{} // Each entry is a count for one unique user, for one day
 	uniquesByDate := map[string]map[string]int{}
 	uniquesByCity := map[string]map[string]int{}
 
@@ -219,13 +221,13 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 		for _,cf := range cfMap {
 			if cf.Procedure.String() != "" { flightCountsByProcedure[cf.Procedure.String()]++ }
 		}
-		
-		iter := cdb.NewIter(cdb.QueryInSpan(dayWindow[0],dayWindow[1]))
+
+		iter := cdb.NewLongBatchingIter(cdb.QueryInSpan(dayWindow[0],dayWindow[1]))
 
 		for {
 			c,err := iter.NextWithErr();
 			if err != nil {
-				http.Error(w, fmt.Sprintf("iterator failed at %s: %v", time.Now(), err),
+				http.Error(w, fmt.Sprintf("iterator [%s,%s] failed at %s: %v", dayWindow[0],dayWindow[1], time.Now(), err),
 					http.StatusInternalServerError)
 				return
 			} else if c == nil {
@@ -233,10 +235,11 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			n++
-			uniquesAll[c.Profile.EmailAddress]++
-			countsByHour[c.Timestamp.Hour()]++
-
 			d := c.Timestamp.Format("2006.01.02")
+
+			uniquesAll[c.Profile.EmailAddress]++
+			uniquesPerDay[c.Profile.EmailAddress + ":" + d]++
+			countsByHour[c.Timestamp.Hour()]++
 			countsByDate[d]++
 			if uniquesByDate[d] == nil { uniquesByDate[d] = map[string]int{} }
 			uniquesByDate[d][c.Profile.EmailAddress]++
@@ -274,7 +277,11 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 				if flightnumber := c.AircraftOverhead.FlightNumber; flightnumber != "" {
 					if cf,exists := cfMap[flightnumber]; exists && cf.Procedure.String()!=""{
 						proceduresByCity[city][cf.Procedure.Name]++
+					} else {
+						proceduresByCity[city]["proc?"]++
 					}
+				} else {
+					proceduresByCity[city]["flight?"]++
 				}
 			}
 			if equip := c.AircraftOverhead.EquipType; equip != "" {
@@ -283,14 +290,14 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		unknowns := len(flightsWithComplaintsButNoProcedureToday)
-		flightCountsByProcedure["procedure unknown"] = unknowns
+		flightCountsByProcedure["procedure unknown"] += unknowns
 		
 		//for k,_ := range dayCallsigns { fmt.Fprintf(w, "** %s\n", k) }
 	}
 
 	// Generate histogram(s)
 	histByUser := histogram.Histogram{ValMax:200, NumBuckets:50}
-	for _,v := range uniquesAll {
+	for _,v := range uniquesPerDay {
 		histByUser.Add(histogram.ScalarVal(v))
 	}
 	
@@ -300,32 +307,41 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintf(w, "\nComplaints per user, histogram (0-200):\n %s\n", histByUser)
 
-/*
-	fmt.Fprintf(w, "\nDisturbance reports, counted by procedure type:\n")
+	fmt.Fprintf(w, "\n[BETA: no more than 80%% accurate!] Disturbance reports, "+
+		"counted by procedure type, breaking out vectored flights "+
+		"(e.g. PROCEDURE/LAST-ON-PROCEDURE-WAYPOINT):\n")
 	for _,k := range keysByKeyAsc(countsByProcedure) {
 		avg := 0.0
 		if flightCountsByProcedure[k] > 0 {
 			avg = float64(countsByProcedure[k]) / float64(flightCountsByProcedure[k])
 		}
-		fmt.Fprintf(w, " %-20.20s: %5d (%4d such flights; %3.0f complaints/flight)\n",
+		fmt.Fprintf(w, " %-20.20s: %6d (%5d such flights with complaints; %3.0f complaints/flight)\n",
 			k, countsByProcedure[k], flightCountsByProcedure[k], avg)	
 	}
-*/
 
 	fmt.Fprintf(w, "\nDisturbance reports, counted by airport:\n")
 	for _,k := range keysByKeyAsc(countsByAirport) {
-		fmt.Fprintf(w, " %-20.20s: %5d\n", k, countsByAirport[k])
+		fmt.Fprintf(w, " %-20.20s: %6d\n", k, countsByAirport[k])
 	}
 
 	fmt.Fprintf(w, "\nDisturbance reports, counted by City (where known):\n")
 	for _,k := range keysByIntValDesc(countsByCity) {
-		
-		//nSerfr := proceduresByCity[k]["SERFR2"]
-		//fmt.Fprintf(w, " %-40.40s: %5d (%4d people reporting) (%3d SERFR, %3d non-SERFR)\n",
-		//	k, countsByCity[k], len(uniquesByCity[k]), nSerfr, (countsByCity[k]-nSerfr) )
 		fmt.Fprintf(w, " %-40.40s: %5d (%4d people reporting)\n",
 			k, countsByCity[k], len(uniquesByCity[k]))
 	}
+
+	/*
+	fmt.Fprintf(w, "\nDisturbance reports, counted by City & procedure type (where known):\n")
+	for _,k := range keysByIntValDesc(countsByCity) {		
+		pStr := fmt.Sprintf("SERFR: %.0f%%, non-SERFR: %.0f%%, flight unknown: %.0f%%",
+			100.0 * (float64(proceduresByCity[k]["SERFR2"]) / float64(countsByCity[k])),
+			100.0 * (float64(proceduresByCity[k]["proc?"]) / float64(countsByCity[k])),
+			100.0 * (float64(proceduresByCity[k]["flight?"]) / float64(countsByCity[k])))
+		fmt.Fprintf(w, " %-40.40s: %5d (%4d people reporting) (%s)\n",
+			k, countsByCity[k], len(uniquesByCity[k]), pStr)
+	}
+*/
+	
 	fmt.Fprintf(w, "\nDisturbance reports, counted by date:\n")
 	for _,k := range keysByKeyAsc(countsByDate) {
 		fmt.Fprintf(w, " %s: %5d (%4d people reporting)\n", k, countsByDate[k], len(uniquesByDate[k]))
@@ -561,12 +577,14 @@ func ReadEncodedData(resp *http.Response, encoding string, data interface{}) err
 // }}}
 // {{{ GetProcedureMap
 
+// Call out to the flight database, and get back a condensed summary of the flights (flightnumber,
+// times, waypoints) which flew to/from a NORCAL airport (SFO,SJC,OAK) for the time range (a day?)
 func GetProcedureMap(r *http.Request, s,e time.Time) (map[string]fdb.CondensedFlight,error) {
 	ret := map[string]fdb.CondensedFlight{}
 
-	return ret, nil
+	//return ret, nil
 	
-	client := urlfetch.Client(appengine.Timeout(appengine.NewContext(r), 16 * time.Second))
+	client := urlfetch.Client(appengine.Timeout(appengine.NewContext(r), 60 * time.Second))
 	
 	encoding := "gob"	
 	url := fmt.Sprintf("http://fdb.serfr1.org/api/procedures?encoding=%s&tags=:NORCAL:&s=%d&e=%d",
@@ -580,7 +598,7 @@ func GetProcedureMap(r *http.Request, s,e time.Time) (map[string]fdb.CondensedFl
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
-			return ret,fmt.Errorf("Bad status for %s: %v", url, resp.Status)
+			return ret,fmt.Errorf("Bad status fetching proc map for %s: %v", url, resp.Status)
 		} else if err := ReadEncodedData(resp, encoding, &condensedFlights); err != nil {
 			return ret,err
 		}

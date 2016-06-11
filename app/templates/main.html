@@ -8,12 +8,15 @@
     <div class="allstack">
       {{if .Modes.debug}}<h1>DEBUG</h1>{{end}}
 
+      <!-- .Message is really a warning; Info is informational -->
       {{if .Message}}<div class="message">{{.Message}}</div><br/>
       {{else}}
       <p>Hello, <code>{{.Cap.Profile.EmailAddress}}</code>.
         <br/>It is {{.Now.Format "15:04:05 PM on Mon, Jan 2"}}.
       </p>
       {{end}}
+
+      {{if .Info}}<div class="info">{{.Info}}</div><br/>{{end}}
       
       {{if not .DisableReporting}}
       <div class="box" style="background-color: #eeffee;">

@@ -196,7 +196,10 @@ func rootHandler (w http.ResponseWriter, r *http.Request) {
 			"<p> Without this data, your complaints won't be counted, so please "+
 			"<a href=\"/profile\"><b>update your profile</b></a> before submitting any more complaints !</p>", message)
 	}
-		
+
+	infoBubble := "<p>Our reporting has helped form <b>The Select Committee on South Bay Arrivals</b> ! They are hearing from the public <b>now</b>, and your voice should be heard. <b>More info "
+	infoBubble += "<a href=\"https://sites.google.com/a/jetnoise.net/how-to/faq#TOC-Q:-What-is-the-Select-Committee-that-everyone-is-talking-about-\">here</a></b>.</p>"
+	
 	var params = map[string]interface{}{
 		//"Message": template.HTML("Hi!"),
 		"Cap": *cap,
@@ -205,6 +208,7 @@ func rootHandler (w http.ResponseWriter, r *http.Request) {
 		"Modes": modes,
 		"ComplaintDefaults": complaintDefaults,
 		"Message": template.HTML(message),
+		//"Info": template.HTML(infoBubble),
 		"DisableReporting": disableReporting,
 	}
 	
