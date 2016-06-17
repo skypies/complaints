@@ -1,0 +1,19 @@
+[
+    {"name":"Timestamp", "type":"timestamp"},
+    {"name":"Speedbrakes", "type":"boolean"},
+    {"name":"Loudness", "type":"integer"},
+    {"name":"Activity", "type":"string"},
+    {"name":"User", "type":"string"},
+    {"name":"City", "type":"string"},
+    {"name":"Zip", "type":"string"},
+    {"name":"FlightKey", "type":"string"},
+    {"name":"FlightNumber", "type":"string"},
+    {"name":"AirlineCode", "type":"string"},
+    {"name":"Origin", "type":"string"},
+    {"name":"Destination", "type":"string"},
+    {"name":"EquipType", "type":"string"},
+    {"name":"Lat", "type":"float"},
+    {"name":"Long", "type":"float"},
+    {"name":"PressureAltitude", "type":"float"},
+    {"name":"Groundspeed", "type":"float"}
+]

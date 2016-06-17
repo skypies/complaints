@@ -1,4 +1,3 @@
-
 package backend
 
 import (
@@ -306,7 +305,7 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 		len(countsByDate), n, len(uniquesAll))
 
 	fmt.Fprintf(w, "\nComplaints per user, histogram (0-200):\n %s\n", histByUser)
-
+/*
 	fmt.Fprintf(w, "\n[BETA: no more than 80%% accurate!] Disturbance reports, "+
 		"counted by procedure type, breaking out vectored flights "+
 		"(e.g. PROCEDURE/LAST-ON-PROCEDURE-WAYPOINT):\n")
@@ -318,7 +317,8 @@ func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, " %-20.20s: %6d (%5d such flights with complaints; %3.0f complaints/flight)\n",
 			k, countsByProcedure[k], flightCountsByProcedure[k], avg)	
 	}
-
+*/
+	
 	fmt.Fprintf(w, "\nDisturbance reports, counted by airport:\n")
 	for _,k := range keysByKeyAsc(countsByAirport) {
 		fmt.Fprintf(w, " %-20.20s: %6d\n", k, countsByAirport[k])
@@ -582,7 +582,7 @@ func ReadEncodedData(resp *http.Response, encoding string, data interface{}) err
 func GetProcedureMap(r *http.Request, s,e time.Time) (map[string]fdb.CondensedFlight,error) {
 	ret := map[string]fdb.CondensedFlight{}
 
-	//return ret, nil
+	return ret, nil
 	
 	client := urlfetch.Client(appengine.Timeout(appengine.NewContext(r), 60 * time.Second))
 	

@@ -76,16 +76,19 @@ func monthTaskHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	csvWriter.Write(cols)
 
+	tStart := time.Now()
 	for _,dayStart := range days {
 		dayEnd := dayStart.AddDate(0,0,1).Add(-1 * time.Second)
 		log.Infof(ctx, " /be/month: %s - %s", dayStart, dayEnd)
 
-		iter := cdb.NewIter(cdb.QueryInSpan(dayStart, dayEnd))
+		tIter := time.Now()
+		iter := cdb.NewLongBatchingIter(cdb.QueryInSpan(dayStart, dayEnd))
 		for {
 			c,err := iter.NextWithErr();
 			if err != nil {
-				http.Error(w, fmt.Sprintf("iterator failed: %v", err),
-					http.StatusInternalServerError)
+				errStr := fmt.Sprintf("iterator failed after %s (%s): %v", err, time.Since(tIter),
+					time.Since(tStart))
+				http.Error(w, errStr, http.StatusInternalServerError)
 				return
 			}
 			if c == nil { break }

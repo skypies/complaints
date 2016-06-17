@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 	
+	"github.com/skypies/geo"
+
 	"github.com/skypies/complaints/fr24"
 )
 
@@ -232,6 +234,38 @@ type ComplaintsAndProfile struct {
 	Profile ComplainerProfile
 	Complaints []Complaint
 	Counts []CountItem
+}
+
+// }}}
+
+// {{{ AnonymizedComplaint{}
+
+type AnonymizedComplaint struct {
+	Timestamp        time.Time
+	Speedbrakes      bool
+	Loudness         int
+	Activity         string
+
+	User             string // A hash fingerprint of the email address
+	City             string
+	Zip              string
+
+	// Aircraft details; might be null
+	FlightKey        string // Flightnumber plus date (e.g. "UA123-20161231") - to allow for joins
+	FlightNumber     string // IATA scheduled flight number
+	AirlineCode      string // The 2-char IATA airline code
+	
+	Origin           string
+	Destination      string
+	EquipType        string // B744, etc
+
+	geo.Latlong      // embedded; location of aircraft at Timestamp
+	PressureAltitude float64
+	Groundspeed      float64
+}
+
+func (ac AnonymizedComplaint)HasIdenitifiedAircraft() bool {
+	return ac.FlightNumber != ""
 }
 
 // }}}

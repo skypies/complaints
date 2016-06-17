@@ -1,0 +1,3 @@
+The project, dataset & table names in the Makefile need to match those
+used in backend/bigquery.go. The table needs to be created before
+running any of those jobs.

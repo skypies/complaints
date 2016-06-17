@@ -95,13 +95,12 @@ func (a Aircraft)BestIdent() string {
 }
 
 func (a Aircraft)IATAAirlineCode() string {
-	if a.FlightNumber != "" {
-		if s := regexp.MustCompile("^(..)(\\d+)$").ReplaceAllString(a.FlightNumber, "$1"); s != "" {
-			return s
-		} else {
-			return a.FlightNumber // Shouldn't happen
-		}
+	// Stolen from flightdb2/identity.go
+	iata := regexp.MustCompile("^([A-Z][0-9A-Z])([0-9]{1,4})$").FindStringSubmatch(a.FlightNumber)
+	if iata != nil && len(iata)==3 {
+		return iata[1]
 	}
+
 	return ""
 }
 
