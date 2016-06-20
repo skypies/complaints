@@ -240,6 +240,9 @@ type ComplaintsAndProfile struct {
 
 // {{{ AnonymizedComplaint{}
 
+// AnonymizedComplaint is a subset of the data from a complaint; these values are released to the
+// public as a queryable database. The data is somewhat denormalized, to allow for efficient
+// indexing & querying.
 type AnonymizedComplaint struct {
 	Timestamp        time.Time
 	Speedbrakes      bool
@@ -250,6 +253,10 @@ type AnonymizedComplaint struct {
 	City             string
 	Zip              string
 
+	// Denormalized fields to index/group by
+	DatePST          string
+	HourPST          int
+	
 	// Aircraft details; might be null
 	FlightKey        string // Flightnumber plus date (e.g. "UA123-20161231") - to allow for joins
 	FlightNumber     string // IATA scheduled flight number

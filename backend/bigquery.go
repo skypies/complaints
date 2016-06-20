@@ -30,6 +30,8 @@ var(
 	bigqueryTableName = "comp"
 )
 
+// bigquery-20160313-20160314.json - WTF - Daylight savings ARGH
+
 // {{{ publishAllComplaintsHandler
 
 // /backend/publish-all-complaints?date=range&range_from=2015/08/09&range_to=2015/08/10
@@ -44,8 +46,8 @@ func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 	url := "/backend/publish-complaints"
 
 	for _,day := range days {
-		dayStr := day.Format("2006/01/02")
-		t := taskqueue.NewPOSTTask(fmt.Sprintf("%s?date=day&day=%s", url, dayStr),
+		dayStr := day.Format("2006.01.02")
+		t := taskqueue.NewPOSTTask(fmt.Sprintf("%s?datestring=%s", url, dayStr),
 			map[string][]string{})
 
 		if _,err := taskqueue.Add(ctx, t, "batch"); err != nil {
@@ -64,9 +66,8 @@ func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 // }}}
 // {{{ publishComplaintsHandler
 
-// Do this one day at a time
-// http://backend-dot-serfr0-1000.appspot.com/backend/publish-complaints?date=day&day=2015/09/15
-// http://backend-dot-serfr0-1000.appspot.com/backend/publish-complaints?date=yesterday
+// http://backend-dot-serfr0-1000.appspot.com/backend/publish-complaints?datestring=yesterday
+// http://backend-dot-serfr0-1000.appspot.com/backend/publish-complaints?datestring=2015.09.15
 
 // As well as writing the data into a file in Cloud Storage, it will submit a load
 // request into BigQuery to load that file.
@@ -74,21 +75,19 @@ func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 func publishComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 	tStart := time.Now()
 
-	// Althought this routine is general, and will dump files for any date range, this
-	// check enforces it drops just one day's worth in each file.
-	if r.FormValue("date") != "day" && r.FormValue("date") != "yesterday" {
-		http.Error(w, "need date widget values for a single day !", http.StatusInternalServerError)
-		return
-	}
-	s,e,_ := widget.FormValueDateRange(r)
-
 	ctx := appengine.NewContext(r)
-	log.Infof(ctx, "Starting /backend/publish-complaints: %s", s)
 
 	foldername := "serfr0-bigquery"
-	filename := s.Format("bigquery-20060102") + e.Format("-20060102.json")
 
-	n,err := writeAnonymizedGCSFile(r, s,e, foldername,filename)
+	datestring := r.FormValue("datestring")
+	if datestring == "yesterday" {
+		datestring = date.NowInPdt().AddDate(0,0,-1).Format("2006.01.02")
+	}
+
+	filename := "anon-"+datestring+".json"
+	log.Infof(ctx, "Starting /backend/publish-complaints: %s", filename)
+	
+	n,err := writeAnonymizedGCSFile(r, datestring, foldername,filename)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -109,13 +108,13 @@ func publishComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ writeAnonymizedGCSFile
 
 // Returns number of records written (which is zero if the file already exists)
-func writeAnonymizedGCSFile(r *http.Request, s,e time.Time, foldername,filename string) (int,error) {
+func writeAnonymizedGCSFile(r *http.Request, datestring, foldername,filename string) (int,error) {
 	ctx := appengine.NewContext(r)
 	cdb := complaintdb.ComplaintDB{
 		C: oldappengine.Timeout(oldappengine.NewContext(r), 599*time.Second),
 		Req: r,
 	}
-
+	
 	if exists,err := gcs.Exists(ctx, foldername, filename); err != nil {
 		return 0,err
 	} else if exists {
@@ -128,11 +127,16 @@ func writeAnonymizedGCSFile(r *http.Request, s,e time.Time, foldername,filename 
 	}
 
 	encoder := json.NewEncoder(gcsHandle.IOWriter())
+	
+	s := date.Datestring2MidnightPdt(datestring)
+	e := s.AddDate(0,0,1).Add(-1 * time.Second)
 
 	n := 0
 	// An iterator expires after 60s, no matter what; so carve up into short-lived iterators
 	for _,dayWindow := range DayWindows(s,e) {
 		iter := cdb.NewLongBatchingIter(cdb.QueryInSpan(dayWindow[0],dayWindow[1]))
+
+
 		for {
 			c,err := iter.NextWithErr();
 			if err != nil {

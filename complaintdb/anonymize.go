@@ -30,6 +30,10 @@ func AnonymizeComplaint(c *types.Complaint) *types.AnonymizedComplaint {
 		City: postalAddress.City,
 		Zip: postalAddress.Zip,
 
+		// Denormalized fields
+		DatePST: date.InPdt(c.Timestamp).Format("2006/01/02"),
+		HourPST: date.InPdt(c.Timestamp).Hour(),
+		
 		// All of these fields might be nil.
 		FlightNumber: c.AircraftOverhead.FlightNumber,
 		AirlineCode: c.AircraftOverhead.IATAAirlineCode(),

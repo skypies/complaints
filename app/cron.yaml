@@ -5,7 +5,7 @@ cron:
   timezone: America/Los_Angeles
 
 - description: Publish complaints to BigQuery
-  url: /backend/publish-complaints?date=yesterday
+  url: /backend/publish-complaints?datestring=yesterday
   schedule: every day 00:10
   timezone: America/Los_Angeles
 
