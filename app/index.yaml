@@ -15,6 +15,11 @@ indexes:
   - name: EmailAddress
   - name: StructuredAddress.City
 
+- kind: ComplainerKind
+  properties:
+  - name: DataSharing
+  - name: EmailAddress
+
 - kind: ComplaintKind
   properties:
   - name: AircraftOverhead.FlightNumber

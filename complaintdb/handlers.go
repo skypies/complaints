@@ -5,6 +5,7 @@ import(
 	"fmt"
 	"net/http"
 	"sort"
+	"time"
 
 	"github.com/skypies/util/date"
 	"github.com/skypies/util/widget"
@@ -150,6 +151,23 @@ func YesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.Write([]byte(str))
 
+}
+
+// }}}
+
+// {{{ touchAllProfilesHandler
+
+func touchAllProfilesHandler(w http.ResponseWriter, r *http.Request) {
+	cdb := NewComplaintDB(r)
+	tStart := time.Now()
+	n,err := cdb.TouchAllProfiles()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(fmt.Sprintf("OK backend! (%d profiles touched, tool %s)\n\n", n, time.Since(tStart))))
 }
 
 // }}}

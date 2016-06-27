@@ -41,7 +41,7 @@ type ComplainerProfile struct {
 	Lat,Long          float64 `datastore:",noindex"`
 	CcSfo             bool `datastore:",noindex"`
 
-	DataSharing       int  `datastore:",noindex"` // 0 == unset, 1 == OK/yes, -1 == no
+	DataSharing       int  // 0 == unset, 1 == OK/yes, -1 == no
 	ThirdPartyComms   int  `datastore:",noindex"` // 0 == unset, 1 == OK/yes, -1 == no
 }
 

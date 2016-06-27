@@ -18,9 +18,25 @@ import (
 
 func init() {
 	// http.HandleFunc("/debfr24", debugHandler2)
-	http.HandleFunc("/counthack", countHackHandler)
-	http.HandleFunc("/debbksv", debugHandler3)
-	http.HandleFunc("/perftester", perftesterHandler)
+	//http.HandleFunc("/counthack", countHackHandler)
+	http.HandleFunc("/optouts", optoutHandler)
+	//http.HandleFunc("/debbksv", debugHandler3)
+	//http.HandleFunc("/perftester", perftesterHandler)
+}
+
+func optoutHandler(w http.ResponseWriter, r *http.Request) {
+	cdb := complaintdb.NewComplaintDB(r)
+	users,err := cdb.GetComplainersCurrentlyOptedOut()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	str := fmt.Sprintf("OK! (%d results)\n\n", len(users))
+	for user,_ := range users {
+		str += fmt.Sprintf(" %s\n", user)
+	}
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(str))
 }
 
 // countHackHandler will append a new complaint total to the daily counts object.

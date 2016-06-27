@@ -31,7 +31,7 @@ func AnonymizeComplaint(c *types.Complaint) *types.AnonymizedComplaint {
 		Zip: postalAddress.Zip,
 
 		// Denormalized fields
-		DatePST: date.InPdt(c.Timestamp).Format("2006/01/02"),
+		DatePST: date.InPdt(c.Timestamp).Format("2006-01-02"), // Format is same as BQ's DATE() func
 		HourPST: date.InPdt(c.Timestamp).Hour(),
 		
 		// All of these fields might be nil.

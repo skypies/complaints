@@ -17,3 +17,8 @@ mktable:
 	  --schema ${SCHEMA} \
 	  --time_partitioning_type=DAY \
 	  ${DATASET}.${TABLE}
+
+rmtable:
+	bq --project_id ${PROJECT} rm -f ${DATASET}.${TABLE}
+
+newtable: rmtable mktable

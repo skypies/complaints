@@ -30,11 +30,10 @@ var(
 	bigqueryTableName = "comp"
 )
 
-// bigquery-20160313-20160314.json - WTF - Daylight savings ARGH
-
 // {{{ publishAllComplaintsHandler
 
 // /backend/publish-all-complaints?date=range&range_from=2015/08/09&range_to=2015/08/10
+//  ?skipload=1  (optional, skip loading them into bigquery
 
 // Writes them all into a batch queue
 func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
@@ -44,11 +43,16 @@ func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 	s,e,_ := widget.FormValueDateRange(r)
 	days := date.IntermediateMidnights(s.Add(-1 * time.Second),e) // decrement start, to include it
 	url := "/backend/publish-complaints"
-
+	
 	for _,day := range days {
 		dayStr := day.Format("2006.01.02")
-		t := taskqueue.NewPOSTTask(fmt.Sprintf("%s?datestring=%s", url, dayStr),
-			map[string][]string{})
+
+		thisUrl := fmt.Sprintf("%s?datestring=%s", url, dayStr)
+		if r.FormValue("skipload") != "" {
+			thisUrl += "&skipload=" + r.FormValue("skipload")
+		}
+		
+		t := taskqueue.NewPOSTTask(thisUrl, map[string][]string{})
 
 		if _,err := taskqueue.Add(ctx, t, "batch"); err != nil {
 			log.Errorf(ctx, "publishAllComplaintsHandler: enqueue: %v", err)
@@ -56,7 +60,7 @@ func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		str += " * posting for " + dayStr + "\n"
+		str += " * posting for " + thisUrl + "\n"
 	}
 
 	w.Header().Set("Content-Type", "text/plain")
@@ -68,6 +72,8 @@ func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 
 // http://backend-dot-serfr0-1000.appspot.com/backend/publish-complaints?datestring=yesterday
 // http://backend-dot-serfr0-1000.appspot.com/backend/publish-complaints?datestring=2015.09.15
+
+//  [&skipload=1]
 
 // As well as writing the data into a file in Cloud Storage, it will submit a load
 // request into BigQuery to load that file.
@@ -93,14 +99,19 @@ func publishComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := submitLoadJob(r, foldername, filename); err != nil {
-		http.Error(w, "submitLoadJob failed: "+err.Error(), http.StatusInternalServerError)
-		return
+	log.Infof(ctx, "%d entries written to gs://%s/%s\n", n, foldername, filename)
+	str := fmt.Sprintf("%d entries written to gs://%s/%s\n", n, foldername, filename)
+
+	if r.FormValue("skipload") == "" {
+		if err := submitLoadJob(r, foldername, filename); err != nil {
+			http.Error(w, "submitLoadJob failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		str += "file submitted to BigQuery for loading\n"
 	}
-	
+
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte(fmt.Sprintf("OK!\n%d entries written to gs://%s/%s and job sent - took %s\n",
-		n, foldername, filename, time.Since(tStart))))
+	w.Write([]byte(fmt.Sprintf("OK! (took %s)\n\n%s", time.Since(tStart), str)))
 }
 
 // }}}
@@ -114,6 +125,10 @@ func writeAnonymizedGCSFile(r *http.Request, datestring, foldername,filename str
 		C: oldappengine.Timeout(oldappengine.NewContext(r), 599*time.Second),
 		Req: r,
 	}
+
+	// Get a list of users that as of right now, have opted out of data sharing.
+	optOutUsers,err := cdb.GetComplainersCurrentlyOptedOut()
+	if err != nil { return 0, fmt.Errorf("get optout users: %v", err) }
 	
 	if exists,err := gcs.Exists(ctx, foldername, filename); err != nil {
 		return 0,err
@@ -129,7 +144,7 @@ func writeAnonymizedGCSFile(r *http.Request, datestring, foldername,filename str
 	encoder := json.NewEncoder(gcsHandle.IOWriter())
 	
 	s := date.Datestring2MidnightPdt(datestring)
-	e := s.AddDate(0,0,1).Add(-1 * time.Second)
+	e := s.AddDate(0,0,1).Add(-1 * time.Second) // +23:59:59 (or 22:59 or 24:59 when going in/out DST)
 
 	n := 0
 	// An iterator expires after 60s, no matter what; so carve up into short-lived iterators
@@ -146,7 +161,8 @@ func writeAnonymizedGCSFile(r *http.Request, datestring, foldername,filename str
 				break // we're all done with this iterator
 			}
 
-			if !c.Profile.DataSharingOK() {
+			// If the user is currently opted out, ignore their data
+			if _,exists := optOutUsers[c.Profile.EmailAddress]; exists {
 				continue
 			}
 			

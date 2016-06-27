@@ -123,6 +123,26 @@ func (cdb ComplaintDB) GetAllProfiles() (cps []types.ComplainerProfile, err erro
 }
 
 // }}}
+// {{{ cdb.TouchAllProfiles
+
+// Does a Get and a Put on all the profile objects. This seems to be necessary to fully
+// undo the historic effects of a `datastore=noindex`.
+func (cdb ComplaintDB) TouchAllProfiles() (int,error) {
+	profiles, err := cdb.GetAllProfiles()
+	if err != nil {
+		return 0,err
+	}
+
+	for i,cp := range profiles {
+		if err := cdb.PutProfile(cp); err != nil {
+			return i,err
+		}
+	}
+
+	return len(profiles), nil
+}
+
+// }}}
 // {{{ cdb.GetEmailCityMap
 
 func (cdb ComplaintDB) GetEmailCityMap() (map[string]string, error) {
@@ -206,6 +226,29 @@ func (cdb ComplaintDB) PutProfile(cp types.ComplainerProfile) error {
 
 // }}}
 
+// {{{ cdb.GetComplainersCurrentlyOptedOut
+
+func (cdb ComplaintDB)GetComplainersCurrentlyOptedOut() (map[string]int, error) {
+	q := datastore.
+		NewQuery(kComplainerKind).
+		Project("EmailAddress").
+		Filter("DataSharing =", -1).
+		Limit(-1)
+
+	var data = []types.ComplainerProfile{}
+	if _,err := q.GetAll(cdb.C, &data); err != nil {
+		return map[string]int{}, err
+	}
+	
+	ret := map[string]int{}
+	for _,cp := range data {
+		ret[cp.EmailAddress]++
+	}
+	
+	return ret, nil
+}
+
+// }}}
 // {{{ cdb.GetComplainersWithinSpan
 
 func (cdb ComplaintDB)GetComplainersWithinSpan(start,end time.Time) ([]string, error) {
