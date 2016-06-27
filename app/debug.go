@@ -18,9 +18,25 @@ import (
 
 func init() {
 	// http.HandleFunc("/debfr24", debugHandler2)
-	//http.HandleFunc("/counthack", debugHandler4)
+	http.HandleFunc("/counthack", countHackHandler)
 	http.HandleFunc("/debbksv", debugHandler3)
 	http.HandleFunc("/perftester", perftesterHandler)
+}
+
+// countHackHandler will append a new complaint total to the daily counts object.
+// These are sorted elsewhere, so it's OK to 'append' out of sequence.
+// Note no deduping is done; if you want that, add it here.
+func countHackHandler(w http.ResponseWriter, r *http.Request) {
+	cdb := complaintdb.NewComplaintDB(r)
+
+	cdb.AddDailyCount(complaintdb.DailyCount{
+		Datestring: "2016.06.22",
+		NumComplaints: 6555,
+		NumComplainers: 630,
+	})
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte("OK!\n"))	
 }
 
 func perftesterHandler(w http.ResponseWriter, r *http.Request) {
@@ -97,17 +113,6 @@ func debugHandler3(w http.ResponseWriter, r *http.Request) {
 	
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(str))
-}
-
-// Hack up the counts.
-func debugHandler4(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewComplaintDB(r)
-
-	cdb.AddDailyCount(complaintdb.DailyCount{
-		Datestring: "2016.04.12",
-		NumComplaints: 10231,
-		NumComplainers: 621,
-	})
 }
 
 func debugHandler2(w http.ResponseWriter, r *http.Request) {
