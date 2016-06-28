@@ -2,10 +2,12 @@ package backend
 
 import (
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
 	"regexp"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/skypies/util/date"
@@ -93,4 +95,31 @@ func keysByKeyAscNested(m map[string]map[string]int) []string {
 	for k,_ := range m { keys = append(keys, k) }
 	sort.Strings(keys)
 	return keys
+}
+
+// Gruesome. This pseudo-widget looks at 'year' and 'month', or defaults to the previous month.
+// Everything is in Pacific Time.
+func FormValueMonthDefaultToPrev(r *http.Request) (month, year int, err error){
+	// Default to the previous month
+	oneMonthAgo := date.NowInPdt().AddDate(0,-1,0)
+	month = int(oneMonthAgo.Month())
+	year  = int(oneMonthAgo.Year())
+
+	// Override with specific values, if present
+	if r.FormValue("year") != "" {
+		if y,err2 := strconv.ParseInt(r.FormValue("year"), 10, 64); err2 != nil {
+			err = fmt.Errorf("need arg 'year' (2015)")
+			return
+		} else {
+			year = int(y)
+		}
+		if m,err2 := strconv.ParseInt(r.FormValue("month"), 10, 64); err2 != nil {
+			err = fmt.Errorf("need arg 'month' (1-12)")
+			return
+		} else {
+			month = int(m)
+		}
+	}
+
+	return
 }
