@@ -31,11 +31,13 @@
 
           {{if .AircraftOverhead.BestIdent }}
           <td>Flight: {{spacify .AircraftOverhead.BestIdent}}
+            {{if .AircraftOverhead.Origin}}
+              [{{.AircraftOverhead.Origin}}-{{.AircraftOverhead.Destination}}]
+            {{end}}
             {{if .AircraftOverhead.EquipType}}
             ({{.AircraftOverhead.EquipType}}; speed: {{.AircraftOverhead.Speed}} knots,
             altitude: {{.AircraftOverhead.Altitude}} ft,
-            dist2: {{.Dist2KM | km2feet | printf "%.0f"}} ft,
-            dist3: {{.Dist3KM | km2feet | printf "%.0f"}} ft)
+            distance: {{.Dist2KM | printf "%.0f"}} KM)
             {{end}}
           </td>
           {{end}}
