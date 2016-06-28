@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 	
-	oldappengine "appengine"
-	newappengine "google.golang.org/appengine"
-	newurlfetch "google.golang.org/appengine/urlfetch"
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/urlfetch"
 
 	"github.com/skypies/geo/sfo"
 	"github.com/skypies/util/date"
@@ -25,19 +23,6 @@ import (
 func init() {
 	http.HandleFunc("/report", report3Handler)
 	http.HandleFunc("/report/", report3Handler)
-	http.HandleFunc("/report3", report3Handler)
-	http.HandleFunc("/report3/", report3Handler)
-
-	// See flightdb2/analysis/cannedreports.go ...
-/*
-	http.HandleFunc("/report/serfr1", cannedSerfr1Handler)
-	http.HandleFunc("/report/discrep", cannedDiscrepHandler)
-	http.HandleFunc("/report/classb", cannedClassBHandler)
-	http.HandleFunc("/report/adsb", cannedAdsbClassBHandler)
-	http.HandleFunc("/report/yesterday", cannedSerfr1ComplaintsHandler)
-*/
-
-	
 }
 
 // {{{ ButtonPOST
@@ -96,7 +81,7 @@ func report3Handler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	//airframes := ref.NewAirframeCache(c)
-	client := newurlfetch.Client(newappengine.NewContext(r))
+	client := urlfetch.Client(appengine.NewContext(r))
 	metars,err := metar.FetchFromNOAA(client, "KSFO",
 		rep.Start.AddDate(0,0,-1), rep.End.AddDate(0,0,1))
 	if err != nil {
@@ -141,7 +126,7 @@ func report3Handler(w http.ResponseWriter, r *http.Request) {
 		tags = append(tags, fmt.Sprintf("%s%s", oldfdb.KWaypointTagPrefix, wp))
 	}
 	
-	db := oldfgae.FlightDB{C: oldappengine.Timeout(oldappengine.NewContext(r), 600*time.Second)}
+	db := oldfgae.NewDB(r)
 	s,e := rep.Start,rep.End
 	if err := db.LongIterWith(db.QueryTimeRangeByTags(tags,s,e), reportFunc); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

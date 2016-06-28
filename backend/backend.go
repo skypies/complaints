@@ -10,6 +10,9 @@ import (
 	"strconv"
 	"time"
 
+	"google.golang.org/appengine"
+	"golang.org/x/net/context"
+
 	"github.com/skypies/util/date"
 
 	"github.com/skypies/complaints/complaintdb"
@@ -50,6 +53,11 @@ func templateDict(values ...interface{}) (map[string]interface{}, error) {
 }
 func templateFormatPdt(t time.Time, format string) string {
 	return date.InPdt(t).Format(format)
+}
+
+func req2ctx(r *http.Request) context.Context {
+	ctx,_ := context.WithTimeout(appengine.NewContext(r), 9 * time.Minute)
+	return ctx
 }
 
 func noopHandler(w http.ResponseWriter, r *http.Request) {

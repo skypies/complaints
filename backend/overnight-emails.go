@@ -4,15 +4,14 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
-	"net/url"
 	"regexp"
 	"sort"
-	"strings"
 	"time"
 
-	"appengine"
-	"appengine/urlfetch"
-	"appengine/mail"
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/mail"
+	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
 
@@ -32,9 +31,8 @@ func init() {
 
 // {{{ SendEmailToAdmin
 
-func SendEmailToAdmin(c appengine.Context, subject, htmlbody string) {
+func SendEmailToAdmin(c context.Context, subject, htmlbody string) {
 	msg := &mail.Message{
-
 		Sender:   kSenderEmail, // cap.Profile.EmailAddress,
 		To:       []string{kAdminEmail},
 		Subject:  subject,
@@ -42,7 +40,7 @@ func SendEmailToAdmin(c appengine.Context, subject, htmlbody string) {
 	}
 
 	if err := mail.Send(c, msg); err != nil {
-		c.Errorf("Could not send adminemail to <%s>: %v", kAdminEmail, err)
+		log.Errorf(c, "Could not send adminemail to <%s>: %v", kAdminEmail, err)
 	}
 }
 
@@ -50,7 +48,7 @@ func SendEmailToAdmin(c appengine.Context, subject, htmlbody string) {
 
 // {{{ GenerateSingleComplaintEmail
 
-func GenerateSingleComplaintEmail(c appengine.Context, profile types.ComplainerProfile, complaint types.Complaint) (*mail.Message, error) {
+func GenerateSingleComplaintEmail(c context.Context, profile types.ComplainerProfile, complaint types.Complaint) (*mail.Message, error) {
 	if profile.CcSfo == false {
 		return nil, fmt.Errorf("singlecomplaint called, but CcSFO false")
 	}
@@ -102,7 +100,7 @@ func GenerateSingleComplaintEmail(c appengine.Context, profile types.ComplainerP
 // }}}
 // {{{ GenerateEmail
 
-func GenerateEmail(c appengine.Context, cap types.ComplaintsAndProfile) (*mail.Message, error) {
+func GenerateEmail(c context.Context, cap types.ComplaintsAndProfile) (*mail.Message, error) {
 	buf := new(bytes.Buffer)	
 	err := templates.ExecuteTemplate(buf, "email-bundle", cap)
 	if err != nil { return nil,err }
@@ -144,13 +142,13 @@ func GenerateEmail(c appengine.Context, cap types.ComplaintsAndProfile) (*mail.M
 var blacklistAddrs = []string{}
 
 func SendComplaintsWithSpan(r *http.Request, start,end time.Time) (err error, str string) {
-	c := appengine.NewContext(r)
-	c.Infof("--- Emails, %s -> %s", start, end)
+	cdb := complaintdb.NewDB(r)
+	ctx := cdb.Ctx()
+	cdb.Infof("--- Emails, %s -> %s", start, end)
 
 	blacklist := map[string]bool{}
 	for _,e := range blacklistAddrs { blacklist[e] = true }
 	
-	cdb := complaintdb.ComplaintDB{C:c, Req:r, Memcache:true}
 	var cps = []types.ComplainerProfile{}
 	cps, err = cdb.GetAllProfiles()
 	if err != nil { return }
@@ -163,7 +161,7 @@ func SendComplaintsWithSpan(r *http.Request, start,end time.Time) (err error, st
 		complaints, err = cdb.GetComplaintsInSpanByEmailAddress(cp.EmailAddress, start, end)
 
 		if err != nil {
-			c.Errorf("Could not get complaints [%v->%v] for <%s>: %v", start, end, cp.EmailAddress, err)
+			cdb.Errorf("Could not get complaints [%v->%v] for <%s>: %v", start, end, cp.EmailAddress, err)
 			no_data++
 			continue
 		}
@@ -178,8 +176,8 @@ func SendComplaintsWithSpan(r *http.Request, start,end time.Time) (err error, st
 		}
 
 		var msg *mail.Message
-		if msg,err = GenerateEmail(c,cap); err != nil {
-			c.Errorf("Could not generate email to <%s>: %v", cp.EmailAddress, err)
+		if msg,err = GenerateEmail(ctx,cap); err != nil {
+			cdb.Errorf("Could not generate email to <%s>: %v", cp.EmailAddress, err)
 			sent_fail++
 			continue
 		}
@@ -187,8 +185,8 @@ func SendComplaintsWithSpan(r *http.Request, start,end time.Time) (err error, st
 		if blacklist[cp.EmailAddress] {
 			sent_fail++
 		} else {
-			if err = mail.Send(c, msg); err != nil {
-				c.Errorf("Could not send email to <%s>: %v", cp.EmailAddress, err)
+			if err = mail.Send(ctx, msg); err != nil {
+				cdb.Errorf("Could not send email to <%s>: %v", cp.EmailAddress, err)
 				sent_fail++
 				continue
 			}
@@ -203,7 +201,7 @@ func SendComplaintsWithSpan(r *http.Request, start,end time.Time) (err error, st
 		complaints_submitted, (complaints_submitted+complaints_private),
 		sent_single_ok, sent_single_fail)
 
-	SendEmailToAdmin(c, subject, "")
+	SendEmailToAdmin(ctx, subject, "")
 
 	dc := complaintdb.DailyCount{
 		Datestring: date.Time2Datestring(start.Add(time.Hour)),
@@ -214,7 +212,7 @@ func SendComplaintsWithSpan(r *http.Request, start,end time.Time) (err error, st
 
 	str = fmt.Sprintf("email wrapup: %d ok, %d fail (%d no data) : %d reports submitted (%d kept back)  single[%d/%d]",sent_ok, sent_fail, no_data, complaints_submitted, complaints_private, sent_single_ok, sent_single_fail)
 	
-	c.Infof("--- %s", str)
+	cdb.Infof("--- %s", str)
 
 	return
 }
@@ -228,7 +226,7 @@ func sendEmailsForWindow(w http.ResponseWriter, r *http.Request, start,end time.
 	err,deb := SendComplaintsWithSpan(r, start, end)
 
 	if err != nil {
-		c.Errorf("Couldn't send email: %v", err)
+		log.Errorf(c, "Couldn't send email: %v", err)
 		w.Write([]byte(fmt.Sprintf("Not OK: %v\n%s\n", err, deb)))
 	} else {
 		w.Write([]byte(fmt.Sprintf("OK\n%s\n", deb)))
@@ -241,31 +239,6 @@ func sendEmailsForWindow(w http.ResponseWriter, r *http.Request, start,end time.
 func sendEmailsForYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 	start,end := date.WindowForYesterday()
 	sendEmailsForWindow(w, r, start, end)
-}
-
-// }}}
-
-// {{{ sendViaHTTPGateway
-
-func sendViaHTTPGateway(c appengine.Context, msg *mail.Message) error {
-	client := urlfetch.Client(c)
-
-	gatewayUrl := "http://worrall.cc/cgi-bin/gae-bites"
-	data := url.Values{
-		"pwqiry":  {"o0ashaknjsof81boaskjal2dfpuigskguwfgl8xgfo"},
-		"to":      {strings.Join(msg.To, ",")},
-		"bcc":     {strings.Join(msg.Bcc, ",")},
-		"replyto": {msg.ReplyTo},
-		"subject": {msg.Subject},
-		"body":    {msg.HTMLBody},
-	}
-	
-	resp, err := client.PostForm(gatewayUrl, data)
-	if err != nil {	return err }
-
-	c.Infof("Mail gateway response:-\n%v", resp)
-
-	return nil
 }
 
 // }}}

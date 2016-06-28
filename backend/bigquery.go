@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	oldappengine "appengine"
 	"google.golang.org/cloud/bigquery"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/log"
@@ -120,11 +119,8 @@ func publishComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 
 // Returns number of records written (which is zero if the file already exists)
 func writeAnonymizedGCSFile(r *http.Request, datestring, foldername,filename string) (int,error) {
+	cdb := complaintdb.NewDB(r)
 	ctx := appengine.NewContext(r)
-	cdb := complaintdb.ComplaintDB{
-		C: oldappengine.Timeout(oldappengine.NewContext(r), 599*time.Second),
-		Req: r,
-	}
 
 	// Get a list of users that as of right now, have opted out of data sharing.
 	optOutUsers,err := cdb.GetComplainersCurrentlyOptedOut()

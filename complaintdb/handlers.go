@@ -21,7 +21,7 @@ func init() {
 
 // /cdb/comp/debug?key=asdadasdasdasdasdasdsadasdsadasdasdasdasdasdas
 func complaintDebugHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := NewComplaintDB(r)
+	cdb := NewDB(r)
 
 	c, err := cdb.GetAnyComplaintByKey(r.FormValue("key"))
 	if err != nil {
@@ -66,7 +66,7 @@ func complaintDebugHandler(w http.ResponseWriter, r *http.Request) {
 
 
 func YesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := NewComplaintDB(r)
+	cdb := NewDB(r)
 
 	offset := 1
 	start,end := date.WindowForToday()
@@ -158,7 +158,7 @@ func YesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ touchAllProfilesHandler
 
 func touchAllProfilesHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := NewComplaintDB(r)
+	cdb := NewDB(r)
 	tStart := time.Now()
 	n,err := cdb.TouchAllProfiles()
 	if err != nil {

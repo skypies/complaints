@@ -3,7 +3,7 @@ package complaintdb
 import (
 	"time"
 
-	"appengine/datastore"
+	"google.golang.org/appengine/datastore"
 
 	"github.com/skypies/util/date"
 

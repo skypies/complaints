@@ -5,11 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/taskqueue"
-	"google.golang.org/appengine/urlfetch"
-	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
 
@@ -30,12 +26,11 @@ func init() {
 
 // Examine all users. If they had any complaints, throw them in the queue.
 func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	cdb := complaintdb.NewComplaintDB(r)
+	cdb := complaintdb.NewDB(r)
 	var cps = []types.ComplainerProfile{}
 	cps, err := cdb.GetAllProfiles()
 	if err != nil {
-		log.Errorf(c, " /bksv/scan-yesterday: getallprofiles: %v", err)
+		cdb.Errorf(" /bksv/scan-yesterday: getallprofiles: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -49,7 +44,7 @@ func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 		var complaints = []types.Complaint{}
 		complaints, err = cdb.GetComplaintsInSpanByEmailAddress(cp.EmailAddress, start, end)
 		if err != nil {
-			log.Errorf(c, " /bksv/scan-yesterday: getbyemail(%s): %v", cp.EmailAddress, err)
+			cdb.Errorf(" /bksv/scan-yesterday: getbyemail(%s): %v", cp.EmailAddress, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		} 
@@ -57,15 +52,15 @@ func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 			t := taskqueue.NewPOSTTask("/bksv/submit-user", map[string][]string{
 				"user": {cp.EmailAddress},
 			})
-			if _,err := taskqueue.Add(c, t, "submitreports"); err != nil {
-				log.Errorf(c, " /bksv/scan-yesterday: enqueue: %v", err)
+			if _,err := taskqueue.Add(cdb.Ctx(), t, "submitreports"); err != nil {
+				cdb.Errorf(" /bksv/scan-yesterday: enqueue: %v", err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 			bksv_ok++
 		}
 	}
-	log.Infof(c, "enqueued %d bksv", bksv_ok)
+	cdb.Infof("enqueued %d bksv", bksv_ok)
 	w.Write([]byte(fmt.Sprintf("OK, enqueued %d", bksv_ok)))
 }
 
@@ -73,42 +68,42 @@ func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ bksvSubmitUserHandler
 
 func bksvSubmitUserHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	cdb := complaintdb.NewComplaintDB(r)
+	cdb := complaintdb.NewDB(r)
+	client := cdb.HTTPClient()
 	start,end := date.WindowForYesterday()
 	bksv_ok,bksv_not_ok := 0,0
 
 	email := r.FormValue("user")
 
 	if cp,err := cdb.GetProfileByEmailAddress(email); err != nil {
-		log.Errorf(c," /bksv/submit-user(%s): getprofile: %v", email, err)
+		cdb.Errorf(" /bksv/submit-user(%s): getprofile: %v", email, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	
 	} else if complaints,err := cdb.GetComplaintsInSpanByEmailAddress(email, start, end); err != nil {
-		log.Errorf(c, " /bksv/submit-user(%s): getcomplaints: %v", email, err)
+		cdb.Errorf(" /bksv/submit-user(%s): getcomplaints: %v", email, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 
 	} else {
 		for i,complaint := range complaints {
 			time.Sleep(time.Millisecond * 200)
-			if debug,err := bksv.PostComplaint(urlfetch.Client(c), *cp, complaint); err != nil {
-				//cdb.C.Infof("pro: %v", cp)
-				//cdb.C.Infof("comp: %#v", complaint)
-				cdb.C.Errorf("BKSV posting error: %v", err)
-				cdb.C.Infof("BKSV Debug\n------\n%s\n------\n", debug)
+			if debug,err := bksv.PostComplaint(client, *cp, complaint); err != nil {
+				//cdb.Infof("pro: %v", cp)
+				//cdb.Infof("comp: %#v", complaint)
+				cdb.Errorf("BKSV posting error: %v", err)
+				cdb.Infof("BKSV Debug\n------\n%s\n------\n", debug)
 				bksv_not_ok++
 			} else {
-				if (i == 0) { cdb.C.Infof("BKSV [OK] Debug\n------\n%s\n------\n", debug) }
+				if (i == 0) { cdb.Infof("BKSV [OK] Debug\n------\n%s\n------\n", debug) }
 				bksv_ok++
 			}
 		}
 	}
 
-	log.Infof(c, "bksv for %s, %d/%d", email, bksv_ok, bksv_not_ok)
+	cdb.Infof("bksv for %s, %d/%d", email, bksv_ok, bksv_not_ok)
 	if (bksv_not_ok > 0) {
-		log.Errorf(c, "bksv for %s, %d/%d", email, bksv_ok, bksv_not_ok)
+		cdb.Errorf("bksv for %s, %d/%d", email, bksv_ok, bksv_not_ok)
 	}
 	w.Write([]byte("OK"))
 }
@@ -123,8 +118,7 @@ var scanDryRun = false
 
 // Examine all users. If they had any complaints, throw them in the queue.
 func bksvScanYesterdayHandler2(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	cdb := complaintdb.NewComplaintDB(r)
+	cdb := complaintdb.NewDB(r)
 
 	tStart := time.Now()
 	start,end := date.WindowForYesterday()
@@ -135,7 +129,7 @@ func bksvScanYesterdayHandler2(w http.ResponseWriter, r *http.Request) {
 	
 	keys,err := cdb.GetComplaintKeysInSpan(start,end)
 	if err != nil {
-		log.Errorf(c, " /bksv/scan-yesterday: getcomplaintkeysinspan: %v", err)
+		cdb.Errorf(" /bksv/scan-yesterday: getcomplaintkeysinspan: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -148,8 +142,8 @@ func bksvScanYesterdayHandler2(w http.ResponseWriter, r *http.Request) {
 			"complaintkey": {key.Encode()},
 		})
 		if !scanDryRun {
-			if _,err := taskqueue.Add(c, t, "submitreports"); err != nil {
-				log.Errorf(c, " /bksv/scan-yesterday: enqueue: %v", err)
+			if _,err := taskqueue.Add(cdb.Ctx(), t, "submitreports"); err != nil {
+				cdb.Errorf(" /bksv/scan-yesterday: enqueue: %v", err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -173,10 +167,9 @@ func bksvScanYesterdayHandler2(w http.ResponseWriter, r *http.Request) {
 // stop.jetnoise.net/bksv/submit-complaint?complaintkey=asdasdsdasdasdasdasdasda
 
 func bksvSubmitComplaintHandler(w http.ResponseWriter, r *http.Request) {
-	ctx,_ := context.WithTimeout(appengine.NewContext(r), 60*time.Second)
-	client := urlfetch.Client(ctx)
-	cdb := complaintdb.NewComplaintDB(r)
-
+	cdb := complaintdb.NewDB(r)
+	client := cdb.HTTPClient()
+	
 	complaint, err := cdb.GetAnyComplaintByKey(r.FormValue("complaintkey"))
 	if err != nil {
 		http.Error(w, fmt.Sprintf("GetAnyComplaintByKey '%s': %v", r.FormValue("complaintkey"), err),
@@ -212,7 +205,6 @@ func bksvSubmitComplaintHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
-
 
 // {{{ -------------------------={ E N D }=----------------------------------
 

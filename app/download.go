@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"time"
-	
-	"appengine"
 
 	"github.com/skypies/util/date"
 	
@@ -89,8 +86,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	csvWriter.Write(cols)
 
 	email := session.Values["email"].(string)
-	ctx := appengine.Timeout(appengine.NewContext(r), 60*time.Second)
-	cdb := complaintdb.ComplaintDB{C:ctx, Req:r}
+	cdb := complaintdb.NewDB(r)
 	iter := cdb.NewIter(cdb.QueryAllByEmailAddress(email))
 	for {
 		c,err := iter.NextWithErr();
@@ -147,8 +143,7 @@ func personalReportHandler(w http.ResponseWriter, r *http.Request) {
 
 	start,end,_ := widget.FormValueDateRange(r)
 
-	ctx := appengine.Timeout(appengine.NewContext(r), 60*time.Second)
-	cdb := complaintdb.ComplaintDB{C:ctx, Req:r}
+	cdb := complaintdb.NewDB(r)
 
 	w.Header().Set("Content-Type", "text/plain")
 	// w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", "sc.txt"))

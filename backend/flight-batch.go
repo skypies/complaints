@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	oldappengine "appengine"
 	olddatastore "appengine/datastore"
 	
 	"google.golang.org/appengine"
@@ -109,7 +108,7 @@ func batchFlightDayHandler(w http.ResponseWriter, r *http.Request) {
 
 	day := date.ArbitraryDatestring2MidnightPdt(r.FormValue("day"), "2006/01/02")
 	
-	fdb := oldfgae.FlightDB{C: oldappengine.NewContext(r)}
+	fdb := oldfgae.NewDB(r)
 
 	dStart,dEnd := date.WindowForTime(day)
 	dEnd = dEnd.Add(-1 * time.Second)
@@ -153,7 +152,7 @@ func batchFlightDayHandler(w http.ResponseWriter, r *http.Request) {
 
 // A super widget, for all the batch jobs
 func formValueFlightByKey(r *http.Request) (*oldfdb.Flight, error) {
-	fdb := oldfgae.FlightDB{C: oldappengine.NewContext(r)}
+	fdb := oldfgae.NewDB(r)
 	
 	key,err := olddatastore.DecodeKey(r.FormValue("key"))
 	if err != nil {
@@ -229,7 +228,7 @@ func batchFlightScanHandler(w http.ResponseWriter, r *http.Request) {
 	days := date.IntermediateMidnights(s.Add(-1 * time.Second),e) // decrement start, to include it
 	for _,day := range days {
 		// Get the keys for all the flights on this day.
-		fdb := oldfgae.FlightDB{C: oldappengine.NewContext(r)}
+		fdb := oldfgae.NewDB(r)
 
 		dStart,dEnd := date.WindowForTime(day)
 		dEnd = dEnd.Add(-1 * time.Second)
@@ -292,7 +291,7 @@ func jobTrackTimezoneHandler(r *http.Request, f *oldfdb.Flight) (string, error) 
 		}
 		str += fmt.Sprintf("* after : %s\n", f.Tracks["ADSB"])
 
-		db := oldfgae.FlightDB{C: oldappengine.NewContext(r)}
+		db := oldfgae.NewDB(r)
 		if err := db.UpdateFlight(*f); err != nil {
 			log.Errorf(c, "Persist Flight %s: %v", f, err)
 			return str, err
@@ -326,7 +325,7 @@ func jobOceanicTagHandler(r *http.Request, f *oldfdb.Flight) (string, error) {
 	// It's oceanic, but missing a tag ... update
 	//f.Tags[oldfdb.KTagOceanic] = true
 	
-	db := oldfgae.FlightDB{C: oldappengine.NewContext(r)}
+	db := oldfgae.NewDB(r)
 	if err := db.UpdateFlight(*f); err != nil {
 		log.Errorf(c, "Persist Flight %s: %v", f, err)
 		return str, err
@@ -360,7 +359,7 @@ func jobV2adsbHandler(r *http.Request, f *oldfdb.Flight) (string, error) {
 
 	f.Analyse() // Retrigger Class-B stuff
 	
-	db := oldfgae.FlightDB{C: oldappengine.NewContext(r)}
+	db := oldfgae.NewDB(r)
 	if err := db.UpdateFlight(*f); err != nil {
 		log.Errorf(c, "Persist Flight %s: %v", f, err)
 		return str, err
@@ -406,7 +405,7 @@ func jobRetagHandler(r *http.Request, f *oldfdb.Flight) (string, error) {
 		return fmt.Sprintf("* no change to tags: %v", f.TagList()), nil
 	}
 	
-	db := oldfgae.FlightDB{C: oldappengine.NewContext(r)}
+	db := oldfgae.NewDB(r)
 	if err := db.UpdateFlight(*f); err != nil {
 		log.Errorf(c, "Persist Flight %s: %v", f, err)
 		return str, err

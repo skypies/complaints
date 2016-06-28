@@ -1,7 +1,5 @@
 package complaintdb
 
-// {{{ globals
-
 import (
 	"bytes"
 	"encoding/gob"
@@ -10,9 +8,12 @@ import (
 	"sort"
 	"time"
 
-	"appengine"
-	"appengine/datastore"
-	"appengine/memcache"
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/datastore"
+	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/memcache"
+	"google.golang.org/appengine/urlfetch"
+	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
 
@@ -22,38 +23,53 @@ import (
 var(
 	kComplaintKind = "ComplaintKind"
 	kComplainerKind = "ComplainerKind"
-
 	KMaxComplaintsPerDay = 200
 )
 
-// }}}
-
-// {{{ type ComplaintDB
+// {{{ ComplaintDB{}, NewDB(), cdb.Ctx(), cdb.HTTPClient()
 
 type ComplaintDB struct {
-	Req *http.Request  // To allow the construction of 'newappengine' contexts, for gaeutil
-	C appengine.Context
-	Memcache bool
+	req *http.Request  // To allow the construction of 'newappengine' contexts, for gaeutil
+	// C appengine.Context
+	// Memcache bool
 	StartTime time.Time
-
 }
 
-func NewComplaintDB(r *http.Request) ComplaintDB {
+func NewDB(r *http.Request) ComplaintDB {
 	return ComplaintDB{
-		Req:      r,
-		C:        appengine.Timeout(appengine.NewContext(r), 300 * time.Second),
-		Memcache: false,
+		req:      r,
+		//C:        appengine.Timeout(appengine.NewContext(r), 300 * time.Second),
+		//Memcache: false,
 		StartTime: time.Now(),
 	}
+}
+
+
+func (cdb ComplaintDB)Ctx() context.Context {
+	ctx,_ := context.WithTimeout(appengine.NewContext(cdb.req), 10 * time.Minute)
+	return ctx
+}
+
+func (cdb ComplaintDB)HTTPClient() *http.Client {
+	return urlfetch.Client(cdb.Ctx())
 }
 
 // }}}
 
 // {{{ cdb.Debugf
 
+// Debugf is has a 'step' arg, and adds its own latency timings
 func (cdb ComplaintDB)Debugf(step string, fmtstr string, varargs ...interface{}) {
 	payload := fmt.Sprintf(fmtstr, varargs...)
-	cdb.C.Debugf("[%s] %9.6f %s", step, time.Since(cdb.StartTime).Seconds(), payload)
+	log.Debugf(cdb.Ctx(), "[%s] %9.6f %s", step, time.Since(cdb.StartTime).Seconds(), payload)
+}
+
+func (cdb ComplaintDB)Infof(fmtstr string, varargs ...interface{}) {
+	log.Infof(cdb.Ctx(), fmtstr, varargs...)
+}
+
+func (cdb ComplaintDB)Errorf(fmtstr string, varargs ...interface{}) {
+	log.Errorf(cdb.Ctx(), fmtstr, varargs...)
 }
 
 // }}}
@@ -61,7 +77,6 @@ func (cdb ComplaintDB)Debugf(step string, fmtstr string, varargs ...interface{})
 // {{{ cdb.getDailyCountsByEmailAdress
 
 func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem, error) {
-
 	cdb.Debugf("gDCBEA_001", "starting")
 	gs,_ := cdb.LoadGlobalStats()
 	cdb.Debugf("gDCBEA_002", "global stats loaded")
@@ -82,7 +97,6 @@ func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem
 
 	cdb.Debugf("gDCBEA_004", "daily stats loaded (%d dailys, %d stats)", len(dailys), len(stats))
 	for _,daily := range dailys {
-		// cdb.C.Infof(" -- we have a daily: %#v", daily)
 		item := types.CountItem{
 			Key: daily.Timestamp().Format("Jan 02"),
 			Count: daily.NumComplaints,
@@ -105,7 +119,7 @@ func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem
 // {{{ cdb.EmailToRootKey
 
 func (cdb ComplaintDB) emailToRootKey(email string) *datastore.Key {
-	return datastore.NewKey(cdb.C, kComplainerKind, email, 0, nil)
+	return datastore.NewKey(cdb.Ctx(), kComplainerKind, email, 0, nil)
 }
 // Sigh
 func (cdb ComplaintDB) EmailToRootKey(email string) *datastore.Key {
@@ -118,7 +132,7 @@ func (cdb ComplaintDB) EmailToRootKey(email string) *datastore.Key {
 func (cdb ComplaintDB) GetAllProfiles() (cps []types.ComplainerProfile, err error) {
 	q := datastore.NewQuery(kComplainerKind)
 	cps = []types.ComplainerProfile{}
-	_, err = q.GetAll(cdb.C, &cps)
+	_, err = q.GetAll(cdb.Ctx(), &cps)
 	return
 }
 
@@ -150,7 +164,7 @@ func (cdb ComplaintDB) GetEmailCityMap() (map[string]string, error) {
 
 	q := datastore.NewQuery(kComplainerKind).Project("EmailAddress", "StructuredAddress.City")
 	profiles := []types.ComplainerProfile{}
-	if _,err := q.GetAll(cdb.C, &profiles); err != nil {
+	if _,err := q.GetAll(cdb.Ctx(), &profiles); err != nil {
 		return cities, err
 	}
 
@@ -181,7 +195,7 @@ func (cdb ComplaintDB) DeleteComplaints(keyStrings []string, ownerEmail string) 
 		}
 		keys = append(keys, k)
 	}
-	return datastore.DeleteMulti(cdb.C, keys)
+	return datastore.DeleteMulti(cdb.Ctx(), keys)
 }
 
 // }}}
@@ -191,11 +205,11 @@ func (cdb ComplaintDB) DeleteComplaints(keyStrings []string, ownerEmail string) 
 func (cdb ComplaintDB) GetProfileByCallerCode(cc string) (cp *types.ComplainerProfile, err error) {
 	q := datastore.NewQuery(kComplainerKind).Filter("CallerCode =", cc)
 	var results = []types.ComplainerProfile{}
-	_, err = q.GetAll(cdb.C, &results)
+	_, err = q.GetAll(cdb.Ctx(), &results)
 	if err != nil { return }
 	if len(results) == 0 { return } // No match
 	/*for _,v := range results {
-		cdb.C.Infof(">>> RESULT: %v", v)
+		cdb.Infof(">>> RESULT: %v", v)
 	}*/
 	if len(results) > 1 {
 		err = fmt.Errorf ("lookup(%s) found %d results", cc, len(results))
@@ -211,7 +225,7 @@ func (cdb ComplaintDB) GetProfileByCallerCode(cc string) (cp *types.ComplainerPr
 
 func (cdb ComplaintDB) GetProfileByEmailAddress(ea string) (*types.ComplainerProfile, error) {
 	var cp types.ComplainerProfile
-	err := datastore.Get(cdb.C, cdb.emailToRootKey(ea), &cp)
+	err := datastore.Get(cdb.Ctx(), cdb.emailToRootKey(ea), &cp)
 	return &cp, err
 }
 
@@ -219,8 +233,7 @@ func (cdb ComplaintDB) GetProfileByEmailAddress(ea string) (*types.ComplainerPro
 // {{{ cdb.PutProfile
 
 func (cdb ComplaintDB) PutProfile(cp types.ComplainerProfile) error {
-	_, err := datastore.Put(cdb.C, cdb.emailToRootKey(cp.EmailAddress), &cp)
-	cdb.C.Infof(">>> PutProfile: %v [err=%v]", cp, err)
+	_, err := datastore.Put(cdb.Ctx(), cdb.emailToRootKey(cp.EmailAddress), &cp)
 	return err
 }
 
@@ -236,7 +249,7 @@ func (cdb ComplaintDB)GetComplainersCurrentlyOptedOut() (map[string]int, error) 
 		Limit(-1)
 
 	var data = []types.ComplainerProfile{}
-	if _,err := q.GetAll(cdb.C, &data); err != nil {
+	if _,err := q.GetAll(cdb.Ctx(), &data); err != nil {
 		return map[string]int{}, err
 	}
 	
@@ -260,7 +273,7 @@ func (cdb ComplaintDB)GetComplainersWithinSpan(start,end time.Time) ([]string, e
 		Limit(-1)
 
 	var data = []types.Complaint{}
-	if _,err := q.GetAll(cdb.C, &data); err != nil {
+	if _,err := q.GetAll(cdb.Ctx(), &data); err != nil {
 		return []string{}, err
 	}
 	
@@ -288,7 +301,7 @@ func (cdb ComplaintDB)GetComplaintKeysInSpan(start,end time.Time) ([]*datastore.
 		Filter("Timestamp < ", end).
 		KeysOnly()
 
-	keys, err := q.GetAll(cdb.C, nil)
+	keys, err := q.GetAll(cdb.Ctx(), nil)
 	return keys,err
 }
 
@@ -297,7 +310,7 @@ func (cdb ComplaintDB)GetComplaintKeysInSpan(start,end time.Time) ([]*datastore.
 
 func (cdb ComplaintDB)GetComplaintKeysInSpanByEmailAddress(start,end time.Time, ea string) ([]*datastore.Key, error) {
 	q := cdb.QueryInSpanByEmailAddress(start, end, ea).KeysOnly()
-	keys, err := q.GetAll(cdb.C, nil)
+	keys, err := q.GetAll(cdb.Ctx(), nil)
 	return keys,err
 }
 
@@ -308,12 +321,12 @@ func (cdb ComplaintDB)GetComplaintKeysInSpanByEmailAddress(start,end time.Time, 
 const chunksize = 950000
 
 // bool means 'found'
-func BytesFromShardedMemcache(c appengine.Context, key string) ([]byte, bool) {
+func BytesFromShardedMemcache(c context.Context, key string) ([]byte, bool) {
 	keys := []string{}
 	for i:=0; i<32; i++ { keys = append(keys, fmt.Sprintf("=%d=%s",i*chunksize,key)) }
 
 	if items,err := memcache.GetMulti(c, keys); err != nil {
-		c.Errorf("fdb memcache multiget: %v", err)
+		log.Errorf(c, "fdb memcache multiget: %v", err)
 		return nil,false
 
 	} else {
@@ -322,12 +335,12 @@ func BytesFromShardedMemcache(c appengine.Context, key string) ([]byte, bool) {
 			if item,exists := items[keys[i]]; exists==false {
 				break
 			} else {
-				c.Infof(" #=== Found '%s' !", item.Key)
+				log.Infof(c, " #=== Found '%s' !", item.Key)
 				b = append(b, item.Value...)
 			}
 		}
 
-		c.Infof(" #=== Final read len: %d", len(b))
+		log.Infof(c," #=== Final read len: %d", len(b))
 
 		/*
 		buf := bytes.NewBuffer(b)
@@ -350,7 +363,7 @@ func BytesFromShardedMemcache(c appengine.Context, key string) ([]byte, bool) {
 
 // Object usually too big (1MB limit), so shard.
 // http://stackoverflow.com/questions/9127982/
-func BytesToShardedMemcache(c appengine.Context, key string, b []byte) {
+func BytesToShardedMemcache(c context.Context, key string, b []byte) {
 /*
 	var buf bytes.Buffer
 	if err := gob.NewEncoder(&buf).Encode(f); err != nil {
@@ -365,15 +378,15 @@ func BytesToShardedMemcache(c appengine.Context, key string, b []byte) {
 		k := fmt.Sprintf("=%d=%s",i,key)
 		s,e := i, i+chunksize-1
 		if e>=len(b) { e = len(b)-1 }
-		c.Infof(" #=== [%7d, %7d] (%d) %s", s, e, len(b), k)
+		log.Infof(c," #=== [%7d, %7d] (%d) %s", s, e, len(b), k)
 		items = append(items, &memcache.Item{ Key:k , Value:b[s:e+1] }) // slice sytax is [s,e)
 	}
 
 	if err := memcache.SetMulti(c, items); err != nil {
-		c.Errorf(" #=== cdb sharded store fail: %v", err)
+		log.Errorf(c," #=== cdb sharded store fail: %v", err)
 	}
 
-	c.Infof(" #=== Stored '%s' (len=%d)!", key, len(b))
+	log.Infof(c," #=== Stored '%s' (len=%d)!", key, len(b))
 }
 
 // }}}
@@ -387,18 +400,20 @@ type memResults struct {
 
 func (cdb ComplaintDB)getMaybeCachedComplaintsByQuery(q *datastore.Query, memKey string) ([]*datastore.Key, []types.Complaint, error) {
 
-	cdb.Debugf("gMCCBQ_100", "getMaybeCachedComplaintsByQuery (memcache=%v)", cdb.Memcache)
+	useMemcache := false
+	
+	cdb.Debugf("gMCCBQ_100", "getMaybeCachedComplaintsByQuery (memcache=%v)", useMemcache)
 
-	if cdb.Memcache && memKey != "" {
+	if useMemcache && memKey != "" {
 		cdb.Debugf("gMCCBQ_102", "checking memcache '%s'", memKey)
-		if b,found := BytesFromShardedMemcache(cdb.C, memKey); found == true {
+		if b,found := BytesFromShardedMemcache(cdb.Ctx(), memKey); found == true {
 			buf := bytes.NewBuffer(b)
 			cdb.Debugf("gMCCBQ_103", "memcache hit (%d bytes)", buf.Len())
 			results := memResults{}
 			if err := gob.NewDecoder(buf).Decode(&results); err != nil {
-				cdb.C.Errorf("cdb memcache multiget decode: %v", err)
+				cdb.Errorf("cdb memcache multiget decode: %v", err)
 			} else {
-				cdb.C.Infof(" #=== Found all items ? Considered cache hit !")
+				cdb.Infof(" #=== Found all items ? Considered cache hit !")
 				return results.Keys, results.Vals, nil
 			}
 		} else {
@@ -407,24 +422,21 @@ func (cdb ComplaintDB)getMaybeCachedComplaintsByQuery(q *datastore.Query, memKey
 	}
 
 	var data = []types.Complaint{}
-	//cdb.C.Infof(" #=== Fetching[%s] from DS :(", memKey)
-
-	//tolerantContext := appengine.Timeout(cdb.C, 30*time.Second)  // Default context has a 5s timeout
 
 	cdb.Debugf("gMCCBQ_104", "calling GetAll() ...")
-	keys, err := q.GetAll(cdb.C, &data)
+	keys, err := q.GetAll(cdb.Ctx(), &data)
 	cdb.Debugf("gMCCBQ_105", "... call done (n=%d)", len(keys))
 	if err != nil { return nil, nil, err }
 
-	if cdb.Memcache && memKey != "" {
+	if useMemcache && memKey != "" {
 		var buf bytes.Buffer
 		dataToCache := memResults{Keys:keys, Vals:data}
 		if err := gob.NewEncoder(&buf).Encode(dataToCache); err != nil {
-			cdb.C.Errorf(" #=== cdb error encoding item: %v", err)
+			cdb.Errorf(" #=== cdb error encoding item: %v", err)
 		} else {
 			b := buf.Bytes()
 			cdb.Debugf("gMCCBQ_106", "storing to memcache ...")
-			BytesToShardedMemcache(cdb.C, memKey, b)
+			BytesToShardedMemcache(cdb.Ctx(), memKey, b)
 			cdb.Debugf("gMCCBQ_106", "... stored")
 		}
 	}
@@ -460,7 +472,7 @@ func (cdb ComplaintDB) GetComplaintsByEmailAddress(ea string) ([]types.Complaint
 		Ancestor(cdb.emailToRootKey(ea)).
 		Order("Timestamp")
 
-	cdb.C.Infof(" ##== all-comp")
+	cdb.Infof(" ##== all-comp")
 
 	return cdb.getComplaintsByQuery(q,"")
 }
@@ -470,12 +482,12 @@ func (cdb ComplaintDB) GetComplaintsByEmailAddress(ea string) ([]types.Complaint
 
 func (cdb ComplaintDB) GetComplaintsInSpanByEmailAddress(ea string, start,end time.Time) ([]types.Complaint, error) {
 
-	//cdb.C.Infof(" ##== comp-in-span [%s  -->  %s]", start, end)
+	//cdb.Infof(" ##== comp-in-span [%s  -->  %s]", start, end)
 	memKey := ""
 	todayStart,_ := date.WindowForToday()
 	if (end.Before(todayStart) || end.Equal(todayStart)) {
 		memKey = fmt.Sprintf("comp-in-span:%s:%d-%d", ea, start.Unix(), end.Unix())
-		//cdb.C.Infof(" ##== comp-in-span cacheable [%s]", memKey)
+		//cdb.Infof(" ##== comp-in-span cacheable [%s]", memKey)
 	}	
 
 	q := cdb.QueryInSpanByEmailAddress(start, end, ea)
@@ -565,12 +577,12 @@ func (cdb ComplaintDB)GetComplaintsInSpan(start,end time.Time) ([]types.Complain
 
 // Now the DB is clean, we can do this simple query instead of going user by user
 func (cdb ComplaintDB)GetComplaintsInSpanNew(start,end time.Time) ([]types.Complaint, error) {
-	cdb.C.Infof(" ##== comp-in-span [%s  -->  %s]", start, end)
+	cdb.Infof(" ##== comp-in-span [%s  -->  %s]", start, end)
 	memKey := ""
 	todayStart,_ := date.WindowForToday()
 	if (end.Before(todayStart) || end.Equal(todayStart)) {
 		memKey = fmt.Sprintf("comp-in-span:__all__:%d-%d", start.Unix(), end.Unix())
-		//cdb.C.Infof(" ##== comp-in-span cacheable [%s]", memKey)
+		//cdb.Infof(" ##== comp-in-span cacheable [%s]", memKey)
 	}	
 	
 	q := datastore.
@@ -603,7 +615,7 @@ func (cdb ComplaintDB)GetComplaintTimesInSpanByFlight(start,end time.Time, fligh
 		Limit(-1)
 
 	var data = []types.Complaint{}
-	if _,err := q.GetAll(cdb.C, &data); err != nil {
+	if _,err := q.GetAll(cdb.Ctx(), &data); err != nil {
 		return []time.Time{}, err
 	}
 
@@ -626,7 +638,7 @@ func (cdb ComplaintDB) GetAnyComplaintByKey(keyString string) (*types.Complaint,
 	if err != nil { return nil,err }
 
 	complaint := types.Complaint{}
-	if err := datastore.Get(cdb.C, k, &complaint); err != nil {
+	if err := datastore.Get(cdb.Ctx(), k, &complaint); err != nil {
 		return nil,err
 	}
 
@@ -650,7 +662,7 @@ func (cdb ComplaintDB) GetComplaintByKey(keyString string, ownerEmail string) (*
 	}
 
 	complaint := types.Complaint{}
-	if err := datastore.Get(cdb.C, k, &complaint); err != nil {
+	if err := datastore.Get(cdb.Ctx(), k, &complaint); err != nil {
 		return nil,err
 	}
 

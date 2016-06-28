@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 	
-	"appengine"
-	"appengine/urlfetch"
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/log"
 
 	"github.com/skypies/geo/sfo"
 	"github.com/skypies/util/date"
@@ -25,7 +25,7 @@ func init() {
 }
 
 func optoutHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewComplaintDB(r)
+	cdb := complaintdb.NewDB(r)
 	users,err := cdb.GetComplainersCurrentlyOptedOut()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -43,7 +43,7 @@ func optoutHandler(w http.ResponseWriter, r *http.Request) {
 // These are sorted elsewhere, so it's OK to 'append' out of sequence.
 // Note no deduping is done; if you want that, add it here.
 func countHackHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewComplaintDB(r)
+	cdb := complaintdb.NewDB(r)
 
 	cdb.AddDailyCount(complaintdb.DailyCount{
 		Datestring: "2016.06.22",
@@ -62,7 +62,7 @@ func perftesterHandler(w http.ResponseWriter, r *http.Request) {
 	debugf := func(step string, fmtstr string, varargs ...interface{}) {
 		payload := fmt.Sprintf(fmtstr, varargs...)
 		outStr := fmt.Sprintf("[%s] %9.6f %s", step, time.Since(tStart).Seconds(), payload)
-		ctx.Debugf(outStr)
+		log.Debugf(ctx, outStr)
 		str += "* " + outStr + "\n"
 	}
 
@@ -118,7 +118,7 @@ func perftesterHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func debugHandler3(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewComplaintDB(r)
+	cdb := complaintdb.NewDB(r)
 	tStart := time.Now()
 	
 	start,end := date.WindowForYesterday()
@@ -132,8 +132,8 @@ func debugHandler3(w http.ResponseWriter, r *http.Request) {
 }
 
 func debugHandler2(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	client := urlfetch.Client(c)
+	cdb := complaintdb.NewDB(r)
+	client := cdb.HTTPClient()
 
 	fr := fr24.Fr24{Client: client}
 

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"time"
-	
-	"appengine"
 
 	"github.com/skypies/util/date"
 
@@ -87,7 +85,7 @@ func form2Complaint(r *http.Request) types.Complaint {
 // {{{ buttonHandler
 
 func buttonHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewComplaintDB(r)
+	cdb := complaintdb.NewDB(r)
 	resp := "OK"
 	cc := r.FormValue("c")
 
@@ -106,24 +104,23 @@ func buttonHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ complaintUpdateFormHandler
 
 func complaintUpdateFormHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+	cdb := complaintdb.NewDB(r)
 	session := sessions.Get(r)
 	if session.Values["email"] == nil {
-		c.Errorf("session was empty; no cookie ?")
+		cdb.Errorf("session was empty; no cookie ?")
 		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
 			http.StatusInternalServerError)
 		return
 	}
 	email := session.Values["email"].(string)
 
-	cdb := complaintdb.NewComplaintDB(r)
 	key := r.FormValue("k")
 
 	if complaint, err := cdb.GetComplaintByKey(key, email); err != nil {
-		c.Errorf("updateform, getComplaint: %v", err)
+		cdb.Errorf("updateform, getComplaint: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	} else {
-		c.Infof("Loaded complaint: %+v", complaint)
+		cdb.Infof("Loaded complaint: %+v", complaint)
 		var params = map[string]interface{}{
 			"ActivityList": kActivities,  // lives in add-complaint
 			"DefaultFlightNumber": complaint.AircraftOverhead.FlightNumber,
@@ -146,13 +143,12 @@ func complaintUpdateFormHandler(w http.ResponseWriter, r *http.Request) {
 
 func addComplaintHandler(w http.ResponseWriter, r *http.Request) {
 	tStart := time.Now()
-	c := appengine.NewContext(r)
-	cdb := complaintdb.NewComplaintDB(r)
+	cdb := complaintdb.NewDB(r)
 
 	cdb.Debugf("ac_001", "context established (took %s) at %s", time.Since(tStart), date.NowInPdt())
 	session := sessions.Get(r)
 	if session.Values["email"] == nil {
-		c.Errorf("session was empty; no cookie ?")
+		cdb.Errorf("session was empty; no cookie ?")
 		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
 			http.StatusInternalServerError)
 		return
@@ -165,7 +161,7 @@ func addComplaintHandler(w http.ResponseWriter, r *http.Request) {
 	cdb.Debugf("ac_003", "calling cdb.ComplainByEmailAddress")
 	err := cdb.ComplainByEmailAddress(email, &complaint)
 	if err != nil {
-		c.Errorf("cdb.Complain failed: %v", err)
+		cdb.Errorf("cdb.Complain failed: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -178,22 +174,21 @@ func addComplaintHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ addHistoricalComplaintHandler
 
 func addHistoricalComplaintHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+	cdb := complaintdb.NewDB(r)
 	session := sessions.Get(r)
 	if session.Values["email"] == nil {
-		c.Errorf("session was empty; no cookie ?")
+		cdb.Errorf("session was empty; no cookie ?")
 		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
 			http.StatusInternalServerError)
 		return
 	}
 	email := session.Values["email"].(string)
 	
-	cdb := complaintdb.NewComplaintDB(r)
 	complaint := form2Complaint(r)
 
 	err := cdb.AddHistoricalComplaintByEmailAddress(email, &complaint)
 	if err != nil {
-		c.Errorf("cdb.HistoricalComplain failed: %v", err)
+		cdb.Errorf("cdb.HistoricalComplain failed: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -205,24 +200,22 @@ func addHistoricalComplaintHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ updateComplaintHandler
 
 func updateComplaintHandler(w http.ResponseWriter, r *http.Request) {
-
-	c := appengine.NewContext(r)
+	cdb := complaintdb.NewDB(r)
 	session := sessions.Get(r)
 	if session.Values["email"] == nil {
-		c.Errorf("session was empty; no cookie ?")
+		cdb.Errorf("session was empty; no cookie ?")
 		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
 			http.StatusInternalServerError)
 		return
 	}
 	email := session.Values["email"].(string)
 
-	cdb := complaintdb.NewComplaintDB(r)
 	new := form2Complaint(r)
 	newFlightNumber := r.FormValue("manualflightnumber")
 	newTimeString := r.FormValue("manualtimestring")
 
 	if orig, err := cdb.GetComplaintByKey(new.DatastoreKey, email); err != nil {
-		c.Errorf("updateform, getComplaint: %v", err)
+		cdb.Errorf("updateform, getComplaint: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 
 	} else {
@@ -247,7 +240,7 @@ func updateComplaintHandler(w http.ResponseWriter, r *http.Request) {
 
 		err := cdb.UpdateComplaint(*orig, email)
 		if err != nil {
-			c.Errorf("cdb.UpdateComplaint failed: %v", err)
+			cdb.Errorf("cdb.UpdateComplaint failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -259,10 +252,10 @@ func updateComplaintHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ deleteComplaintsHandler
 
 func deleteComplaintsHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+	cdb := complaintdb.NewDB(r)
 	session := sessions.Get(r)
 	if session.Values["email"] == nil {
-		c.Errorf("session was empty; no cookie ?")
+		cdb.Errorf("session was empty; no cookie ?")
 		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
 			http.StatusInternalServerError)
 		return
@@ -284,9 +277,8 @@ func deleteComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 		if len(k) < 50 { continue }
 		keyStrings = append(keyStrings, k)
 	}
-	c.Infof("Deleting %d complaints for %s", len(keyStrings), email)
+	cdb.Infof("Deleting %d complaints for %s", len(keyStrings), email)
 
-	cdb := complaintdb.NewComplaintDB(r)
 	err := cdb.DeleteComplaints(keyStrings, email)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -296,13 +288,6 @@ func deleteComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
-
-/*
-
-Prob 1: waiting 350ms before "context established" in handler.
-https://console.cloud.google.com/logs?expandAll=true&filters=request_id:5755f59100ff019af7ea9e5de20001737e7365726672302d3130303000013100010101&project=serfr0-1000&resource=appengine.googleapis.com%2Fmodule_id%2Fdefault%2Fversion_id%2F1&logName=appengine.googleapis.com%2Frequest_log&minLogLevel=0&moduleId=default&versionId=1&lastVisibleTimestampNanos=1465251217105207000
-
- */
 
 // {{{ -------------------------={ E N D }=----------------------------------
 

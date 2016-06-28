@@ -8,15 +8,11 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
-	//"strings"
 	"time"
 	
-	"appengine"
-	"appengine/taskqueue"
-	"appengine/urlfetch"
-
-	newappengine "google.golang.org/appengine"
-	"golang.org/x/net/context"
+	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/taskqueue"
+	"google.golang.org/appengine/urlfetch"
 	
 	"github.com/skypies/util/gcs"
 	"github.com/skypies/util/date"
@@ -46,7 +42,7 @@ func init() {
 
 // Where is the version of this that does GCS via batch ?
 func monthHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.Timeout(appengine.NewContext(r), 180*time.Second)
+	ctx := req2ctx(r)
 
 	year,err := strconv.ParseInt(r.FormValue("year"), 10, 64)
 	if err != nil {
@@ -68,7 +64,7 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 			"month": {r.FormValue("month")},
 		})
 		if _,err := taskqueue.Add(ctx, t, "batch"); err != nil {
-			ctx.Errorf("monthHandler: enqueue: %v", err)
+			log.Errorf(ctx, "monthHandler: enqueue: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -87,10 +83,10 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 	s := firstOfMonth.AddDate(0,0,int(day-1))
 	e := s.AddDate(0,0,int(num)).Add(-1 * time.Second)
 
-	ctx.Infof("Yow: START : %s", s)
-	ctx.Infof("Yow: END   : %s", e)
+	log.Infof(ctx, "Yow: START : %s", s)
+	log.Infof(ctx, "Yow: END   : %s", e)
 
-	cdb := complaintdb.ComplaintDB{C: ctx, Req: r}
+	cdb := complaintdb.NewDB(r)
 
 	filename := s.Format("complaints-20060102") + e.Format("-20060102.csv")
 	w.Header().Set("Content-Type", "application/csv")
@@ -222,7 +218,7 @@ func monthlySummaryTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	bucketname := "serfr0-reports"
 	filename := start.Format("summary-2006-01.txt")	
-	ctx,_ := context.WithTimeout(newappengine.NewContext(r), 10 * time.Minute)
+	ctx := req2ctx(r)
 
 	if exists,err := gcs.Exists(ctx, bucketname, filename); err != nil {
 		http.Error(w, fmt.Sprintf("gcs.Exists=%v for gs://%s/%s (err=%v)", exists,
@@ -288,8 +284,7 @@ func communityReportHandler(w http.ResponseWriter, r *http.Request) {
 
 	start,end,_ := widget.FormValueDateRange(r)
 
-	ctx := appengine.Timeout(appengine.NewContext(r), 9000*time.Second)
-	cdb := complaintdb.ComplaintDB{C: ctx, Req: r}
+	cdb := complaintdb.NewDB(r)
 
 	// Use most-recent city info for all the users, not what got cached per-complaint
 	userCities,err := cdb.GetEmailCityMap()
@@ -396,8 +391,7 @@ func communityReportHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ userReportHandler
 
 func userReportHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.Timeout(appengine.NewContext(r), 9000*time.Second)
-	cdb := complaintdb.ComplaintDB{C: ctx, Req: r}
+	cdb := complaintdb.NewDB(r)
 
 	profiles,err := cdb.GetAllProfiles()
 	if err != nil {
@@ -468,7 +462,7 @@ func GetProcedureMap(r *http.Request, s,e time.Time) (map[string]fdb.CondensedFl
 
 	return ret, nil
 	
-	client := urlfetch.Client(appengine.Timeout(appengine.NewContext(r), 60 * time.Second))
+	client := urlfetch.Client(req2ctx(r))
 	
 	encoding := "gob"	
 	url := fmt.Sprintf("http://fdb.serfr1.org/api/procedures?encoding=%s&tags=:NORCAL:&s=%d&e=%d",
@@ -499,8 +493,7 @@ func GetProcedureMap(r *http.Request, s,e time.Time) (map[string]fdb.CondensedFl
 // {{{ SummaryReport
 
 func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (string,error) {
-	ctx := appengine.Timeout(appengine.NewContext(r), 9000*time.Second)
-	cdb := complaintdb.ComplaintDB{C: ctx, Req: r}
+	cdb := complaintdb.NewDB(r)
 
 	str := ""
 	str += fmt.Sprintf("(t=%s)\n", time.Now())
@@ -716,217 +709,6 @@ func debugHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
-
-/*
-// {{{ summaryReportHandler
-
-// stop.jetnoise.net/report/summary?date=day&day=2016/05/04&peeps=1
-
-func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
-	if r.FormValue("date") == "" {
-		var params = map[string]interface{}{
-			"Title": "Summary of disturbance reports",
-			"FormUrl": "/report/summary",
-			"Yesterday": date.NowInPdt().AddDate(0,0,-1),
-		}
-		if err := templates.ExecuteTemplate(w, "date-report-form", params); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-		return
-	}
-
-	start,end,_ := widget.FormValueDateRange(r)
-
-	ctx := appengine.Timeout(appengine.NewContext(r), 9000*time.Second)
-	cdb := complaintdb.ComplaintDB{C: ctx, Req: r}
-
-	w.Header().Set("Content-Type", "text/plain")
-	fmt.Fprintf(w, "(t=%s)\n", time.Now())
-	fmt.Fprintf(w, "Summary of disturbance reports:\n From [%s]\n To   [%s]\n", start, end)
-	
-	var countsByHour [24]int
-	countsByDate := map[string]int{}
-	countsByAirline := map[string]int{}
-	countsByEquip := map[string]int{}
-	countsByCity := map[string]int{}
-	countsByAirport := map[string]int{}
-
-	countsByProcedure := map[string]int{}        // complaint counts, per arrival/departure procedure
-	flightCountsByProcedure := map[string]int{}  // how many flights flew that procedure overall
-	proceduresByCity := map[string]map[string]int{} // For each city, breakdown by procedure
-	
-	uniquesAll := map[string]int{}
-	uniquesPerDay := map[string]int{} // Each entry is a count for one unique user, for one day
-	uniquesByDate := map[string]map[string]int{}
-	uniquesByCity := map[string]map[string]int{}
-
-	// An iterator expires after 60s, no matter what; so carve up into short-lived iterators
-	n := 0
-	for _,dayWindow := range DayWindows(start,end) {
-
-		// Get condensed flight data (for :NORCAL:)
-		flightsWithComplaintsButNoProcedureToday := map[string]int{}
-		cfMap,err := GetProcedureMap(r,dayWindow[0],dayWindow[1])
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		for _,cf := range cfMap {
-			if cf.Procedure.String() != "" { flightCountsByProcedure[cf.Procedure.String()]++ }
-		}
-
-		iter := cdb.NewLongBatchingIter(cdb.QueryInSpan(dayWindow[0],dayWindow[1]))
-
-		for {
-			c,err := iter.NextWithErr();
-			if err != nil {
-				http.Error(w, fmt.Sprintf("iterator [%s,%s] failed at %s: %v", dayWindow[0],dayWindow[1], time.Now(), err),
-					http.StatusInternalServerError)
-				return
-			} else if c == nil {
-				break // we're all done with this iterator
-			}
-
-			n++
-			d := c.Timestamp.Format("2006.01.02")
-
-			uniquesAll[c.Profile.EmailAddress]++
-			uniquesPerDay[c.Profile.EmailAddress + ":" + d]++
-			countsByHour[c.Timestamp.Hour()]++
-			countsByDate[d]++
-			if uniquesByDate[d] == nil { uniquesByDate[d] = map[string]int{} }
-			uniquesByDate[d][c.Profile.EmailAddress]++
-
-			if airline := c.AircraftOverhead.IATAAirlineCode(); airline != "" {
-				countsByAirline[airline]++
-				//dayCallsigns[c.AircraftOverhead.Callsign]++
-
-				if cf,exists := cfMap[c.AircraftOverhead.FlightNumber]; exists && cf.Procedure.String()!=""{
-					countsByProcedure[cf.Procedure.String()]++
-				} else {
-					countsByProcedure["procedure unknown"]++
-					flightsWithComplaintsButNoProcedureToday[c.AircraftOverhead.FlightNumber]++
-				}
-				
-				whitelist := map[string]int{"SFO":1, "SJC":1, "OAK":1}
-				if _,exists := whitelist[c.AircraftOverhead.Destination]; exists {
-					countsByAirport[fmt.Sprintf("%s arrival", c.AircraftOverhead.Destination)]++
-				} else if _,exists := whitelist[c.AircraftOverhead.Origin]; exists {
-					countsByAirport[fmt.Sprintf("%s departure", c.AircraftOverhead.Origin)]++
-				} else {
-					countsByAirport["airport unknown"]++ // overflights, and/or empty airport fields
-				}
-			} else {
-				countsByAirport["flight unidentified"]++
-				countsByProcedure["flight unidentified"]++
-			}
-
-			if city := c.Profile.GetStructuredAddress().City; city != "" {
-				countsByCity[city]++
-				if uniquesByCity[city] == nil { uniquesByCity[city] = map[string]int{} }
-				uniquesByCity[city][c.Profile.EmailAddress]++
-
-				if proceduresByCity[city] == nil { proceduresByCity[city] = map[string]int{} }
-				if flightnumber := c.AircraftOverhead.FlightNumber; flightnumber != "" {
-					if cf,exists := cfMap[flightnumber]; exists && cf.Procedure.String()!=""{
-						proceduresByCity[city][cf.Procedure.Name]++
-					} else {
-						proceduresByCity[city]["proc?"]++
-					}
-				} else {
-					proceduresByCity[city]["flight?"]++
-				}
-			}
-			if equip := c.AircraftOverhead.EquipType; equip != "" {
-				countsByEquip[equip]++
-			}
-		}
-
-		unknowns := len(flightsWithComplaintsButNoProcedureToday)
-		flightCountsByProcedure["procedure unknown"] += unknowns
-		
-		//for k,_ := range dayCallsigns { fmt.Fprintf(w, "** %s\n", k) }
-	}
-
-	// Generate histogram(s)
-	histByUser := histogram.Histogram{ValMax:200, NumBuckets:50}
-	for _,v := range uniquesPerDay {
-		histByUser.Add(histogram.ScalarVal(v))
-	}
-	
-	fmt.Fprintf(w, "\nTotals:\n Days                : %d\n"+
-		" Disturbance reports : %d\n People reporting    : %d\n",
-		len(countsByDate), n, len(uniquesAll))
-
-	fmt.Fprintf(w, "\nComplaints per user, histogram (0-200):\n %s\n", histByUser)
-
-	fmt.Fprintf(w, "\n[BETA: no more than 80%% accurate!] Disturbance reports, "+
-		"counted by procedure type, breaking out vectored flights "+
-		"(e.g. PROCEDURE/LAST-ON-PROCEDURE-WAYPOINT):\n")
-	for _,k := range keysByKeyAsc(countsByProcedure) {
-		avg := 0.0
-		if flightCountsByProcedure[k] > 0 {
-			avg = float64(countsByProcedure[k]) / float64(flightCountsByProcedure[k])
-		}
-		fmt.Fprintf(w, " %-20.20s: %6d (%5d such flights with complaints; %3.0f complaints/flight)\n",
-			k, countsByProcedure[k], flightCountsByProcedure[k], avg)	
-	}
-	
-	fmt.Fprintf(w, "\nDisturbance reports, counted by airport:\n")
-	for _,k := range keysByKeyAsc(countsByAirport) {
-		fmt.Fprintf(w, " %-20.20s: %6d\n", k, countsByAirport[k])
-	}
-
-	fmt.Fprintf(w, "\nDisturbance reports, counted by City (where known):\n")
-	for _,k := range keysByIntValDesc(countsByCity) {
-		fmt.Fprintf(w, " %-40.40s: %5d (%4d people reporting)\n",
-			k, countsByCity[k], len(uniquesByCity[k]))
-	}
-
-	fmt.Fprintf(w, "\nDisturbance reports, counted by City & procedure type (where known):\n")
-	for _,k := range keysByIntValDesc(countsByCity) {		
-		pStr := fmt.Sprintf("SERFR: %.0f%%, non-SERFR: %.0f%%, flight unknown: %.0f%%",
-			100.0 * (float64(proceduresByCity[k]["SERFR2"]) / float64(countsByCity[k])),
-			100.0 * (float64(proceduresByCity[k]["proc?"]) / float64(countsByCity[k])),
-			100.0 * (float64(proceduresByCity[k]["flight?"]) / float64(countsByCity[k])))
-		fmt.Fprintf(w, " %-40.40s: %5d (%4d people reporting) (%s)\n",
-			k, countsByCity[k], len(uniquesByCity[k]), pStr)
-	}
-	
-	fmt.Fprintf(w, "\nDisturbance reports, counted by date:\n")
-	for _,k := range keysByKeyAsc(countsByDate) {
-		fmt.Fprintf(w, " %s: %5d (%4d people reporting)\n", k, countsByDate[k], len(uniquesByDate[k]))
-	}
-
-	fmt.Fprintf(w, "\nDisturbance reports, counted by aircraft equipment type (where known):\n")
-	for _,k := range keysByIntValDesc(countsByEquip) {
-		if countsByEquip[k] < 5 { break }
-		fmt.Fprintf(w, " %-40.40s: %5d\n", k, countsByEquip[k])
-	}
-
-	fmt.Fprintf(w, "\nDisturbance reports, counted by Airline (where known):\n")
-	for _,k := range keysByIntValDesc(countsByAirline) {
-		if countsByAirline[k] < 5 || len(k) > 2 { continue }
-		fmt.Fprintf(w, " %s: %6d\n", k, countsByAirline[k])
-	}
-
-	fmt.Fprintf(w, "\nDisturbance reports, counted by hour of day (across all dates):\n")
-	for i,n := range countsByHour {
-		fmt.Fprintf(w, " %02d: %5d\n", i, n)
-	}
-
-	if r.FormValue("peeps") != "" {
-		fmt.Fprintf(w, "\nDisturbance reports, counted by user:\n")
-		for _,k := range keysByIntValDesc(uniquesAll) {
-			fmt.Fprintf(w, " %-60.60s: %5d\n", k, uniquesAll[k])
-		}
-	}
-
-	fmt.Fprintf(w, "(t=%s)\n", time.Now())
-}
-
-// }}}
-*/
 
 // {{{ -------------------------={ E N D }=----------------------------------
 

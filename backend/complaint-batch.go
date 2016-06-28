@@ -3,11 +3,9 @@ package backend
 import (
 	"fmt"
 	"net/http"
-	"time"
 	
-	"appengine"
-	"appengine/datastore"
-	"appengine/taskqueue"
+	"google.golang.org/appengine/datastore"
+	"google.golang.org/appengine/taskqueue"
 
 	"github.com/skypies/util/date"
 
@@ -27,13 +25,12 @@ func init() {
 
 // Grab all users, and enqueue them for batch processing
 func upgradeHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	cdb := complaintdb.ComplaintDB{C:c, Req:r, Memcache:false}
+	cdb := complaintdb.NewDB(r)
 
 	var cps = []types.ComplainerProfile{}
 	cps, err := cdb.GetAllProfiles()
 	if err != nil {
-		c.Errorf("upgradeHandler: getallprofiles: %v", err)
+		cdb.Errorf("upgradeHandler: getallprofiles: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -42,13 +39,13 @@ func upgradeHandler(w http.ResponseWriter, r *http.Request) {
 		t := taskqueue.NewPOSTTask("/backend/cdb-batch-user", map[string][]string{
 			"email": {cp.EmailAddress},
 		})
-		if _,err := taskqueue.Add(c, t, "batch"); err != nil {
-			c.Errorf("upgradeHandler: enqueue: %v", err)
+		if _,err := taskqueue.Add(cdb.Ctx(), t, "batch"); err != nil {
+			cdb.Errorf("upgradeHandler: enqueue: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
-	c.Infof("enqueued %d batch", len(cps))
+	cdb.Infof("enqueued %d batch", len(cps))
 	w.Write([]byte(fmt.Sprintf("OK, enqueued %d", len(cps))))
 }
 
@@ -57,13 +54,12 @@ func upgradeHandler(w http.ResponseWriter, r *http.Request) {
 
 // Upgrade the set of complaints for each user.
 func upgradeUserHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.Timeout(appengine.NewContext(r), 300*time.Second)
-	cdb := complaintdb.ComplaintDB{C:c, Req:r, Memcache:false}
+	cdb := complaintdb.NewDB(r)
 
 	email := r.FormValue("email")
 	cp,err := cdb.GetProfileByEmailAddress(email)
 	if err != nil {
-		c.Errorf("upgradeUserHandler/%s: GetProfile failed: %v", email, err)
+		cdb.Errorf("upgradeUserHandler/%s: GetProfile failed: %v", email, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -74,9 +70,9 @@ func upgradeUserHandler(w http.ResponseWriter, r *http.Request) {
 		NewQuery("ComplaintKind").
 		Ancestor(cdb.EmailToRootKey(email)).
 		Order("Timestamp")
-	keys, err := q.GetAll(c, &data)
+	keys, err := q.GetAll(cdb.Ctx(), &data)
 	if err != nil {
-		c.Errorf("upgradeUserHandler/%s: GetAll failed: %v", email, err)
+		cdb.Errorf("upgradeUserHandler/%s: GetAll failed: %v", email, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -123,7 +119,7 @@ func upgradeUserHandler(w http.ResponseWriter, r *http.Request) {
 	
 	str += fmt.Sprintf("** processed {%s} [tot=%d, good=%d, bad=%d]\n",
 		email, len(data), nGood, nBad)
-	c.Infof(" -- Upgrade for %s --\n%s", email, str)
+	cdb.Infof(" -- Upgrade for %s --\n%s", email, str)
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(fmt.Sprintf("OK, upgraded %s\n%s", email, str)))
 }
@@ -133,8 +129,7 @@ func upgradeUserHandler(w http.ResponseWriter, r *http.Request) {
 
 // Fixup the three days where email addresses got stamped upon
 func fixupthing(w http.ResponseWriter, r *http.Request) {
-	c := appengine.Timeout(appengine.NewContext(r), 300*time.Second)
-	cdb := complaintdb.ComplaintDB{C:c, Req:r, Memcache:false}
+	cdb := complaintdb.NewDB(r)
 
 	email := r.FormValue("email")
 	str := fmt.Sprintf("(lookup for %s)\n", email)
@@ -146,7 +141,7 @@ func fixupthing(w http.ResponseWriter, r *http.Request) {
 
 		complaints,err := cdb.GetComplaintsInSpanByEmailAddress(email,s,e)
 		if err != nil {
-			c.Errorf("fixupthing/%s: GetAll failed: %v", email, err)
+			cdb.Errorf("fixupthing/%s: GetAll failed: %v", email, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -160,7 +155,7 @@ func fixupthing(w http.ResponseWriter, r *http.Request) {
 
 				comp.Profile.EmailAddress = email
 				if err := cdb.UpdateComplaint(comp, email); err != nil {
-					c.Errorf("fixupthing/%s: update-complaint failed: %v", email, err)
+					cdb.Errorf("fixupthing/%s: update-complaint failed: %v", email, err)
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
@@ -181,14 +176,13 @@ func fixupthing(w http.ResponseWriter, r *http.Request) {
 // /backend/purge?email=foo@bar&forrealz=1
 
 func purgeuserHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.Timeout(appengine.NewContext(r), 300*time.Second)
-	cdb := complaintdb.ComplaintDB{C:c, Req:r, Memcache:false}
+	cdb := complaintdb.NewDB(r)
 	email := r.FormValue("email")
 
 	str := fmt.Sprintf("(purgeuser for %s)\n", email)
 
 	q := cdb.QueryAllByEmailAddress(email).KeysOnly()
-	keys, err := q.GetAll(cdb.C, nil)
+	keys, err := q.GetAll(cdb.Ctx(), nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -199,7 +193,7 @@ func purgeuserHandler(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("forrealz") == "1" {
 		maxRm := 400
 		for len(keys)>maxRm {
-			if err := datastore.DeleteMulti(c, keys[0:maxRm-1]); err != nil {
+			if err := datastore.DeleteMulti(cdb.Ctx(), keys[0:maxRm-1]); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}

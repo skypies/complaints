@@ -12,13 +12,13 @@ indexes:
 
 - kind: ComplainerKind
   properties:
+  - name: DataSharing
   - name: EmailAddress
-  - name: StructuredAddress.City
 
 - kind: ComplainerKind
   properties:
-  - name: DataSharing
   - name: EmailAddress
+  - name: StructuredAddress.City
 
 - kind: ComplaintKind
   properties:

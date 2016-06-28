@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"time"
-	
-	"appengine"
-	
+
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/util/date"
 	"github.com/skypies/util/widget"
@@ -41,8 +39,7 @@ func complaintsForHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := appengine.Timeout(appengine.NewContext(r), 60*time.Second)
-	cdb := complaintdb.ComplaintDB{C:ctx, Req:r}
+	cdb := complaintdb.NewDB(r)
 
 	times, err := cdb.GetComplaintTimesInSpanByFlight(s,e,flightnumber)
 	if err != nil {

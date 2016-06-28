@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	
-	"appengine"
-	"appengine/memcache"
-	"appengine/taskqueue"
-	"appengine/urlfetch"
+
+	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/memcache"
+	"google.golang.org/appengine/taskqueue"
+	"golang.org/x/net/context"
 
 	"github.com/skypies/geo"
 	"github.com/skypies/geo/sfo"
@@ -50,22 +50,22 @@ func init() {
 
 // {{{ {load|save}FIFOSet
 
-func loadFIFOSet(c appengine.Context, set *ftype.FIFOSet) (error) {
+func loadFIFOSet(c context.Context, set *ftype.FIFOSet) (error) {
 	if _,err := memcache.Gob.Get(c, kMemcacheFIFOSetKey, set); err == memcache.ErrCacheMiss {
     // cache miss, but we don't care
 		return nil
 	} else if err != nil {
-    c.Errorf("error getting item: %v", err)
+    log.Errorf(c, "error getting item: %v", err)
 		return err
 	}
 	return nil
 }
 
-func saveFIFOSet(c appengine.Context, s ftype.FIFOSet) error {
+func saveFIFOSet(c context.Context, s ftype.FIFOSet) error {
 	s.AgeOut(time.Minute * kFIFOSetMaxAgeMins)
 	item := memcache.Item{Key:kMemcacheFIFOSetKey, Object:s}
 	if err := memcache.Gob.Set(c, &item); err != nil {
-		c.Errorf("error setting item: %v", err)
+		log.Errorf(c, "error setting item: %v", err)
 	}
 	return nil
 }
@@ -75,26 +75,27 @@ func saveFIFOSet(c appengine.Context, s ftype.FIFOSet) error {
 
 // Look for new flights that we should add to our database. Invoked by cron.
 func scanHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+	ctx := req2ctx(r)
+	client := req2client(r)
 
-	if db,err1 := fdb24.NewFlightDBFr24(urlfetch.Client(c)); err1 != nil {
-		c.Errorf(" /mdb/scan: newdb: %v", err1)
+	if db,err1 := fdb24.NewFlightDBFr24(client); err1 != nil {
+		log.Errorf(ctx, " /mdb/scan: newdb: %v", err1)
 		http.Error(w, err1.Error(), http.StatusInternalServerError)
 
 	} else {
 		if flights,err2 := db.LookupList(sfo.KBoxSnarfingCatchment); err2 != nil {
-			c.Errorf(" /mdb/scan: lookup: %v", err2)
+			log.Errorf(ctx, " /mdb/scan: lookup: %v", err2)
 			http.Error(w, err2.Error(), http.StatusInternalServerError)
 		} else {
 
 			set := ftype.FIFOSet{}
-			if err3 := loadFIFOSet(c,&set); err3 != nil {
-				c.Errorf(" /mdb/scan: loadcache: %v", err3)
+			if err3 := loadFIFOSet(ctx,&set); err3 != nil {
+				log.Errorf(ctx, " /mdb/scan: loadcache: %v", err3)
 				http.Error(w, err3.Error(), http.StatusInternalServerError)
 			}
 			new := set.FindNew(flights)
-			if err4 := saveFIFOSet(c,set); err4 != nil {
-				c.Errorf(" /mdb/scan: savecache: %v", err4)
+			if err4 := saveFIFOSet(ctx,set); err4 != nil {
+				log.Errorf(ctx, " /mdb/scan: savecache: %v", err4)
 				http.Error(w, err4.Error(), http.StatusInternalServerError)
 			}
 
@@ -114,8 +115,8 @@ func scanHandler(w http.ResponseWriter, r *http.Request) {
 					// We could be smarter about this.
 					t.Delay = time.Minute * 60
 
-					if _,err6 := taskqueue.Add(c, t, "addflight"); err6 != nil {
-						c.Errorf(" /mdb/scan: enqueue: %v", err6)
+					if _,err6 := taskqueue.Add(ctx, t, "addflight"); err6 != nil {
+						log.Errorf(ctx, " /mdb/scan: enqueue: %v", err6)
 						http.Error(w, err6.Error(), http.StatusInternalServerError)
 						return
 					}
@@ -137,9 +138,10 @@ func scanHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ addflightHandler
 
 func addflightHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-
-	log := fmt.Sprintf("* addFlightHandler invoked: %s\n", time.Now().UTC())
+	ctx := req2ctx(r)
+	client := req2client(r)
+	
+	logstr := fmt.Sprintf("* addFlightHandler invoked: %s\n", time.Now().UTC())
 	
 	fsStr := r.FormValue("flightsnapshot")
 	fs := ftype.FlightSnapshot{}
@@ -149,12 +151,12 @@ func addflightHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fr24Id := fs.F.Id.ForeignKeys["fr24"] // This is the only field we take from the 
-	log += fmt.Sprintf("* fr24 key: %s\n", fr24Id)
+	logstr += fmt.Sprintf("* fr24 key: %s\n", fr24Id)
 	
-	db := fdb.FlightDB{C: c}
-	fr24db,err := fdb24.NewFlightDBFr24(urlfetch.Client(c));
+	db := fdb.NewDB(r)
+	fr24db,err := fdb24.NewFlightDBFr24(client);
 	if err != nil {
-		c.Errorf(" /mdb/addflight: newdb: %v", err)
+		log.Errorf(ctx," /mdb/addflight: newdb: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -172,7 +174,7 @@ func addflightHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(fmt.Sprintf("Skipped %s\n", fs)))
 		return
 	}
-	log += fmt.Sprintf("* FlightExists('%s') -> false\n", fs.F.Id.UniqueIdentifier())
+	logstr += fmt.Sprintf("* FlightExists('%s') -> false\n", fs.F.Id.UniqueIdentifier())
   */
 
 	// Now grab an initial flight (with track), from fr24.
@@ -182,27 +184,27 @@ func addflightHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	log += fmt.Sprintf("* the fr24/default track has %d points\n", len(f.Track))
+	logstr += fmt.Sprintf("* the fr24/default track has %d points\n", len(f.Track))
 
 	// Kludge: fr24 keys get reused, so the flight fr24 thinks it refers to might be
 	// different than when we cached it. So we do the uniqueness check here, to avoid
 	// dupes in the DB. Need a better solution to this.
 	if exists,err := db.FlightExists(f.Id.UniqueIdentifier()); err != nil {
-		c.Errorf(" /mdb/addflight: FlightExists check failed: %v", err)
+		log.Errorf(ctx, " /mdb/addflight: FlightExists check failed: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	} else if exists {
-		c.Infof(" /mdb/addflight: already exists %s", *f)
+		log.Infof(ctx, " /mdb/addflight: already exists %s", *f)
 		w.Write([]byte(fmt.Sprintf("Skipped %s\n", *f)))
 		return
 	}
-	log += fmt.Sprintf("* FlightExists('%s') -> false\n", f.Id.UniqueIdentifier())
+	logstr += fmt.Sprintf("* FlightExists('%s') -> false\n", f.Id.UniqueIdentifier())
 
 	// Fetch ADSB (and MLAT!) tracks from Skypi, via the new DB
-	err,deb := f.GetV2ADSBTrack(urlfetch.Client(c))
-	log += "* fetchV2ADSB\n"+deb
+	err,deb := f.GetV2ADSBTrack(client)
+	logstr += "* fetchV2ADSB\n"+deb
 	if err != nil {
-		c.Errorf("ADSB fetch err: %v", err)
+		log.Errorf(ctx, "ADSB fetch err: %v", err)
 	}
 	
 	// If we have any locally received ADSB fragments for this flight, add them in
@@ -211,20 +213,20 @@ func addflightHandler(w http.ResponseWriter, r *http.Request) {
 	//}
 
 	f.AnalyseFlightPath() // Takes a coarse look at the flight path
-	log += fmt.Sprintf("* Initial tags: %v\n", f.TagList())
+	logstr += fmt.Sprintf("* Initial tags: %v\n", f.TagList())
 	
 	// For flights on the SERFR1 or BRIXX1 approaches, fetch a flightaware track
 	if f.HasTag(ftype.KTagSERFR1) || f.HasTag(ftype.KTagBRIXX) {
 		u,p := kFlightawareAPIUsername,kFlightawareAPIKey
-		if err := fdbfa.AddFlightAwareTrack(urlfetch.Client(c),f,u,p); err != nil {
-			c.Errorf(" /mdb/addflight: addflightaware: %v", err)
+		if err := fdbfa.AddFlightAwareTrack(client,f,u,p); err != nil {
+			log.Errorf(ctx, " /mdb/addflight: addflightaware: %v", err)
 		}
 	}
 				
 	f.Analyse()
 	
-	if err := db.PersistFlight(*f, log); err != nil {
-		c.Errorf(" /mdb/addflight: persist: %v", err)
+	if err := db.PersistFlight(*f, logstr); err != nil {
+		log.Errorf(ctx, " /mdb/addflight: persist: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -236,8 +238,8 @@ func addflightHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ addtrackHandler
 
 func addtrackHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	db := fdb.FlightDB{C: c}
+	ctx := req2ctx(r)
+	db := fdb.NewDB(r)
 
 	icaoId := r.FormValue("icaoid")
 	callsign := strings.TrimSpace(r.FormValue("callsign"))
@@ -246,7 +248,7 @@ func addtrackHandler(w http.ResponseWriter, r *http.Request) {
 	// Validate it works before persisting
 	t := ftype.Track{}
 	if err := t.Base64Decode(tStr); err != nil {
-		c.Errorf(" /mdb/addtrack: decode failed: %v", err)
+		log.Errorf(ctx, " /mdb/addtrack: decode failed: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
@@ -256,7 +258,7 @@ func addtrackHandler(w http.ResponseWriter, r *http.Request) {
 		Icao24: icaoId,
 	}
 	if err := db.AddTrackFrgament(ftf); err != nil {
-		c.Errorf(" /mdb/addtrack: db.AddTrackFragment failed: %v", err)
+		log.Errorf(ctx, " /mdb/addtrack: db.AddTrackFragment failed: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	
@@ -404,8 +406,8 @@ func LatlongTimeBoxToMapLines(tb geo.LatlongTimeBox, color string) []MapLine {
 
 // We examine the tags CGI arg, which should be a pipe-delimited set of flight tags.
 func flightListHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	db := fdb.FlightDB{C: c}
+	ctx := req2ctx(r)
+	db := fdb.NewDB(r)
 	
 	tags := []string{}
 	if r.FormValue("tags") != "" {
@@ -428,7 +430,7 @@ func flightListHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		c.Errorf(" %s: %v", r.URL.Path, err)
+		log.Errorf(ctx, " %s: %v", r.URL.Path, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -447,19 +449,16 @@ func flightListHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ lookupHandler
 
 func lookupHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	db := fdb.FlightDB{C: c}
+	db := fdb.NewDB(r)
 	id := r.FormValue("id")
 
 	if f,err2 := db.LookupById(id); err2 != nil {
-		c.Errorf(" /mdb/lookup: %v", err2)
 		http.Error(w, err2.Error(), http.StatusInternalServerError)
 
 	} else if f == nil {
 		http.Error(w, fmt.Sprintf("id=%s not found", id), http.StatusInternalServerError)
 		
 	} else {
-		c.Infof("Tags: %v, Tracks: %v", f.TagList(), f.TrackList())
 		_,classBTrack := f.SFOClassB("",nil)
 			
 		f.Analyse()  // Repopulate the flight tags; useful when debugging new analysis stuff
@@ -503,7 +502,7 @@ func lookupHandler(w http.ResponseWriter, r *http.Request) {
 			//pos := geo.Latlong{37.060312, -121.990814}
 			pos := sfo.KFixes[waypoint]
 			if itp,err := f.BestTrack().PointOfClosestApproach(pos); err != nil {
-				c.Infof(" ** Error: %v", err)
+				//log.Infof(" ** Error: %v", err)
 			} else {
 				mapPoints = append(mapPoints, MapPoint{Icon:"red", ITP:&itp})
 				mapPoints = append(mapPoints, MapPoint{Pos:&itp.Ref, Text:"** Reference point"})
@@ -589,8 +588,8 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := appengine.NewContext(r)
-	db := fdb.FlightDB{C: c, Memcache:true}
+	db := fdb.NewDB(r)
+	db.Memcache = true
 
 	var t time.Time
 	if r.FormValue("epoch") != "" {
@@ -667,8 +666,7 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ decodetrackHandler
 
 func decodetrackHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	db := fdb.FlightDB{C: c}
+	db := fdb.NewDB(r)
 
 	icao := r.FormValue("icaoid")
 	callsign := strings.TrimSpace(r.FormValue("callsign"))
@@ -696,8 +694,7 @@ func decodetrackHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ debugHandler
 
 func debugHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	db := fdb.FlightDB{C: c}
+	db := fdb.NewDB(r)
 	id := r.FormValue("id")
 	blob,f,err := db.GetBlobById(id)
 	if err != nil {

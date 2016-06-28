@@ -1,11 +1,9 @@
-
 package complaintdb
 
 import (
 	"fmt"
 
-	"appengine/datastore"
-	"appengine/urlfetch"
+	"google.golang.org/appengine/datastore"
 
 	"github.com/skypies/geo"
 	"github.com/skypies/util/date"
@@ -19,7 +17,7 @@ import (
 // {{{ cdb.complainByProfile
 
 func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Complaint) error {
-	client := urlfetch.Client(cdb.C)
+	client := cdb.HTTPClient()
 	fr := fr24.Fr24{Client: client}
 	overhead := fr24.Aircraft{}
 
@@ -34,12 +32,12 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 		cdb.Debugf("cbe_011", "rate limit check passed (%d); calling FindOverhead", len(prevKeys))
 	}
 	
-	//cdb.C.Infof("adding complaint for [%s] %s", cp.CallerCode, overhead.FlightNumber)
+	//cdb.Infof("adding complaint for [%s] %s", cp.CallerCode, overhead.FlightNumber)
 
 	// abw hack hack
 	grabAny := (cp.CallerCode == "QWERTY")
 	if debug,err := fr.FindOverhead(geo.Latlong{cp.Lat,cp.Long}, &overhead, grabAny); err != nil {
-		cdb.C.Errorf("FindOverhead failed for %s: %v", cp.EmailAddress, err)
+		cdb.Errorf("FindOverhead failed for %s: %v", cp.EmailAddress, err)
 	} else {
 		c.Debug = debug
 	}
@@ -71,7 +69,7 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 	// Too much like the last complaint by this user ? Just update that one.
 	cdb.Debugf("cbe_030", "retrieving prev complaint")
 	if prev, err := cdb.GetNewestComplaintByEmailAddress(cp.EmailAddress); err != nil {
-		cdb.C.Errorf("complainByProfile/GetNewest: %v", err)
+		cdb.Errorf("complainByProfile/GetNewest: %v", err)
 	} else if prev != nil && ComplaintsAreEquivalent(*prev, *c) {
 		cdb.Debugf("cbe_031", "returned, equiv; about to UpdateComlaint()")
 		// The two complaints are in fact one complaint. Overwrite the old one with data from new one.
@@ -82,17 +80,17 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 	}
 	cdb.Debugf("cbe_033", "returned, distinct/first; about to put()")
 
-	key := datastore.NewIncompleteKey(cdb.C, kComplaintKind, cdb.emailToRootKey(cp.EmailAddress))	
-	_, err := datastore.Put(cdb.C, key, c)
+	key := datastore.NewIncompleteKey(cdb.Ctx(), kComplaintKind, cdb.emailToRootKey(cp.EmailAddress))	
+	_, err := datastore.Put(cdb.Ctx(), key, c)
 	cdb.Debugf("cbe_034", "new entity added (all done)")
 
 	// TEMP
 /*
 	if debug,err := bksv.PostComplaint(client, cp, *c); err != nil {
-		cdb.C.Infof("BKSV Debug\n------\n%s\n------\n", debug)
-		cdb.C.Infof("BKSV posting error: %v", err)
+		cdb.Infof("BKSV Debug\n------\n%s\n------\n", debug)
+		cdb.Infof("BKSV posting error: %v", err)
 	} else {
-		cdb.C.Infof("BKSV Debug\n------\n%s\n------\n", debug)
+		cdb.Infof("BKSV Debug\n------\n%s\n------\n", debug)
 	}
 */
 	return err
@@ -138,8 +136,8 @@ func (cdb ComplaintDB) AddHistoricalComplaintByEmailAddress(ea string, c *types.
 
 	c.Profile = *cp
 
-	key := datastore.NewIncompleteKey(cdb.C, kComplaintKind, cdb.emailToRootKey(cp.EmailAddress))	
-	_, err = datastore.Put(cdb.C, key, c)
+	key := datastore.NewIncompleteKey(cdb.Ctx(), kComplaintKind, cdb.emailToRootKey(cp.EmailAddress))	
+	_, err = datastore.Put(cdb.Ctx(), key, c)
 	return err
 }
 
@@ -153,7 +151,7 @@ func (cdb ComplaintDB) UpdateAnyComplaint(complaint types.Complaint) error {
 
 	} else {
 		complaint.Version = kComplaintVersion
-		_,err := datastore.Put(cdb.C, k, &complaint)
+		_,err := datastore.Put(cdb.Ctx(), k, &complaint)
 		return err
 	}
 }
@@ -174,7 +172,7 @@ func (cdb ComplaintDB) UpdateComplaint(complaint types.Complaint, ownerEmail str
 
 	complaint.Version = kComplaintVersion
 	
-	if _, err2 := datastore.Put(cdb.C, k, &complaint); err2 != nil {
+	if _, err2 := datastore.Put(cdb.Ctx(), k, &complaint); err2 != nil {
 		return err2
 	}
 

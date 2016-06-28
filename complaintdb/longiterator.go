@@ -1,8 +1,9 @@
 package complaintdb
 
 import (
-	"appengine"
-	"appengine/datastore"
+	"google.golang.org/appengine/datastore"
+	"golang.org/x/net/context"
+
 	"github.com/skypies/complaints/complaintdb/types"
 )
 
@@ -11,7 +12,7 @@ var KResultsPageSize = 1
 // LongIterator is a drop-in replacement, to allow the consumer to spend more than 60s
 // iterating over the result set.
 type LongIterator struct {
-	C      appengine.Context
+	Ctx     context.Context
 
 	Keys []*datastore.Key // The full result set
 
@@ -22,9 +23,10 @@ type LongIterator struct {
 
 // Snarf down all the keys from the get go.
 func (cdb *ComplaintDB)NewLongIter(q *datastore.Query) *LongIterator {
-	keys,err := q.KeysOnly().GetAll(cdb.C, nil)
+	ctx := cdb.Ctx()
+	keys,err := q.KeysOnly().GetAll(ctx, nil)
 	i := LongIterator{
-		C:    cdb.C,
+		Ctx:  ctx,
 		Keys: keys,
 		err:  err,
 	}
@@ -51,7 +53,7 @@ func (iter *LongIterator)NextWithErr() (*types.Complaint, error) {
 	iter.i++
 	
 	complaint := types.Complaint{}
-	if err := datastore.Get(iter.C, key, &complaint); err != nil {
+	if err := datastore.Get(iter.Ctx, key, &complaint); err != nil {
 		iter.err = err
 		return nil, err
 	}

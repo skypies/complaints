@@ -1,17 +1,18 @@
 package complaintdb
 
 import (
-	"appengine"
-	"appengine/datastore"
+	"google.golang.org/appengine/datastore"
+	"golang.org/x/net/context"
+
 	"github.com/skypies/complaints/complaintdb/types"
 )
 
 // LongBatchingIterator is a drop-in replacement, to allow the consumer to spend more than 60s
 // iterating over the result set; it fetches results in batches.
 type LongBatchingIterator struct {
-	C          appengine.Context
+	Ctx         context.Context
 
-	BatchSize  int          // How many items to pull down per datastore.GetAll
+	BatchSize   int          // How many items to pull down per datastore.GetAll
 
 	keys []*datastore.Key   // Full set of keys, yet to be fetched (mutated each page fetch)
 	vals []*types.Complaint // A cache of unreturned results (mutated each iteration)
@@ -42,7 +43,7 @@ func (iter *LongBatchingIterator)NextWithErr() (*types.Complaint, error) {
 
 		// Fetch the complaints for the keys in this batch
 		complaints := make ([]types.Complaint, len(keysForThisBatch))
-		if err := datastore.GetMulti(iter.C, keysForThisBatch, complaints); err != nil {
+		if err := datastore.GetMulti(iter.Ctx, keysForThisBatch, complaints); err != nil {
 			iter.err = err
 			return nil, err
 		}
@@ -64,9 +65,10 @@ func (iter *LongBatchingIterator)NextWithErr() (*types.Complaint, error) {
 
 // Snarf down all the keys from the get go.
 func (cdb *ComplaintDB)NewLongBatchingIter(q *datastore.Query) *LongBatchingIterator {
-	keys,err := q.KeysOnly().GetAll(cdb.C, nil)
+	ctx := cdb.Ctx()
+	keys,err := q.KeysOnly().GetAll(ctx, nil)
 	i := LongBatchingIterator{
-		C:         cdb.C,
+		Ctx:       ctx,
 		BatchSize: 100,
 		keys:      keys,
 		vals:   []*types.Complaint{},

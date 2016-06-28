@@ -6,8 +6,6 @@ import(
 	"net/http"
 	"strings"
 
-	oldappengine "appengine"
-
 	oldfgae "github.com/skypies/flightdb/gae"
 	newfdb  "github.com/skypies/flightdb2"
 	newui   "github.com/skypies/flightdb2/ui"
@@ -51,8 +49,7 @@ func FormValueIdSpecs(r *http.Request) ([]string, error) {
 }
 
 func idspecsToFlightV2s(r *http.Request) ([]*newfdb.Flight, error) {
-	c := oldappengine.NewContext(r)
-	db := oldfgae.FlightDB{C:c}
+	db := oldfgae.NewDB(r)
 	newFlights := []*newfdb.Flight{}
 
 	idspecs,err := FormValueIdSpecs(r)
@@ -131,8 +128,7 @@ func v2DescentHandler(w http.ResponseWriter, r *http.Request) {
 	newui.OutputDescentsAsPDF(w, r, flights)
 */
 
-	c := oldappengine.NewContext(r)
-	db := oldfgae.FlightDB{C:c}
+	db := oldfgae.NewDB(r)
 
 	idspecs,err := FormValueIdSpecs(r)
 	if err != nil {

@@ -4,8 +4,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	
-	"appengine"
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
@@ -41,7 +39,7 @@ func profileFormHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	email := session.Values["email"].(string)
 
-	cdb := complaintdb.NewComplaintDB(r)
+	cdb := complaintdb.NewDB(r)
 	cp, _ := cdb.GetProfileByEmailAddress(email)
 
 	if cp.EmailAddress == "" {
@@ -65,10 +63,10 @@ func profileFormHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ profileUpdateHandler
 
 func profileUpdateHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+	cdb := complaintdb.NewDB(r)
 	session := sessions.Get(r)
 	if session.Values["email"] == nil {
-		c.Errorf("profileUpdate:, session was empty; no cookie ?")
+		cdb.Errorf("profileUpdate:, session was empty; no cookie ?")
 		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
 			http.StatusInternalServerError)
 		return
@@ -79,20 +77,19 @@ func profileUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	
 	lat,err := strconv.ParseFloat(r.FormValue("Lat"), 64)
 	if err != nil {
-		c.Errorf("profileUpdate:, parse lat '%s': %v", r.FormValue("Lat"), err)
+		cdb.Errorf("profileUpdate:, parse lat '%s': %v", r.FormValue("Lat"), err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}		
 	long,err2 := strconv.ParseFloat(r.FormValue("Long"), 64)
 	if err2 != nil {
-		c.Errorf("profileUpdate:, parse long '%s': %v", r.FormValue("Long"), err)
+		cdb.Errorf("profileUpdate:, parse long '%s': %v", r.FormValue("Long"), err)
 		http.Error(w, err2.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Maybe make a call to fetch the elevation ??
 	// https://developers.google.com/maps/documentation/elevation/intro
-	
 	cp := types.ComplainerProfile{
 		EmailAddress: email,
 		CallerCode: r.FormValue("CallerCode"),
@@ -113,10 +110,9 @@ func profileUpdateHandler(w http.ResponseWriter, r *http.Request) {
 		Long: long,
 	}
 	
-	cdb := complaintdb.NewComplaintDB(r)
 	err = cdb.PutProfile(cp)
 	if err != nil {
-		c.Errorf("profileUpdate: cdb.Put: %v", err)
+		cdb.Errorf("profileUpdate: cdb.Put: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

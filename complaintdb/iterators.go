@@ -1,15 +1,15 @@
 package complaintdb
 
 import (
-	"appengine"
-	"appengine/datastore"
+	"google.golang.org/appengine/datastore"
+
 	"github.com/skypies/complaints/complaintdb/types"
 )
 
 // TODO: Iter.EOF, for better for loops
 
 type ComplaintIterator struct {
-	C      appengine.Context
+	//ComplaintDB CDB
 	Query *datastore.Query
 	Iter  *datastore.Iterator
 }
@@ -23,7 +23,6 @@ func (ci *ComplaintIterator)NextWithErr() (*types.Complaint, error) {
 		return nil,nil // We're all done
 	}
 	if err != nil {
-		ci.C.Errorf("iter.Next: %v", err)
 		return nil,err
 	}
 
@@ -36,13 +35,12 @@ func (ci ComplaintIterator)Next() *types.Complaint {
 	c,_ := ci.NextWithErr()
 	return c
 }
-	
 
 func (cdb ComplaintDB)NewIter(q *datastore.Query) *ComplaintIterator {
 	ci := ComplaintIterator{
-		C:     cdb.C,
+		//CDB:   cdb,
 		Query: q,
-		Iter:  q.Run(cdb.C),
+		Iter:  q.Run(cdb.Ctx()),
 	}
 	return &ci
 }

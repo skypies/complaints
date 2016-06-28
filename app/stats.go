@@ -3,9 +3,6 @@ package complaints
 import (
 	"fmt"
 	"net/http"
-	"time"
-
-	"appengine"
 
 	"github.com/skypies/complaints/complaintdb"
 )
@@ -18,12 +15,7 @@ func init() {
 // {{{ statsResetHandler
 
 func statsResetHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.Timeout(appengine.NewContext(r), 600*time.Second)
-	//c := appengine.NewContext(r)
-	cdb := complaintdb.ComplaintDB{C: c, Req:r}
-
-	cdb.ResetGlobalStats()
-	
+	complaintdb.NewDB(r).ResetGlobalStats()
 	w.Write([]byte(fmt.Sprintf("Stats reset\n")))
 }
 
@@ -31,24 +23,18 @@ func statsResetHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ statsHandler
 
 func statsHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	cdb := complaintdb.ComplaintDB{C: c, Req:r}
+	cdb := complaintdb.NewDB(r)
 
 	if gs,err := cdb.LoadGlobalStats(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	} else {
-
-		// Sigh. Ignore.
-		// sort.Sort(sort.Reverse(complaintdb.DailyCountDesc(gs.Counts)))
-		
 		var params = map[string]interface{}{
 			"GlobalStats": gs,
 		}
 		if err := templates.ExecuteTemplate(w, "stats", params); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-	}
-	
+	}	
 }
 
 // }}}

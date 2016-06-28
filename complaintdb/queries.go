@@ -4,10 +4,7 @@ package complaintdb
 import (
 	"time"
 
-	// "appengine"
-	"appengine/datastore"
-
-	// "github.com/skypies/complaints/complaintdb/types"
+	"google.golang.org/appengine/datastore"
 )
 
 func (cdb ComplaintDB) QueryInSpan(start, end time.Time) *datastore.Query {

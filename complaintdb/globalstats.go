@@ -7,9 +7,7 @@ import (
 	"sort"
 	"time"
 	
-	"appengine"
-	"appengine/datastore"
-	"appengine/memcache"
+	"google.golang.org/appengine/datastore"
 
 	"github.com/skypies/util/date"
 )
@@ -26,44 +24,16 @@ type GlobalStats struct {
 
 type FrozenGlobalStats struct { Bytes []byte }
 
-// {{{ ToMemcache
-
-func (gs GlobalStats)ToMemcache(c appengine.Context) {
-	item := memcache.Item{Key:kMemcacheGlobalStatsKey, Object:gs}
-	if err := memcache.Gob.Set(c, &item); err != nil {
-		c.Errorf("error setting item %s: %v", kMemcacheGlobalStatsKey, err)
-	}
-}
-
-// }}}
-// {{{ FromMemcache
-
-func (gs *GlobalStats)FromMemcache(c appengine.Context) bool {
-	if _,err := memcache.Gob.Get(c, kMemcacheGlobalStatsKey, gs); err == memcache.ErrCacheMiss {
-    // cache miss, but we don't care
-		return false
-	} else if err != nil {
-    c.Errorf("memcache error getting globalstats: %v", err)
-		return false
-	}
-	//c.Infof("** Global stats from MC:")
-	//for _,v := range gs.Counts { c.Infof(" * %s", v) }
-	return true
-}
-
-// }}}
-
 // {{{ cdb.DeleteAllGlobalStats
 
 func (cdb ComplaintDB)DeletAllGlobalStats() error {
 	fgs := []FrozenGlobalStats{}
 	q := datastore.NewQuery(kGlobalStatsKind).KeysOnly()
 
-	if keys,err := q.GetAll(cdb.C, &fgs); err != nil {
+	if keys,err := q.GetAll(cdb.Ctx(), &fgs); err != nil {
 		return err
 	} else {
-		cdb.C.Infof("Found %d keys", len(keys))
-		return datastore.DeleteMulti(cdb.C, keys)
+		return datastore.DeleteMulti(cdb.Ctx(), keys)
 	}
 }
 
@@ -78,9 +48,7 @@ func (cdb ComplaintDB)SaveGlobalStats(gs GlobalStats) error {
 	
 	var buf bytes.Buffer
 	if err := gob.NewEncoder(&buf).Encode(gs); err != nil { return err }
-	_,err := datastore.Put(cdb.C, key, &FrozenGlobalStats{Bytes: buf.Bytes()} )
-
-	//gs.ToMemcache(cdb.C)
+	_,err := datastore.Put(cdb.Ctx(), key, &FrozenGlobalStats{Bytes: buf.Bytes()} )
 
 	return err
 }
@@ -90,12 +58,11 @@ func (cdb ComplaintDB)SaveGlobalStats(gs GlobalStats) error {
 
 func (cdb ComplaintDB)LoadGlobalStats() (*GlobalStats, error) {
 	gs := GlobalStats{}
-	//if gs.FromMemcache(cdb.C) { return &gs, nil }
 
 	fgs := []FrozenGlobalStats{}
 	q := datastore.NewQuery(kGlobalStatsKind).Limit(10)
 
-	if keys, err := q.GetAll(cdb.C, &fgs); err != nil {
+	if keys, err := q.GetAll(cdb.Ctx(), &fgs); err != nil {
 		return nil, err
 	} else if len(fgs) != 1 {
 		return nil, fmt.Errorf("LoadGlobalStats: found %d, expected 1", len(fgs))
@@ -120,9 +87,6 @@ func (cdb ComplaintDB)LoadGlobalStats() (*GlobalStats, error) {
 			gs.Counts[iMaxComplainers].IsMaxComplainers = true
 		}
 		
-		//gs.ToMemcache(cdb.C)
-		//cdb.C.Infof("** Global stats from DS:")
-		//for _,v := range gs.Counts { cdb.C.Infof(" * %s", v) }
 		return &gs,err
 	}
 }
@@ -148,7 +112,7 @@ func (cdb ComplaintDB)AddDailyCount(dc DailyCount) {
 
 func (cdb ComplaintDB)ResetGlobalStats() {
 	if err := cdb.DeletAllGlobalStats(); err != nil {
-		cdb.C.Errorf("Reset/DeleteAll fail, %v", err)
+		cdb.Errorf("Reset/DeleteAll fail, %v", err)
 		return
 	}
 
@@ -156,12 +120,13 @@ func (cdb ComplaintDB)ResetGlobalStats() {
 	if err != nil { return }
 
 	// Upon reset (writing a fresh new singleton), we need to generate a key
-	rootKey := datastore.NewKey(cdb.C, kGlobalStatsKind, "foo", 0, nil)
-	key := datastore.NewIncompleteKey(cdb.C, kGlobalStatsKind, rootKey)
+	rootKey := datastore.NewKey(cdb.Ctx(), kGlobalStatsKind, "foo", 0, nil)
+	key := datastore.NewIncompleteKey(cdb.Ctx(), kGlobalStatsKind, rootKey)
 	gs := GlobalStats{
 		DatastoreKey: key.Encode(),
 	}
 	
+	// This is too slow to recalculate this way; it runs into the 10m timeout
 	//start := date.ArbitraryDatestring2MidnightPdt("2015/08/09", "2006/01/02").Add(-1 * time.Second)
 	start := date.ArbitraryDatestring2MidnightPdt("2016/03/15", "2006/01/02").Add(-1 * time.Second)
 	end,_ := date.WindowForYesterday()  // end is the final day we count for; yesterday
@@ -169,14 +134,12 @@ func (cdb ComplaintDB)ResetGlobalStats() {
 	midnights := date.IntermediateMidnights(start, end.Add(time.Minute))
 	for _,m := range midnights {
 		dayStart,dayEnd := date.WindowForTime(m)
-		cdb.C.Infof("Lookup: %s", m)
 
 		dc := DailyCount{Datestring: date.Time2Datestring(dayStart)}
 		
 		for _,p := range profiles {
 			if keys,err := cdb.GetComplaintKeysInSpanByEmailAddress(dayStart,dayEnd,p.EmailAddress); err != nil {
-				//if comp,err := cdb.GetComplaintsInSpanByEmailAddress(p.EmailAddress, dayStart, dayEnd); err!=nil {
-				cdb.C.Errorf("Reset/Lookup fail, %v", err)
+				cdb.Errorf("Reset/Lookup fail, %v", err)
 			} else if len(keys) > 0 {
 				dc.NumComplaints += len(keys)
 				dc.NumComplainers += 1
@@ -186,10 +149,8 @@ func (cdb ComplaintDB)ResetGlobalStats() {
 	}
 
 	if err := cdb.SaveGlobalStats(gs); err != nil {
-		cdb.C.Errorf("Reset/Save fail, %v", err)		
+		cdb.Errorf("Reset/Save fail, %v", err)		
 	}
-	cdb.C.Infof("-- reset !--")
-	//cdb.LoadGlobalStats();
 }
 
 // }}}

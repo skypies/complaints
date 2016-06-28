@@ -7,8 +7,9 @@ import (
 	"net/http"
 	"regexp"
 	"time"
-	"appengine"
-	"appengine/user"
+
+	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/user"
 
 	"github.com/skypies/util/date"	
 	"github.com/skypies/complaints/complaintdb"
@@ -110,13 +111,13 @@ func hintComplaints(in []types.Complaint, isSuperHinter bool) []HintedComplaint 
 // {{{ rootHandler
 
 func rootHandler (w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+	cdb := complaintdb.NewDB(r)
 	session := sessions.Get(r)
 
 	tStart := time.Now()
 	debugf := func(step string, fmtstr string, varargs ...interface{}) {
 		payload := fmt.Sprintf(fmtstr, varargs...)
-		c.Debugf("[%s] %9.6f %s", step, time.Since(tStart).Seconds(), payload)
+		cdb.Debugf("[%s] %9.6f %s", step, time.Since(tStart).Seconds(), payload)
 	}
 	
 	debugf("root_001", "session obtained")
@@ -152,8 +153,7 @@ func rootHandler (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	cdb := complaintdb.NewComplaintDB(r)
-	c.Debugf("root[002] about get cdb.GetAllByEmailAddress")
+	debugf("root_002", "about get cdb.GetAllByEmailAddress")
 	cap, err := cdb.GetAllByEmailAddress(session.Values["email"].(string), modes["expanded"])
 	if cap==nil && err==nil {
 		// No profile exists; daisy-chain into profile page
@@ -165,7 +165,8 @@ func rootHandler (w http.ResponseWriter, r *http.Request) {
 	}
 	debugf("root_001", "cdb.GetAllByEmailAddress done")
 
-	modes["admin"] = user.Current(c)!=nil && user.Current(c).Admin
+	ctx := cdb.Ctx()
+	modes["admin"] = user.Current(ctx)!=nil && user.Current(ctx).Admin
 	modes["superuser"] = modes["admin"] || cap.Profile.EmailAddress == "meekGee@gmail.com"
 
 	// Default to "", unless we had a complaint in the past hour.
@@ -229,7 +230,7 @@ func logoutHandler (w http.ResponseWriter, r *http.Request) {
 // {{{ masqueradeHandler
 
 func masqueradeHandler (w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+	ctx := req2ctx(r)
 
 	email := r.FormValue("e")
 	if email == "" {
@@ -237,7 +238,7 @@ func masqueradeHandler (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.Infof("masq into [%s]", email)
+	log.Infof(ctx, "masq into [%s]", email)
 
 	session := sessions.Get(r)
 	session.Values["email"] = email
