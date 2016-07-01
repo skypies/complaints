@@ -460,6 +460,7 @@ func ReadEncodedData(resp *http.Response, encoding string, data interface{}) err
 func GetProcedureMap(r *http.Request, s,e time.Time) (map[string]fdb.CondensedFlight,error) {
 	ret := map[string]fdb.CondensedFlight{}
 
+	// This procedure map stuff is expensive, and brittle; so disable by default.
 	return ret, nil
 	
 	client := urlfetch.Client(req2ctx(r))
@@ -515,6 +516,11 @@ func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (stri
 	uniquesByDate := map[string]map[string]int{}
 	uniquesByCity := map[string]map[string]int{}
 
+	uniquesPerDayByCity := map[string]map[string]int{} // [cityname][user:date] == daily_total
+
+	
+	userHistsByCity := map[string]*histogram.Histogram{}
+	
 	// An iterator expires after 60s, no matter what; so carve up into short-lived iterators
 	n := 0
 	for _,dayWindow := range DayWindows(start,end) {
@@ -530,7 +536,8 @@ func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (stri
 		}
 
 		iter := cdb.NewLongBatchingIter(cdb.QueryInSpan(dayWindow[0],dayWindow[1]))
-
+		cdb.Infof("running summary for %s-%s", dayWindow[0],dayWindow[1])
+		
 		for {
 			c,err := iter.NextWithErr();
 			if err != nil {
@@ -576,8 +583,12 @@ func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (stri
 
 			if city := c.Profile.GetStructuredAddress().City; city != "" {
 				countsByCity[city]++
+
 				if uniquesByCity[city] == nil { uniquesByCity[city] = map[string]int{} }
 				uniquesByCity[city][c.Profile.EmailAddress]++
+
+				if uniquesPerDayByCity[city] == nil { uniquesPerDayByCity[city] = map[string]int{} }
+				uniquesPerDayByCity[city][c.Profile.EmailAddress + ":" + d]++
 
 				if proceduresByCity[city] == nil { proceduresByCity[city] = map[string]int{} }
 				if flightnumber := c.AircraftOverhead.FlightNumber; flightnumber != "" {
@@ -605,6 +616,15 @@ func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (stri
 	histByUser := histogram.Histogram{ValMax:200, NumBuckets:50}
 	for _,v := range uniquesPerDay {
 		histByUser.Add(histogram.ScalarVal(v))
+	}
+
+	for _,city := range keysByIntValDesc(countsByCity) {
+		if userHistsByCity[city] == nil {
+			userHistsByCity[city] = &histogram.Histogram{ValMax:200, NumBuckets:50}
+		}
+		for _,n := range uniquesPerDayByCity[city] {
+			userHistsByCity[city].Add(histogram.ScalarVal(n))
+		}
 	}
 	
 	str += fmt.Sprintf("\nTotals:\n Days                : %d\n"+
@@ -635,6 +655,11 @@ func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (stri
 	for _,k := range keysByIntValDesc(countsByCity) {
 		str += fmt.Sprintf(" %-40.40s: %5d (%4d people reporting)\n",
 			k, countsByCity[k], len(uniquesByCity[k]))
+	}
+
+	str += fmt.Sprintf("\nDisturbance reports, as per-user-per-day histograms, by City (where known):\n")
+	for _,k := range keysByIntValDesc(countsByCity) {
+		str += fmt.Sprintf(" %-40.40s: %s\n", k, userHistsByCity[k])
 	}
 
 	/*
