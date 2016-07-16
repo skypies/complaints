@@ -1,18 +1,30 @@
 package complaintdb
 
 import (
-	"crypto/sha512"
 	"fmt"
+
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/skypies/geo"
 	"github.com/skypies/util/date"
 
+	"github.com/skypies/complaints/config"
 	"github.com/skypies/complaints/complaintdb/types"
 )
 
 func profile2fingerprint(p types.ComplainerProfile) string {
-	data := []byte(p.EmailAddress)
-	return fmt.Sprintf("%x", sha512.Sum512_256(data))
+	// We use a single fixed secret salt, to prevent the guessing of hashes when given an email
+	// address.
+	salt := config.Get("anonymizer.salt")
+	if salt == "" { return "" } // refuse to add unique fingerprints if we don't have salt
+
+	data := []byte(salt + p.EmailAddress)
+
+	if hash,err := bcrypt.GenerateFromPassword(data, bcrypt.DefaultCost); err != nil {
+		return ""
+	} else {
+		return fmt.Sprintf("%x", hash)
+	}
 }
 
 func AnonymizeComplaint(c *types.Complaint) *types.AnonymizedComplaint {
