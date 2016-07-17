@@ -43,7 +43,7 @@ func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 	days := date.IntermediateMidnights(s.Add(-1 * time.Second),e) // decrement start, to include it
 	url := "/backend/publish-complaints"
 	
-	for _,day := range days {
+	for i,day := range days {
 		dayStr := day.Format("2006.01.02")
 
 		thisUrl := fmt.Sprintf("%s?datestring=%s", url, dayStr)
@@ -52,7 +52,8 @@ func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		
 		t := taskqueue.NewPOSTTask(thisUrl, map[string][]string{})
-		t.Delay = time.Minute // Give ourselves time to get all these tasks posted
+		// Give ourselves time to get all these tasks posted, and stagger them out a bit
+		t.Delay = time.Minute + time.Duration(i)*15*time.Second
 		
 		if _,err := taskqueue.Add(ctx, t, "batch"); err != nil {
 			log.Errorf(ctx, "publishAllComplaintsHandler: enqueue: %v", err)
@@ -95,6 +96,7 @@ func publishComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 	
 	n,err := writeAnonymizedGCSFile(r, datestring, foldername,filename)
 	if err != nil {
+		log.Errorf(ctx, "/backend/publish-complaints: %s, err: %v", filename, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
