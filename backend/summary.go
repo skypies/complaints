@@ -26,7 +26,7 @@ import (
 )
 
 func init() {
-	//http.HandleFunc("/report/summary", summaryReportHandler)
+	http.HandleFunc("/report/summary", summaryReportHandler)
 	//http.HandleFunc("/report/users", userReportHandler)
 	//http.HandleFunc("/report/community", communityReportHandler)
 	//http.HandleFunc("/report/month", monthHandler)
@@ -171,11 +171,14 @@ func DayWindows(s,e time.Time) [][]time.Time {
 // stop.jetnoise.net/report/summary?date=day&day=2016/05/04&peeps=1
 
 func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
-	if r.FormValue("date") == "" {
+	if r.FormValue("date") == "" || r.FormValue("notarobot") == "" {
 		var params = map[string]interface{}{
 			"Title": "Summary of disturbance reports",
 			"FormUrl": "/report/summary",
 			"Yesterday": date.NowInPdt().AddDate(0,0,-1),
+		}
+		if r.FormValue("date") != "" {
+			params["Message"] = "Please do not scrape this form. Instead, get in touch !"
 		}
 		if err := templates.ExecuteTemplate(w, "date-report-form", params); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

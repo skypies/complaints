@@ -7,11 +7,22 @@
 
     <form action="{{.FormUrl}}" method="post">
       <div class="stack">
+        {{if .Message}}<div class="message">{{.Message}}</div><br/>{{end}}
+    
         <div class="box">
         <table border="0">
           <tr>
             <td>Date range</td>
             <td>{{template "widget-date-range" .}}</td>
+          </tr>
+          <tr><td>&nbsp;</td></tr>
+
+          <tr>
+            <td colspan="2">I am not a robot:<input type="checkbox"
+            name="notarobot"/> . (f you
+            want to scrape this data, get in touch with me. Doing it
+            via this report is expensive !)</td>
+              
           </tr>
           <tr><td>&nbsp;</td></tr>
 

@@ -15,12 +15,12 @@ queue:
     task_retry_limit: 2
 
 # This queue is for arbitrary / oneoff batch jobs
-# Set to 1200/40/40 for per-complaint processing, or 10/2/2 for
+# Set to 1200/40/40 for per-complaint processing, or 10/4/4 for
 # per-day processing
 - name: batch
   rate: 10/m
-  max_concurrent_requests: 2
-  bucket_size: 2
+  max_concurrent_requests: 4
+  bucket_size: 4
   target: backend
   retry_parameters:
     min_backoff_seconds: 1
