@@ -52,7 +52,8 @@ func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		
 		t := taskqueue.NewPOSTTask(thisUrl, map[string][]string{})
-
+		t.Delay = time.Minute // Give ourselves time to get all these tasks posted
+		
 		if _,err := taskqueue.Add(ctx, t, "batch"); err != nil {
 			log.Errorf(ctx, "publishAllComplaintsHandler: enqueue: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -26,10 +26,10 @@ import (
 )
 
 func init() {
-	http.HandleFunc("/report/summary", summaryReportHandler)
-	http.HandleFunc("/report/users", userReportHandler)
-	http.HandleFunc("/report/community", communityReportHandler)
-	http.HandleFunc("/report/month", monthHandler)
+	//http.HandleFunc("/report/summary", summaryReportHandler)
+	//http.HandleFunc("/report/users", userReportHandler)
+	//http.HandleFunc("/report/community", communityReportHandler)
+	//http.HandleFunc("/report/month", monthHandler)
 	http.HandleFunc("/report/debug", debugHandler)
 
 	http.HandleFunc("/report/summary-dump", monthlySummaryTaskHandler) // Writes to GCS
