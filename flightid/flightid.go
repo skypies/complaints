@@ -111,19 +111,21 @@ func FlightSnapshotToAircraft(snap *fdb.FlightSnapshot) *fr24.Aircraft {
 
 // {{{ FetchAirspace
 
-func FetchAirspace(client *http.Client) (*airspace.Airspace, error) {
+func FetchAirspace(client *http.Client, bbox geo.LatlongBox) (*airspace.Airspace, string, error) {
 	as := airspace.Airspace{}
-	url := "http://fdb.serfr1.org/?json=1"
+	url := "http://fdb.serfr1.org/?json=1&"+bbox.ToCGIArgs("box")
+
+	str := fmt.Sprintf("* FetchAirspace(%s)\n* %s\n", bbox, url)
 	
 	if resp,err := client.Get(url); err != nil {
-		return nil, err
+		return nil, str, err
 	} else if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf ("Bad status: %v", resp.Status)
+		return nil, str, fmt.Errorf ("Bad status: %v", resp.Status)
 	} else if err := json.NewDecoder(resp.Body).Decode(&as); err != nil {
-		return nil, err
+		return nil, str, err
 	}
 
-	return &as, nil
+	return &as, str, nil
 }
 
 // }}}
@@ -187,7 +189,14 @@ func SelectOverhead(snaps []fdb.FlightSnapshot) (*fdb.FlightSnapshot, string) {
 func FindOverhead(client *http.Client, pos geo.Latlong, elev float64, grabAny bool) (*fr24.Aircraft, error, string) {
 	str := fmt.Sprintf("*** FindOverhead for %s@%.0fft, at %s\n", pos, elev, date.NowInPdt())
 
-	as, err := FetchAirspace(client)
+	if pos.IsNil() {
+		return nil, fmt.Errorf("flightid.FindOverhead needs a non-nil position"), str
+	}
+	
+	bbox := pos.Box(64,64) // A box with sides ~40 miles, centered on the observer
+	
+	as, deb, err := FetchAirspace(client, bbox)
+	str += deb
 	if err != nil { return nil, err, str }
 
 	snaps := AirspaceToSnapshots(as)
