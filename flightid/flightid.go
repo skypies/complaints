@@ -137,7 +137,7 @@ func FilterSnapshots(in []fdb.FlightSnapshot) []fdb.FlightSnapshot {
 	for _,snap := range in {
 		if snap.Flight.BestFlightNumber() == "" { continue }
 		if snap.Trackpoint.Altitude > 28000 { continue }
-		if snap.Trackpoint.Altitude <   500 { continue }
+		if snap.Trackpoint.Altitude <  1000 { continue }
 		if snap.Dist3ToReferenceKM > 80 { continue }
 		
 		out = append(out, snap)
