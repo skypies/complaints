@@ -13,6 +13,11 @@ handlers:
   script: _go_app
   login: admin
 
+- url: "/report/summary"
+  login: required
+  auth_fail_action: unauthorized
+  script: _go_app
+
 - url: "/report/.*"
   script: _go_app
 
