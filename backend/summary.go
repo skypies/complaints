@@ -4,15 +4,19 @@ import (
 	"encoding/csv"
 	"encoding/gob"
 	"encoding/json"
+	"net/http/httputil"
 	"fmt"
+	"net"
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 	
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/taskqueue"
 	"google.golang.org/appengine/urlfetch"
+	"google.golang.org/appengine/user"
 	
 	"github.com/skypies/util/gcs"
 	"github.com/skypies/util/date"
@@ -166,26 +170,80 @@ func DayWindows(s,e time.Time) [][]time.Time {
 
 // }}}
 
+// {{{ isBanned
+
+// GET /report/summary?notarobot=checked&date=today HTTP/1.1
+// Host: complaints.serfr1.org
+// Connection: close
+// Accept: */*
+// User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko// ) Chrome/39.0.2171.95 Safari/537.36
+// X-Appengine-City: ?
+// X-Appengine-Citylatlong: 0.000000,0.000000
+// X-Appengine-Country: US
+// X-Appengine-Default-Namespace: serfr1.org
+// X-Appengine-Region: ?
+// X-Cloud-Trace-Context: 978c3d892fd79c00f9f0f10776e1cf83/2363553644706065238;o=5
+// X-Google-Apps-Metadata: domain=serfr1.org,host=complaints.serfr1.org
+// X-Zoo: app-id=serfr0-1000,domain=serfr1.org,host=complaints.serfr1.org
+
+
+func getIP(r *http.Request) string {
+	if ipProxy := r.Header.Get("X-FORWARDED-FOR"); len(ipProxy) > 0 { return ipProxy }
+	ip := r.RemoteAddr
+	if strings.Contains(ip, ":") { ip,_,_ = net.SplitHostPort(ip) }
+	return ip
+}
+func isBanned(r *http.Request) bool {
+	cdb := complaintdb.NewDB(r)
+	u := user.Current(cdb.Ctx())
+	userWhitelist := map[string]int{
+		"adam@worrall.cc":1,
+	}
+
+	reqBytes,_ := httputil.DumpRequest(r, true)
+
+	cdb.Infof("remoteAddr: '%v'", r.RemoteAddr)
+	cdb.Infof("user: '%v' (%s)", u, u.Email)
+	cdb.Infof("inbound IP determined as: '%v'", getIP(r))
+	cdb.Infof("HTTP req:-\n%s", string(reqBytes))
+
+	if strings.HasPrefix(r.UserAgent(), "python") {
+		cdb.Infof("User-Agent rejected")
+		return true
+	}
+	if _,exists := userWhitelist[u.String()]; !exists {
+		cdb.Infof("user not found in whitelist")
+		return true
+	}
+	return false
+}
+
+// }}}
+
 // {{{ summaryReportHandler
 
 // stop.jetnoise.net/report/summary?date=day&day=2016/05/04&peeps=1
 
 func summaryReportHandler(w http.ResponseWriter, r *http.Request) {
-	if r.FormValue("date") == "" || r.FormValue("notarobot") == "" {
+
+	if r.FormValue("date") == "" {
 		var params = map[string]interface{}{
 			"Title": "Summary of disturbance reports",
 			"FormUrl": "/report/summary",
 			"Yesterday": date.NowInPdt().AddDate(0,0,-1),
 		}
-		if r.FormValue("date") != "" {
-			params["Message"] = "Please do not scrape this form. Instead, get in touch !"
-		}
+		//params["Message"] = "Please do not scrape this form. Instead, get in touch !"
 		if err := templates.ExecuteTemplate(w, "date-report-form", params); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		return
 	}
 
+	if isBanned(r) {
+		http.Error(w, "bad user", http.StatusUnauthorized)
+		return
+	}
+	
 	start,end,_ := widget.FormValueDateRange(r)
 	countByUser := r.FormValue("peeps") != ""
 	
@@ -498,6 +556,7 @@ func GetProcedureMap(r *http.Request, s,e time.Time) (map[string]fdb.CondensedFl
 
 func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (string,error) {
 	cdb := complaintdb.NewDB(r)
+	u := user.Current(cdb.Ctx())
 
 	str := ""
 	str += fmt.Sprintf("(t=%s)\n", time.Now())
@@ -539,7 +598,7 @@ func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (stri
 		}
 
 		iter := cdb.NewLongBatchingIter(cdb.QueryInSpan(dayWindow[0],dayWindow[1]))
-		cdb.Infof("running summary for %s-%s", dayWindow[0],dayWindow[1])
+		cdb.Infof("running summary across %s-%s, for %v", dayWindow[0],dayWindow[1],u)
 		
 		for {
 			c,err := iter.NextWithErr();
