@@ -15,7 +15,8 @@ handlers:
 
 - url: "/report/summary"
   login: required
-  auth_fail_action: unauthorized
+#  auth_fail_action: unauthorized
+  auth_fail_action: redirect
   script: _go_app
 
 - url: "/report/.*"

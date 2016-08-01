@@ -198,6 +198,7 @@ func isBanned(r *http.Request) bool {
 	u := user.Current(cdb.Ctx())
 	userWhitelist := map[string]int{
 		"adam@worrall.cc":1,
+		"don.gardner@me.com":1,
 	}
 
 	reqBytes,_ := httputil.DumpRequest(r, true)
@@ -211,7 +212,7 @@ func isBanned(r *http.Request) bool {
 		cdb.Infof("User-Agent rejected")
 		return true
 	}
-	if _,exists := userWhitelist[u.String()]; !exists {
+	if _,exists := userWhitelist[u.Email]; !exists {
 		cdb.Infof("user not found in whitelist")
 		return true
 	}
