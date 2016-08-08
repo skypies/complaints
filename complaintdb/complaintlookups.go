@@ -23,7 +23,16 @@ func (cdb ComplaintDB)getComplaintsByQueryFromDatastore(q *datastore.Query) ([]*
 	cdb.Debugf("gCBQFD_201", "calling GetAll() ...")
 	keys, err := q.GetAll(cdb.Ctx(), &data)
 	cdb.Debugf("gCBQFD_202", "... call done (n=%d)", len(keys))
-	if err != nil { return nil, nil, err }
+
+	// We tolerate missing fields, because the DB is full of old objects with dead fields
+	if err != nil {
+		if mismatchErr,ok := err.(*datastore.ErrFieldMismatch); ok {
+			_=mismatchErr
+			// cdb.Debugf("gCBQFD_203", "missing field: %v", mismatchErr)
+		} else {			
+			return nil, nil, fmt.Errorf("gCBQFD: %v", err)
+		}
+	}
 
 	return keys, data, nil
 }

@@ -19,7 +19,7 @@ import (
 func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Complaint) error {
 	client := cdb.HTTPClient()
 	fr := fr24.Fr24{Client: client}
-	overhead := fr24.Aircraft{}
+	overhead := flightid.Aircraft{}
 
 	// Check we're not over a daily cap for this user
 	cdb.Debugf("cbe_010", "doing rate limit check")
@@ -48,9 +48,9 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 
 	if cp.CallerCode == "WOR004" || cp.CallerCode == "WOR005" {
 		elev := 0.0
-		oh2,deb2,err2 := flightid.FindOverhead(client,geo.Latlong{cp.Lat,cp.Long},elev, grabAny)
+		oh2,err2,deb2 := flightid.FindOverhead(client,geo.Latlong{cp.Lat,cp.Long},elev, grabAny)
 		cdb.Debugf("cbe_021]", "new.FindOverhead also returned")
-		c.Debug += fmt.Sprintf("\n ***** V2 testing : (%v) %s\n\n%s\n", err2, oh2, deb2)
+		c.Debug += fmt.Sprintf("\n ***** V2 testing\n * err=%v\n * found=%s\n\n%s\n", err2, oh2, deb2)
 		if oh2 == nil && overhead.FlightNumber != "" {
 			t := c.Debug
 			c.Debug = " * * * DIFFERS * * *\n\n" + t

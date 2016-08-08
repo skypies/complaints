@@ -9,7 +9,7 @@ import (
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
-	"github.com/skypies/complaints/fr24"
+	"github.com/skypies/complaints/flightid"
 	"github.com/skypies/complaints/sessions"
 )
 // {{{ kActivities = []string
@@ -227,7 +227,7 @@ func updateComplaintHandler(w http.ResponseWriter, r *http.Request) {
 
 		// If we're manually changing a flightnumber, wipe out all the other flight data
 		if newFlightNumber != orig.AircraftOverhead.FlightNumber {
-			orig.AircraftOverhead = fr24.Aircraft{FlightNumber: newFlightNumber}
+			orig.AircraftOverhead = flightid.Aircraft{FlightNumber: newFlightNumber}
 		}
 
 		// Compose a new timestamp, by inserting hew HH:MM:SS fragment into the old timestamp (date+nanoseconds)

@@ -15,8 +15,6 @@ import(
 
 	"github.com/skypies/pi/airspace"
 	fdb "github.com/skypies/flightdb2"
-
-	"github.com/skypies/complaints/fr24"
 )
 
 func init() {
@@ -77,10 +75,10 @@ func AirspaceToSnapshots(as *airspace.Airspace) []fdb.FlightSnapshot {
 // }}}
 // {{{ FlightSnapshotToAircraft
 
-func FlightSnapshotToAircraft(snap *fdb.FlightSnapshot) *fr24.Aircraft {
+func FlightSnapshotToAircraft(snap *fdb.FlightSnapshot) *Aircraft {
 	if snap == nil { return nil }
 
-	return &fr24.Aircraft{
+	return &Aircraft{
 		Dist: snap.DistToReferenceKM,
 		Dist3: snap.Dist3ToReferenceKM,
 		BearingFromObserver: snap.BearingToReference,
@@ -184,20 +182,23 @@ func SelectOverhead(snaps []fdb.FlightSnapshot) (*fdb.FlightSnapshot, string) {
 
 // }}}
 
-// {{{ FindOverhead
+// {{{ FindAllOverhead
 
-func FindOverhead(client *http.Client, pos geo.Latlong, elev float64, grabAny bool) (*fr24.Aircraft, error, string) {
-	str := fmt.Sprintf("*** FindOverhead for %s@%.0fft, at %s\n", pos, elev, date.NowInPdt())
+func FindAllOverhead(client *http.Client, pos geo.Latlong, elev float64, grabAny bool) (*Aircraft, []*Aircraft, []*Aircraft, error, string) {
+	str := fmt.Sprintf("*** FindAllOverhead for %s@%.0fft, at %s\n", pos, elev, date.NowInPdt())
 
+	outAll := []*Aircraft{}
+	outFilt := []*Aircraft{}	
+	
 	if pos.IsNil() {
-		return nil, fmt.Errorf("flightid.FindOverhead needs a non-nil position"), str
+		return nil, outAll, outFilt, fmt.Errorf("flightid.FindOverhead needs a non-nil position"), str
 	}
 	
 	bbox := pos.Box(64,64) // A box with sides ~40 miles, centered on the observer
 	
 	as, deb, err := FetchAirspace(client, bbox)
 	str += deb
-	if err != nil { return nil, err, str }
+	if err != nil { return nil, outAll, outFilt, err, str }
 
 	snaps := AirspaceToSnapshots(as)
 	for i,_ := range snaps {
@@ -208,7 +209,7 @@ func FindOverhead(client *http.Client, pos geo.Latlong, elev float64, grabAny bo
 
 	filtered := FilterSnapshots(snaps)
 	str += "** filtered:-\n"+fdb.DebugFlightSnapshotList(filtered)
-	if len(filtered) == 0 { return nil, nil, str }
+	if len(filtered) == 0 { return nil, outAll, outFilt, nil, str }
 
 	overheadSnap,debug := SelectOverhead(filtered)
 	if overheadSnap == nil && grabAny {
@@ -217,7 +218,68 @@ func FindOverhead(client *http.Client, pos geo.Latlong, elev float64, grabAny bo
 	}
 	str += debug
 
-	return FlightSnapshotToAircraft(overheadSnap), nil, str
+	for _,snap := range snaps { outAll = append(outAll, FlightSnapshotToAircraft(&snap)) }
+	for _,snap := range filtered { outFilt = append(outFilt, FlightSnapshotToAircraft(&snap)) }
+	
+	return FlightSnapshotToAircraft(overheadSnap), outAll, outFilt, nil, str
+}
+
+// }}}
+// {{{ FindOverhead
+
+func FindOverhead(client *http.Client, pos geo.Latlong, elev float64, grabAny bool) (*Aircraft, error, string) {
+	result := FindOverheadResult(client, pos, elev, grabAny)
+	return result.Flight, result.Err, result.Debug
+}
+
+// }}}
+
+// {{{ FindOverheadResult
+
+func FindOverheadResult(client *http.Client, pos geo.Latlong, elev float64, grabAny bool) (out Result) {
+	out.Debug = fmt.Sprintf("*** FindAllOverhead for %s@%.0fft, at %s\n", pos, elev, date.NowInPdt())
+	
+	if pos.IsNil() {
+		out.Err = fmt.Errorf("flightid.FindOverhead needs a non-nil position")
+		return
+	}
+	
+	bbox := pos.Box(64,64) // A box with sides ~40 miles, centered on the observer
+	
+	as, deb, err := FetchAirspace(client, bbox)
+	out.Debug += deb
+	if err != nil {
+		out.Err = err
+		return
+	}
+
+	snaps := AirspaceToSnapshots(as)
+	for i,_ := range snaps {
+		snaps[i].LocalizeTo(pos, elev)
+	}
+	sort.Sort(fdb.FlightSnapshotsByDist3(snaps))
+	out.Debug += "** nearby list:-\n"+fdb.DebugFlightSnapshotList(snaps)
+
+	filtered := FilterSnapshots(snaps)
+	out.Debug += "** filtered:-\n"+fdb.DebugFlightSnapshotList(filtered)
+	if len(filtered) == 0 {
+		return
+	}
+
+	overheadSnap,debug := SelectOverhead(filtered)
+	if overheadSnap == nil && grabAny {
+		overheadSnap = &filtered[0]
+		out.Debug += "** grabbing first anyway\n"
+	}
+	out.Debug += debug
+
+	out.All = []*Aircraft{}
+	out.Filtered = []*Aircraft{}	
+	for _,snap := range snaps { out.All = append(out.All, FlightSnapshotToAircraft(&snap)) }
+	for _,snap := range filtered { out.Filtered = append(out.Filtered, FlightSnapshotToAircraft(&snap)) }
+
+	out.Flight = FlightSnapshotToAircraft(overheadSnap)
+	return
 }
 
 // }}}

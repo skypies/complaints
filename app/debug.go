@@ -14,12 +14,13 @@ import (
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
+	"github.com/skypies/complaints/flightid"
 	"github.com/skypies/complaints/fr24"
 )
 
 func init() {
 	http.HandleFunc("/aws-iot", awsIotHandler)
-	// http.HandleFunc("/debfr24", debugHandler2)
+	http.HandleFunc("/deb", debHandler)
 	//http.HandleFunc("/counthack", countHackHandler)
 	http.HandleFunc("/optouts", optoutHandler)
 	//http.HandleFunc("/debbksv", debugHandler3)
@@ -33,6 +34,38 @@ func awsIotHandler(w http.ResponseWriter, r *http.Request) {
 	cdb.Infof("HTTP req:-\n%s", string(reqBytes))
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte("OK!\n"))
+}
+
+func debHandler(w http.ResponseWriter, r *http.Request) {
+	pos := sfo.KLatlongSFO
+	//client := urlfetch.Client(appengine.NewContext(r)) // complaintdb.NewDB(r).HTTPClient()
+	client := complaintdb.NewDB(r).HTTPClient()
+
+	fr := fr24.Fr24{Client: client}
+	if err := fr.EnsureHostname(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	overheadFr24 := flightid.Aircraft{}
+	allFr24,filtFr24,debugFr24,err := fr.FindAllOverhead(pos, &overheadFr24, true)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	fr24Str := fmt.Sprintf("== %2d/%2d : %40.40s", len(filtFr24), len(allFr24), overheadFr24.String())
+
+	f,all,filt,err,debug := flightid.FindAllOverhead(client, pos, 0, true)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	skypiStr := fmt.Sprintf("== %2d/%2d : %40.40s", len(filt), len(all), f)
+	str := fmt.Sprintf("== fr24  %s\n== skypi %s\n\n==== fr24 ====\n%s\n==== SkyPi ====\n%s",
+		fr24Str, skypiStr, debugFr24, debug)
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(str))
 }
 
 func optoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -138,30 +171,6 @@ func debugHandler3(w http.ResponseWriter, r *http.Request) {
 	str := fmt.Sprintf("OK\nret: %d\nerr: %v\nElapsed: %s\ns: %s\ne: %s\n",
 		len(keys), err, time.Since(tStart), start, end)
 	
-	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte(str))
-}
-
-func debugHandler2(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
-	client := cdb.HTTPClient()
-
-	fr := fr24.Fr24{Client: client}
-
-	if r.FormValue("h") != "" {
-		fr.SetHost(r.FormValue("h"))
-	} else {
-		if err := fr.EnsureHostname(); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-	
-	overhead := fr24.Aircraft{}
-	debug,err := fr.FindOverhead(sfo.KLatlongSFO, &overhead, true)
-
-	str := fmt.Sprintf("OK\nret: %v\nerr: %v\n--debug--\n%s\n", overhead, err, debug)		
-
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(str))
 }

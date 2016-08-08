@@ -11,7 +11,8 @@ import (
 	
 	"github.com/skypies/geo"
 
-	"github.com/skypies/complaints/fr24"
+	// "github.com/skypies/complaints/fr24"
+	"github.com/skypies/complaints/flightid"
 )
 
 // The various types used in the complaint db
@@ -175,7 +176,7 @@ type Complaint struct {
 	Version          int           `datastore:",noindex"` // undef or 0 means unversioned thingy.
 	Description      string        `datastore:",noindex"`
 	Timestamp        time.Time
-	AircraftOverhead fr24.Aircraft
+	AircraftOverhead flightid.Aircraft
 	Debug            string        `datastore:",noindex"` // Debugging; mostly about flight lookup
 
 	HeardSpeedbreaks bool

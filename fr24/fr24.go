@@ -1,10 +1,6 @@
-
 package fr24
 // http://blog.cykey.ca/post/88174516880/analyzing-flightradar24s-internal-api-structure
 // https://github.com/danmir/pyFlightRadar/blob/master/get_planes.py
-
-// https://data-live.flightradar24.com/zones/fcgi/feed.js?bounds=38.21192132426342,35.74295392808907,-126.55300781250037,-115.7080078125&faa=1&mlat=1&flarm=1&adsb=1&gnd=1&air=1&vehicles=1&estimated=1&maxage=900&gliders=1&stats=1&
-
 
 // {{{ Global setup
 
@@ -21,6 +17,7 @@ import (
 	//"github.com/skypies/geo/sfo"
 
 	"github.com/skypies/complaints/config"
+	"github.com/skypies/complaints/flightid"
 )
 
 var(
@@ -318,6 +315,10 @@ type AircraftPlayback struct {
 // E.g. http://www.flightradar24.com/data/flights/WN2182/#72D84F7
 // E.g. http://www.flightradar24.com/data/flights/UA1570/#741d9c7
 
+
+// https://data-live.flightradar24.com/zones/fcgi/feed.js?bounds=38.21192132426342,35.74295392808907,-126.55300781250037,-115.7080078125&faa=1&mlat=1&flarm=1&adsb=1&gnd=1&air=1&vehicles=1&estimated=1&maxage=900&gliders=1&stats=1&
+
+
 func (a *Aircraft) PlaybackUrl() string {
 	if a.FlightNumber == "" {
 		return fmt.Sprintf("http://www.flightradar24.com/reg/%s", a.Registration)
@@ -498,6 +499,7 @@ func (fr *Fr24) ListBbox(sw_lat,sw_long,ne_lat,ne_long float64, aircraft *[]Airc
 			Callsign: v.([]interface{})[17].(string),
 			Unknown2: v.([]interface{})[18].(float64),
 		}
+		if a.Altitude < 500 { continue }
 		*aircraft = append(*aircraft,a)
 	}
 
@@ -519,6 +521,45 @@ func DebugFlightList(aircraft []Aircraft) string {
 	}
 
 	return debug
+}
+
+// }}}
+
+// {{{ aircraft.IntoFlightIdAircraft
+
+func (fr24Aircraft Aircraft)ToFlightIdAircraft() *flightid.Aircraft {
+	out := flightid.Aircraft{}
+	fr24Aircraft.IntoFlightIdAircraft(&out)
+	return &out
+}
+	
+
+func (fr24Aircraft Aircraft)IntoFlightIdAircraft(out *flightid.Aircraft) {
+	*out = flightid.Aircraft{
+		Dist: fr24Aircraft.Dist,
+		Dist3: fr24Aircraft.Dist3,
+		BearingFromObserver: fr24Aircraft.BearingFromObserver,
+		Fr24Url: fr24Aircraft.Fr24Url,
+		Id: fr24Aircraft.Id,
+		Id2: fr24Aircraft.Id2,
+		Lat: fr24Aircraft.Lat,
+		Long: fr24Aircraft.Long,
+		Track: fr24Aircraft.Track,
+		Altitude: fr24Aircraft.Altitude,
+		Speed: fr24Aircraft.Speed,
+		Squawk: fr24Aircraft.Squawk,
+		Radar: fr24Aircraft.Radar,
+		EquipType: fr24Aircraft.EquipType,
+		Registration: fr24Aircraft.Registration,
+		Epoch: fr24Aircraft.Epoch,
+		Origin: fr24Aircraft.Origin,
+		Destination: fr24Aircraft.Destination,
+		FlightNumber: fr24Aircraft.FlightNumber,
+		Unknown: fr24Aircraft.Unknown,
+		VerticalSpeed: fr24Aircraft.VerticalSpeed,
+		Callsign: fr24Aircraft.Callsign,
+		Unknown2: fr24Aircraft.Unknown2,
+	}
 }
 
 // }}}
@@ -548,6 +589,14 @@ func filterAircraft(in []Aircraft) (out []Aircraft) {
 // }}}
 // {{{ fr24.FindOverhead
 
+func (fr *Fr24) FindOverhead(observerPos geo.Latlong, overhead *flightid.Aircraft, grabAnything bool) (string, error) {
+	_,_,debug,err := fr.FindAllOverhead(observerPos, overhead, grabAnything)
+	return debug,err
+}
+
+// }}}
+// {{{ fr24.FindAllOverhead
+
 type byDist []Aircraft
 func (s byDist) Len() int      { return len(s) }
 func (s byDist) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
@@ -559,7 +608,9 @@ func (s byDist3) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 func (s byDist3) Less(i, j int) bool { return s[i].Dist3 < s[j].Dist3 }
 
 
-func (fr *Fr24) FindOverhead(observerPos geo.Latlong, overhead *Aircraft, grabAnything bool) (debug string, err error) {
+func (fr *Fr24) FindAllOverhead(observerPos geo.Latlong, overhead *flightid.Aircraft, grabAnything bool) (outAll []*Aircraft, outFilt []*Aircraft, debug string, err error) {
+	outAll = []*Aircraft{}
+	outFilt = []*Aircraft{}
 	
 	debug = fmt.Sprintf("*** FindOverhead for %s, at %s\n", observerPos, date.NowInPdt())
 	debug += fmt.Sprintf("* url: http://%s%s?array=1&bounds=%s\n", fr.host, kListUrlPath, "...")
@@ -574,7 +625,7 @@ func (fr *Fr24) FindOverhead(observerPos geo.Latlong, overhead *Aircraft, grabAn
 			debug += fmt.Sprintf("Lookup error: %s\n", err)
 			return
 	}
-
+	
 	for i,a := range nearby {
 		aircraftPos := geo.Latlong{a.Lat,a.Long}
 		nearby[i].Dist = observerPos.Dist(aircraftPos)
@@ -583,24 +634,27 @@ func (fr *Fr24) FindOverhead(observerPos geo.Latlong, overhead *Aircraft, grabAn
 	}
 	sort.Sort(byDist3(nearby))
 	debug += "** nearby list:-\n"+DebugFlightList(nearby)
-
+	
 	filtered := filterAircraft(nearby)
 	if len(filtered) == 0 {
 		debug += "** all empty after filtering\n"
 		return
 	}
 
+	for i,_ := range nearby { outAll = append(outAll, &nearby[i]) }
+	for i,_ := range filtered { outFilt = append(outFilt, &filtered[i]) }
+
 	debug += "** filtered:-\n"+DebugFlightList(filtered)
 
 	if grabAnything {
-		*overhead = filtered[0]
+		filtered[0].IntoFlightIdAircraft(overhead)
 		debug += "** grabbed 1st\n"
 	} else {
 		// closest plane has to be within 12 km to be 'overhead', and it has
 		// to be 4km away from the next-closest
 		if (filtered[0].Dist3 < 12.0) {
 			if (len(filtered) == 1) || (filtered[1].Dist3 - filtered[0].Dist3) > 4.0 {
-				*overhead = filtered[0]
+				filtered[0].IntoFlightIdAircraft(overhead)
 				debug += "** selected 1st\n"
 			} else {
 				debug += "** 2nd was too close to 1st\n"
@@ -614,6 +668,72 @@ func (fr *Fr24) FindOverhead(observerPos geo.Latlong, overhead *Aircraft, grabAn
 }
 
 // }}}
+
+/*
+// {{{ fr24.FindOverheadResult
+
+func  (fr *Fr24) FindOverheadResult(pos geo.Latlong, grabAny bool) (out Result) {
+
+	outAll := []*Aircraft{}
+	outFilt := []*Aircraft{}
+	
+	out.Debug = fmt.Sprintf("*** FindOverhead for %s, at %s\n", observerPos, date.NowInPdt())
+	out.debug += fmt.Sprintf("* url: http://%s%s?array=1&bounds=%s\n", fr.host, kListUrlPath, "...")
+	
+	// Create a bounding box that's ~40m square, centred on the input lat,long
+	// This is a grievous fudge http://www.movable-type.co.uk/scripts/latlong.html
+	lat_20miles := 0.3
+	long_20miles := 0.35
+	nearby := []Aircraft{}
+	if err = fr.ListBbox(observerPos.Lat-lat_20miles, observerPos.Long-long_20miles,
+		observerPos.Lat+lat_20miles, observerPos.Long+long_20miles, &nearby); err != nil {
+			debug += fmt.Sprintf("Lookup error: %s\n", err)
+			return
+	}
+	
+	for i,a := range nearby {
+		aircraftPos := geo.Latlong{a.Lat,a.Long}
+		nearby[i].Dist = observerPos.Dist(aircraftPos)
+		nearby[i].Dist3 = observerPos.Dist3(aircraftPos, a.Altitude)
+		nearby[i].BearingFromObserver = observerPos.BearingTowards(aircraftPos)
+	}
+	sort.Sort(byDist3(nearby))
+	debug += "** nearby list:-\n"+DebugFlightList(nearby)
+	
+	filtered := filterAircraft(nearby)
+	if len(filtered) == 0 {
+		debug += "** all empty after filtering\n"
+		return
+	}
+
+	for i,_ := range nearby { outAll = append(outAll, &nearby[i]) }
+	for i,_ := range filtered { outFilt = append(outFilt, &filtered[i]) }
+
+	debug += "** filtered:-\n"+DebugFlightList(filtered)
+
+	if grabAnything {
+		filtered[0].IntoFlightIdAircraft(overhead)
+		debug += "** grabbed 1st\n"
+	} else {
+		// closest plane has to be within 12 km to be 'overhead', and it has
+		// to be 4km away from the next-closest
+		if (filtered[0].Dist3 < 12.0) {
+			if (len(filtered) == 1) || (filtered[1].Dist3 - filtered[0].Dist3) > 4.0 {
+				filtered[0].IntoFlightIdAircraft(overhead)
+				debug += "** selected 1st\n"
+			} else {
+				debug += "** 2nd was too close to 1st\n"
+			}
+		} else {
+			debug += "** 1st was too far away\n"
+		}
+	}
+	
+	return
+}
+
+// }}}
+*/
 
 // Helpers for flightdbfr24
 func (fr Fr24) GetPlaybackUrl(id string) string {
