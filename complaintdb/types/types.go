@@ -44,6 +44,8 @@ type ComplainerProfile struct {
 
 	DataSharing       int  // 0 == unset, 1 == OK/yes, -1 == no
 	ThirdPartyComms   int  `datastore:",noindex"` // 0 == unset, 1 == OK/yes, -1 == no
+
+	ButtonId        []string // AWS IoT button serial numbers
 }
 
 // Attempt to split into firstname, surname

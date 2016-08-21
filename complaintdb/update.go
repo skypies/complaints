@@ -125,6 +125,18 @@ func (cdb ComplaintDB) ComplainByCallerCode(cc string, c *types.Complaint) error
 }
 
 // }}}
+// {{{ cdb.ComplainByButtonId
+
+func (cdb ComplaintDB) ComplainByButtonId(id string, c *types.Complaint) error {
+	var cp *types.ComplainerProfile
+	var err error
+	cp, err = cdb.GetProfileByButtonId(id)
+	if err != nil || cp == nil { return err }
+
+	return cdb.complainByProfile(*cp, c)
+}
+
+// }}}
 // {{{ cdb.AddHistoricalComplaintByEmailAddress
 
 func (cdb ComplaintDB) AddHistoricalComplaintByEmailAddress(ea string, c *types.Complaint) error {

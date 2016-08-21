@@ -3,7 +3,6 @@ package complaints
 import (	
 	"fmt"
 	"net/http"
-	"net/http/httputil"
 	"time"
 	
 	"google.golang.org/appengine"
@@ -19,21 +18,11 @@ import (
 )
 
 func init() {
-	http.HandleFunc("/aws-iot", awsIotHandler)
 	http.HandleFunc("/deb", debHandler)
 	//http.HandleFunc("/counthack", countHackHandler)
 	http.HandleFunc("/optouts", optoutHandler)
 	//http.HandleFunc("/debbksv", debugHandler3)
 	//http.HandleFunc("/perftester", perftesterHandler)
-}
-
-func awsIotHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
-
-	reqBytes,_ := httputil.DumpRequest(r, true)
-	cdb.Infof("HTTP req:-\n%s", string(reqBytes))
-	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte("OK!\n"))
 }
 
 func debHandler(w http.ResponseWriter, r *http.Request) {

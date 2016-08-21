@@ -109,6 +109,9 @@ func profileUpdateHandler(w http.ResponseWriter, r *http.Request) {
 		Lat: lat,
 		Long: long,
 	}
+
+	// For now, trash old ones :/
+	cp.ButtonId = []string{r.FormValue("NewButtonId")}
 	
 	err = cdb.PutProfile(cp)
 	if err != nil {

@@ -65,6 +65,15 @@
               <td><input type="text" size="8" name="CallerCode" value="{{.Profile.CallerCode}}"/>
                 <i>(optional)</i></td>
             </tr>
+
+            <tr>
+              <td>AmazonButtons</td>
+              <td>
+                {{range .Profile.ButtonId}}<code>{{.}}</code><br/>{{end}}
+                <input type="text" size="16" name="NewButtonId"
+                value=""/> <i>AB12CD34EF56GH78</i>
+              </td>
+            </tr>
           </table>
         </div>
 

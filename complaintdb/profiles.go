@@ -8,6 +8,27 @@ import (
 	"github.com/skypies/complaints/complaintdb/types"
 )
 
+// {{{ cdb.GetProfileByButtonId
+
+func (cdb ComplaintDB) GetProfileByButtonId(id string) (cp *types.ComplainerProfile, err error) {
+	q := datastore.NewQuery(kComplainerKind).Filter("ButtonId =", id)
+	var results = []types.ComplainerProfile{}
+	_, err = q.GetAll(cdb.Ctx(), &results)
+	if err != nil { return }
+	if len(results) == 0 { return } // No match
+	/*for _,v := range results {
+		cdb.Infof(">>> RESULT: %v", v)
+	}*/
+	if len(results) > 1 {
+		err = fmt.Errorf ("lookup(%s) found %d results", id, len(results))
+		return
+	}
+
+	cp = &results[0]
+	return 
+}
+
+// }}}
 // {{{ cdb.GetProfileByCallerCode
 
 func (cdb ComplaintDB) GetProfileByCallerCode(cc string) (cp *types.ComplainerProfile, err error) {
