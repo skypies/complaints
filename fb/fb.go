@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/log"
@@ -85,6 +86,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	session := sessions.Get(r)
 	session.Values["email"] = jsonMap["email"]
+	session.Values["tstamp"] = time.Now().Format(time.RFC3339)
 	session.Save(r,w)
 
 	http.Redirect(w, r, "/", http.StatusFound)

@@ -2,20 +2,22 @@ package sessions
 
 import (
 	"net/http"
-	sessions "github.com/gorilla/sessions"
+	gsessions "github.com/gorilla/sessions"
 )
 
-var sessionStore *sessions.CookieStore
+var sessionStore *gsessions.CookieStore
 
 func Init(key, prevkey string) {
-	sessionStore = sessions.NewCookieStore(
+	sessionStore = gsessions.NewCookieStore(
 		[]byte(key), nil,
 		[]byte(prevkey), nil)
-
 }
 
-func Get(r *http.Request) *sessions.Session {
+func Get(r *http.Request) *gsessions.Session {
 	session, _ := sessionStore.Get(r, "serfr0")
+
+	session.Options.MaxAge = 86400 * 180 // Default is 4w. This might be the wrong place to set it.
+
 	return session
 }
 

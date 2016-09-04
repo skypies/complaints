@@ -11,7 +11,7 @@ import (
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/user"
 
-	"github.com/skypies/util/date"	
+	"github.com/skypies/util/date"
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
 	"github.com/skypies/complaints/fb"
@@ -115,6 +115,11 @@ func rootHandler (w http.ResponseWriter, r *http.Request) {
 	session := sessions.Get(r)
 	
 	cdb.Debugf("root_001", "session obtained")
+
+	for _,c := range r.Cookies() {
+		cdb.Debugf("root_002", "cookie: %s", c)
+	}
+	cdb.Debugf("root_002", "num cookies: %d", len(r.Cookies()))
 	
 	// No session ? Get them to login
 	if session.Values["email"] == nil {
@@ -132,6 +137,15 @@ func rootHandler (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if session.Values["tstamp"] != nil {
+		tstampStr := session.Values["tstamp"].(string)
+		if tstamp,err := time.Parse(time.RFC3339, tstampStr); err != nil {
+			cdb.Debugf("root_003", "tstamp=%s, err=%v", tstampStr, err)
+		} else {
+			cdb.Debugf("root_003", "tstamp=%s, age=%s", tstamp, time.Since(tstamp))
+		}
+	}
+	
 	modes := map[string]bool{}
 
 	// The rootHandler is the URL wildcard. Except Fragments, which are broken.
@@ -147,7 +161,7 @@ func rootHandler (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	cdb.Debugf("root_002", "about get cdb.GetAllByEmailAddress")
+	cdb.Debugf("root_004", "about get cdb.GetAllByEmailAddress")
 	cap, err := cdb.GetAllByEmailAddress(session.Values["email"].(string), modes["expanded"])
 	if cap==nil && err==nil {
 		// No profile exists; daisy-chain into profile page
@@ -157,7 +171,7 @@ func rootHandler (w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	cdb.Debugf("root_001", "cdb.GetAllByEmailAddress done")
+	cdb.Debugf("root_005", "cdb.GetAllByEmailAddress done")
 
 	ctx := cdb.Ctx()
 	modes["admin"] = user.Current(ctx)!=nil && user.Current(ctx).Admin

@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"time"
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
+	"github.com/skypies/complaints/config"
 )
 
 func init() {
@@ -19,16 +21,18 @@ func init() {
 type AwsIotEvent struct {
 	ClickType    string `json:"clickType"`      // {SINGLE|DOUBLE|LONG}
 	SerialNumber string `json:"serialNumber"`   // 16-char ascii
-	Voltage      string `json:"batteryVoltage"` // "1528mV
+	Voltage      string `json:"batteryVoltage"` // e.g. "1528mV"
+	Secret       string `json:"secret"`
 }
 func (ev AwsIotEvent)String() string {
-	return fmt.Sprintf("%s@%s[%s]", ev.ClickType, ev.SerialNumber, ev.Voltage)
+	return fmt.Sprintf("%s@%s[%s](%db)", ev.ClickType, ev.SerialNumber, ev.Voltage, len(ev.Secret))
 }
 
 func awsIotHandler(w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(r)
 
 	ev := AwsIotEvent{}
+	reqBytes,_ := httputil.DumpRequest(r, true)
 
 	if false && r.FormValue("sn") != "" {
 		// For debugging
@@ -44,6 +48,18 @@ func awsIotHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	expectedSecret := config.Get("awsiot.secret")
+	if expectedSecret == "" {
+		cdb.Errorf("secret config lookup failed ! bad config ?")
+		http.Error(w, "bad secret config", http.StatusInternalServerError)
+		return
+	} else if expectedSecret != ev.Secret {
+		cdb.Errorf("bad secret submitted")
+		cdb.Errorf("-> %s", reqBytes)
+		http.Error(w, "bad secret submitted", http.StatusInternalServerError)
+		return
+	}
+	
 	cdb.Infof("AWS-IoT button event received: %s", ev)
 
 	if ev.ClickType == "SINGLE" {

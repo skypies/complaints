@@ -1,19 +1,21 @@
 package complaints
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
-	"github.com/skypies/complaints/sessions"
 )
-//import "fmt"
 
 func init() {
 	http.HandleFunc("/profile", profileFormHandler)
 	http.HandleFunc("/profile-update", profileUpdateHandler)
+	http.HandleFunc("/profile-buttons", profileButtonsHandler)
+	http.HandleFunc("/profile-button-add", profileButtonAddHandler)
+	http.HandleFunc("/profile-button-delete", profileButtonDeleteHandler)
 }
 
 // {{{ profileFormHandler
@@ -31,13 +33,11 @@ func profileFormHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	session := sessions.Get(r)
-	if session.Values["email"] == nil {
-		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
-			http.StatusInternalServerError)
+	email,err := getSessionEmail(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	email := session.Values["email"].(string)
 
 	cdb := complaintdb.NewDB(r)
 	cp, _ := cdb.GetProfileByEmailAddress(email)
@@ -64,15 +64,12 @@ func profileFormHandler(w http.ResponseWriter, r *http.Request) {
 
 func profileUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(r)
-	session := sessions.Get(r)
-	if session.Values["email"] == nil {
-		cdb.Errorf("profileUpdate:, session was empty; no cookie ?")
-		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
-			http.StatusInternalServerError)
+	email,err := getSessionEmail(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	email := session.Values["email"].(string)
-
+	
 	r.ParseForm()
 	
 	lat,err := strconv.ParseFloat(r.FormValue("Lat"), 64)
@@ -108,10 +105,13 @@ func profileUpdateHandler(w http.ResponseWriter, r *http.Request) {
 		ThirdPartyComms: FormValueTriValuedCheckbox(r, "ThirdPartyComms"),
 		Lat: lat,
 		Long: long,
+		ButtonId: []string{},
 	}
 
-	// For now, trash old ones :/
-	cp.ButtonId = []string{r.FormValue("NewButtonId")}
+	// Preserve some values from the old profile
+	if origProfile,err := cdb.GetProfileByEmailAddress(email); err == nil {
+		cp.ButtonId = origProfile.ButtonId
+	}
 	
 	err = cdb.PutProfile(cp)
 	if err != nil {
@@ -121,6 +121,127 @@ func profileUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/", http.StatusFound)
+}
+
+// }}}
+
+// {{{ profileButtonsHandler
+
+func profileButtonsHandler(w http.ResponseWriter, r *http.Request) {
+
+	email,err := getSessionEmail(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	cdb := complaintdb.NewDB(r)
+	cp, _ := cdb.GetProfileByEmailAddress(email)
+	
+	var params = map[string]interface{}{ "Buttons": cp.ButtonId }
+	if err := templates.ExecuteTemplate(w, "buttons", params); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// }}}
+// {{{ profileButtonAddHandler
+
+func sanitizeButtonId(in string) string {
+	return strings.Replace(strings.ToUpper(in), " ", "", -1)
+}
+
+func profileButtonAddHandler(w http.ResponseWriter, r *http.Request) {
+	cdb := complaintdb.NewDB(r)
+
+	email,err := getSessionEmail(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	
+	cp, _ := cdb.GetProfileByEmailAddress(email)
+
+	if r.FormValue("NewButtonId") != "" {
+		id := sanitizeButtonId(r.FormValue("NewButtonId"))
+		if len(id) != 16 {
+			http.Error(w, fmt.Sprintf("Button ID must have sixteen characters; only got %d", len(id)),
+				http.StatusInternalServerError)
+			return
+		}
+
+		// Check we don't have the button registered already. This isn't super safe.
+		if existingProfile,_ := cdb.GetProfileByButtonId(id); existingProfile != nil {
+			http.Error(w, fmt.Sprintf("Button '%s' is already claimed", id), http.StatusBadRequest)
+			return
+		}
+
+		cp.ButtonId = append(cp.ButtonId, id)
+
+		if err = cdb.PutProfile(*cp); err != nil {
+			cdb.Errorf("profileUpdate: cdb.Put: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	
+	var params = map[string]interface{}{ "Buttons": cp.ButtonId }
+	if err := templates.ExecuteTemplate(w, "buttons", params); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// }}}
+// {{{ profileButtonDeleteHandler
+
+func profileButtonDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	cdb := complaintdb.NewDB(r)
+
+	email,err := getSessionEmail(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	cp, _ := cdb.GetProfileByEmailAddress(email)
+	_=cp
+
+	str := "OK\n--\n"
+
+	// Look for the key whose value is DELETE. This is kinda lazy.
+	r.ParseForm()
+	removeId := ""
+	for key, values := range r.Form {   // range over map
+		for _, value := range values {    // range over []string
+			str += fmt.Sprintf("* {%s} : {%s}\n", key, value)
+			if value == "DELETE" {
+				removeId = key
+				break
+			}
+		}
+	}
+
+	if removeId == "" {
+		http.Error(w, "Could not find button ID in form ?", http.StatusBadRequest)
+		return
+	}
+
+	newIds := []string{}
+	for _,id := range cp.ButtonId {
+		if id != removeId { newIds = append(newIds, id) }
+	}
+	cp.ButtonId = newIds
+
+	if err = cdb.PutProfile(*cp); err != nil {
+		cdb.Errorf("profileUpdate: cdb.Put: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var params = map[string]interface{}{ "Buttons": cp.ButtonId }
+	if err := templates.ExecuteTemplate(w, "buttons", params); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 // }}}

@@ -1,7 +1,7 @@
 cron:
 - description: Send complaint emails
   url: /backend/emails-for-yesterday
-  schedule: every day 00:20
+  schedule: every day 00:40
   timezone: America/Los_Angeles
 
 - description: Publish complaints to BigQuery

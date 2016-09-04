@@ -19,7 +19,12 @@ func prod() {
 	Set("flightaware.key", "deadbeef")
 	Set("flightaware.username", "deadbeef")
 	
-	// This prod key only works from the URLs stop.jetnoise.net, complaints.serfr1.org
+	Set("anonymizer.salt", "deadbeef")
+
+        // Only known to the AWS IoT lambda function, so we can trust it
+	Set("awsiot.secret", "deadbeef")
+
+        // This prod key only works from the URLs stop.jetnoise.net, complaints.serfr1.org
 	Set("googlemaps.apikey", "dedbeef")  //prod
 
 	//// The flightradar24 URLs. 

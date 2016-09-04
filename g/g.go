@@ -2,6 +2,7 @@ package g
 
 import (
 	"net/http"
+	"time"
 
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/log"
@@ -56,7 +57,10 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	// Snag their email address forever more
 	session := sessions.Get(r)
 	session.Values["email"] = u.Email
-	session.Save(r,w)
+	session.Values["tstamp"] = time.Now().Format(time.RFC3339)
+	if err := session.Save(r,w); err != nil {
+		log.Errorf(ctx, "session.Save: %v", err)
+	}
 
 	// Now head back to the main page
 	http.Redirect(w, r, "/", http.StatusFound)

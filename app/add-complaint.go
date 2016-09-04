@@ -3,6 +3,7 @@ package complaints
 import (
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"time"
 
 	"github.com/skypies/util/date"
@@ -10,7 +11,6 @@ import (
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
 	"github.com/skypies/complaints/flightid"
-	"github.com/skypies/complaints/sessions"
 )
 // {{{ kActivities = []string
 
@@ -105,14 +105,12 @@ func buttonHandler(w http.ResponseWriter, r *http.Request) {
 
 func complaintUpdateFormHandler(w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(r)
-	session := sessions.Get(r)
-	if session.Values["email"] == nil {
-		cdb.Errorf("session was empty; no cookie ?")
-		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
-			http.StatusInternalServerError)
+
+	email,err := getSessionEmail(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	email := session.Values["email"].(string)
 
 	key := r.FormValue("k")
 
@@ -142,25 +140,27 @@ func complaintUpdateFormHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ addComplaintHandler
 
 func addComplaintHandler(w http.ResponseWriter, r *http.Request) {
-	tStart := time.Now()
 	cdb := complaintdb.NewDB(r)
 
-	cdb.Debugf("ac_001", "context established (took %s) at %s", time.Since(tStart), date.NowInPdt())
-	session := sessions.Get(r)
-	if session.Values["email"] == nil {
-		cdb.Errorf("session was empty; no cookie ?")
-		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
-			http.StatusInternalServerError)
+	cdb.Debugf("ac_001", "num cookies: %d", len(r.Cookies()))
+	for _,c := range r.Cookies() {
+		cdb.Debugf("ac_001", "cookie: %s", c)
+	}
+
+	reqBytes,_ := httputil.DumpRequest(r, true)
+	cdb.Debugf("ac_002", "req: %s", reqBytes)
+	
+	email,err := getSessionEmail(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	email := session.Values["email"].(string)
-	cdb.Debugf("ac_002", "have email")
+	cdb.Debugf("ac_003", "have email")
 
 	complaint := form2Complaint(r)
 	//complaint.Timestamp = complaint.Timestamp.AddDate(0,0,-3)
-	cdb.Debugf("ac_003", "calling cdb.ComplainByEmailAddress")
-	err := cdb.ComplainByEmailAddress(email, &complaint)
-	if err != nil {
+	cdb.Debugf("ac_004", "calling cdb.ComplainByEmailAddress")
+	if err := cdb.ComplainByEmailAddress(email, &complaint); err != nil {
 		cdb.Errorf("cdb.Complain failed: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -175,19 +175,15 @@ func addComplaintHandler(w http.ResponseWriter, r *http.Request) {
 
 func addHistoricalComplaintHandler(w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(r)
-	session := sessions.Get(r)
-	if session.Values["email"] == nil {
-		cdb.Errorf("session was empty; no cookie ?")
-		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
-			http.StatusInternalServerError)
+	email,err := getSessionEmail(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	email := session.Values["email"].(string)
 	
 	complaint := form2Complaint(r)
 
-	err := cdb.AddHistoricalComplaintByEmailAddress(email, &complaint)
-	if err != nil {
+	if err := cdb.AddHistoricalComplaintByEmailAddress(email, &complaint); err != nil {
 		cdb.Errorf("cdb.HistoricalComplain failed: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -201,14 +197,11 @@ func addHistoricalComplaintHandler(w http.ResponseWriter, r *http.Request) {
 
 func updateComplaintHandler(w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(r)
-	session := sessions.Get(r)
-	if session.Values["email"] == nil {
-		cdb.Errorf("session was empty; no cookie ?")
-		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
-			http.StatusInternalServerError)
+	email,err := getSessionEmail(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	email := session.Values["email"].(string)
 
 	new := form2Complaint(r)
 	newFlightNumber := r.FormValue("manualflightnumber")
@@ -253,14 +246,11 @@ func updateComplaintHandler(w http.ResponseWriter, r *http.Request) {
 
 func deleteComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(r)
-	session := sessions.Get(r)
-	if session.Values["email"] == nil {
-		cdb.Errorf("session was empty; no cookie ?")
-		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
-			http.StatusInternalServerError)
+	email,err := getSessionEmail(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	email := session.Values["email"].(string)
 	
 	r.ParseForm()
 	// This is so brittle; need to move away from display text
@@ -279,8 +269,7 @@ func deleteComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	cdb.Infof("Deleting %d complaints for %s", len(keyStrings), email)
 
-	err := cdb.DeleteComplaints(keyStrings, email)
-	if err != nil {
+	if err := cdb.DeleteComplaints(keyStrings, email); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

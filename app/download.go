@@ -9,7 +9,6 @@ import (
 	"github.com/skypies/util/date"
 	
 	"github.com/skypies/complaints/complaintdb"
-	"github.com/skypies/complaints/sessions"
 	"github.com/skypies/util/widget"
 )
 
@@ -63,10 +62,9 @@ func keysByKeyAsc(m map[string]int) []string {
 // {{{ downloadHandler
 
 func downloadHandler(w http.ResponseWriter, r *http.Request) {
-	session := sessions.Get(r)
-	if session.Values["email"] == nil {
-		http.Error(w, "session was empty; no cookie ? is this browser in privacy mode ?",
-			http.StatusInternalServerError)
+	email,err := getSessionEmail(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -85,7 +83,6 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	csvWriter := csv.NewWriter(w)
 	csvWriter.Write(cols)
 
-	email := session.Values["email"].(string)
 	cdb := complaintdb.NewDB(r)
 	iter := cdb.NewIter(cdb.QueryAllByEmailAddress(email))
 	for {
@@ -123,12 +120,11 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ personalReportHandler
 
 func personalReportHandler(w http.ResponseWriter, r *http.Request) {
-	session := sessions.Get(r)
-	if session.Values["email"] == nil {
-		http.Error(w, "session was empty; no cookie ?", http.StatusInternalServerError)
+	email,err := getSessionEmail(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	email := session.Values["email"].(string)
 
 	if r.FormValue("date") == "" {
 		var params = map[string]interface{}{

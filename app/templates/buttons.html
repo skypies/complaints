@@ -1,0 +1,44 @@
+{{define "buttons"}}
+
+<html>
+  {{template "header"}}
+  <body>
+    <h1>Add/remove Amazon IoT buttons</h1>
+      
+    <div class="stack">
+
+      <p>If you have
+      an <a href="https://www.amazon.com/AWS-IoT-Button-Limited-Programmable/dp/B01C7WE5WM/">Amazon
+      IoT Programmable Button</a>, and you've obtained a cert and key
+      for stop.jetnoise, then you can add (or remove) the serial number below.</p>
+
+      <div class="box">
+        <table border="0">
+          {{if (len .Buttons) | ne 0}}<tr><td>Buttons on this account</td></tr>{{end}}
+
+          <form action="/profile-button-delete" method="post">
+            {{range .Buttons}}
+            <tr>
+              <td>
+                <code>{{.}}</code>
+                <input id="deletebutton" class="button" type="submit" name="{{.}}" value="DELETE">
+              </td>
+              
+            </tr>{{end}}
+          </form>
+          <form action="/profile-button-add" method="post">
+            <tr>
+              <td>
+                <input type="text" size="20" name="NewButtonId"
+                       placeholder="AAAA1234BBBB1234" value=""/>
+                <input id="editbutton" class="button" type="submit" value="ADD">
+              </td> 
+           </tr>
+          </form>      
+        </table>
+      </div>
+    </div>
+  </body>
+</html>
+
+{{end}}
