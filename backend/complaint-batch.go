@@ -25,7 +25,8 @@ func init() {
 
 // Grab all users, and enqueue them for batch processing
 func upgradeHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 
 	var cps = []types.ComplainerProfile{}
 	cps, err := cdb.GetAllProfiles()
@@ -54,7 +55,8 @@ func upgradeHandler(w http.ResponseWriter, r *http.Request) {
 
 // Upgrade the set of complaints for each user.
 func upgradeUserHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 
 	email := r.FormValue("email")
 	cp,err := cdb.GetProfileByEmailAddress(email)
@@ -129,7 +131,8 @@ func upgradeUserHandler(w http.ResponseWriter, r *http.Request) {
 
 // Fixup the three days where email addresses got stamped upon
 func fixupthing(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 
 	email := r.FormValue("email")
 	str := fmt.Sprintf("(lookup for %s)\n", email)
@@ -176,7 +179,8 @@ func fixupthing(w http.ResponseWriter, r *http.Request) {
 // /backend/purge?email=foo@bar&forrealz=1
 
 func purgeuserHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 	email := r.FormValue("email")
 
 	str := fmt.Sprintf("(purgeuser for %s)\n", email)

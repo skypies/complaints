@@ -12,12 +12,10 @@ import (
 
 	olddatastore "appengine/datastore"
 	
-	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/taskqueue"
 	"google.golang.org/appengine/urlfetch"
-	"golang.org/x/net/context"
 
 	"github.com/skypies/geo/sfo"
 	"github.com/skypies/util/date"
@@ -45,7 +43,7 @@ func init() {
 
 // Enqueues one 'day' task per day in the range
 func batchFlightDateRangeHandler(w http.ResponseWriter, r *http.Request) {
-	c,_ := context.WithTimeout(appengine.NewContext(r), 10*time.Minute)
+	ctx := req2ctx(r)
 
 	n := 0
 	str := ""
@@ -72,8 +70,8 @@ func batchFlightDateRangeHandler(w http.ResponseWriter, r *http.Request) {
 				"job": {job},
 			})
 
-			if _,err := taskqueue.Add(c, t, "batch"); err != nil {
-				log.Errorf(c, "upgradeHandler: enqueue: %v", err)
+			if _,err := taskqueue.Add(ctx, t, "batch"); err != nil {
+				log.Errorf(ctx, "upgradeHandler: enqueue: %v", err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -82,7 +80,7 @@ func batchFlightDateRangeHandler(w http.ResponseWriter, r *http.Request) {
 		n++
 	}
 
-	log.Infof(c, "enqueued %d batch items for '%s'", n, job)
+	log.Infof(ctx, "enqueued %d batch items for '%s'", n, job)
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(fmt.Sprintf("OK, batch, enqueued %d tasks for %s\n%s", n, job, str)))
@@ -95,7 +93,7 @@ func batchFlightDateRangeHandler(w http.ResponseWriter, r *http.Request) {
 
 // Dequeue a single day, and enqueue a job for each flight on that day
 func batchFlightDayHandler(w http.ResponseWriter, r *http.Request) {
-	c,_ := context.WithTimeout(appengine.NewContext(r), 10*time.Minute)
+	ctx := req2ctx(r)
 
 	tags := []string{}//"ADSB"} // Maybe make this configurable ...
 	
@@ -114,7 +112,7 @@ func batchFlightDayHandler(w http.ResponseWriter, r *http.Request) {
 	dEnd = dEnd.Add(-1 * time.Second)
 	keys,err := fdb.KeysInTimeRangeByTags(tags, dStart, dEnd)
 	if err != nil {
-		log.Errorf(c, "upgradeHandler: enqueue: %v", err)
+		log.Errorf(ctx, "upgradeHandler: enqueue: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -131,8 +129,8 @@ func batchFlightDayHandler(w http.ResponseWriter, r *http.Request) {
 				"job": {job},
 			})
 
-			if _,err := taskqueue.Add(c, t, "batch"); err != nil {
-				log.Errorf(c, "upgradeHandler: enqueue: %v", err)
+			if _,err := taskqueue.Add(ctx, t, "batch"); err != nil {
+				log.Errorf(ctx, "upgradeHandler: enqueue: %v", err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -141,7 +139,7 @@ func batchFlightDayHandler(w http.ResponseWriter, r *http.Request) {
 		n++
 	}
 
-	log.Infof(c, "enqueued %d batch items for '%s'", n, job)
+	log.Infof(ctx, "enqueued %d batch items for '%s'", n, job)
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(fmt.Sprintf("OK, batch, enqueued %d tasks for %s\n%s", n, job, str)))
@@ -167,11 +165,11 @@ func formValueFlightByKey(r *http.Request) (*oldfdb.Flight, error) {
 
 // To run a job directly: /backend/fdb-batch/flight?job=...&key=...&
 func batchSingleFlightHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+	ctx := req2ctx(r)
 
 	f,err := formValueFlightByKey(r)
 	if err != nil {
-		log.Errorf(c, "batch/fdb/track/getflight: %v", err)
+		log.Errorf(ctx, "batch/fdb/track/getflight: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -181,90 +179,21 @@ func batchSingleFlightHandler(w http.ResponseWriter, r *http.Request) {
 	var str string = ""
 	switch job {
 	case "tracktimezone": str, err = jobTrackTimezoneHandler(r,f)
-	case "oceanictag":    str, err = jobOceanicTagHandler(r,f)
 	case "retag":         str, err = jobRetagHandler(r,f)
 	case "v2adsb":        str, err = jobV2adsbHandler(r,f)
 	}
 
 	if err != nil {
-		log.Errorf(c, "%s", str)
-		log.Errorf(c, "backend/fdb-batch/flight: %v", err)
+		log.Errorf(ctx, "%s", str)
+		log.Errorf(ctx, "backend/fdb-batch/flight: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	log.Debugf(c, "job=%s, on %s: %s", job, f, str)
+	log.Debugf(ctx, "job=%s, on %s: %s", job, f, str)
 		
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(fmt.Sprintf("OK\n * %s\n%s\n", f, str)))
-}
-
-// }}}
-
-// Old; use the range one instead
-// {{{ batchFlightScanHandler
-
-// /backend/fdb-batch?
-// date=range,range_from=2016/01/21&range_to=2016/01/26
-// &job=foo
-
-// &unit=flight [or unit=day; defaults to 'flight']
-
-// This enqueues tasks for each individual day, or flight
-func batchFlightScanHandler(w http.ResponseWriter, r *http.Request) {
-	c,_ := context.WithTimeout(appengine.NewContext(r), 10*time.Minute)
-	//c := appengine.NewContext(r)
-
-	tags := []string{}//"ADSB"} // Maybe make this configurable ...
-	
-	n := 0
-	str := ""
-	s,e,_ := widget.FormValueDateRange(r)
-	job := r.FormValue("job")
-	if job == "" {
-		http.Error(w, "Missing argument: &job=foo", http.StatusInternalServerError)
-	}
-	
-	days := date.IntermediateMidnights(s.Add(-1 * time.Second),e) // decrement start, to include it
-	for _,day := range days {
-		// Get the keys for all the flights on this day.
-		fdb := oldfgae.NewDB(r)
-
-		dStart,dEnd := date.WindowForTime(day)
-		dEnd = dEnd.Add(-1 * time.Second)
-		keys,err := fdb.KeysInTimeRangeByTags(tags, dStart, dEnd)
-		if err != nil {
-			log.Errorf(c, "upgradeHandler: enqueue: %v", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		singleFlightUrl := "/backend/fdb-batch/flight"
-		for _,key := range keys {
-			str += fmt.Sprintf("Enqueing day=%s: %s?job=%s&key=%s\n",
-				day.Format("2006.01.02"), singleFlightUrl, job, key.Encode())
-
-			if r.FormValue("dryrun") == "" {
-				t := taskqueue.NewPOSTTask(singleFlightUrl, map[string][]string{
-					"key": {key.Encode()},
-					"job": {job},
-				})
-
-				if _,err := taskqueue.Add(c, t, "batch"); err != nil {
-					log.Errorf(c, "upgradeHandler: enqueue: %v", err)
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-				}
-			}
-
-			n++
-		}
-	}
-
-	log.Infof(c, "enqueued %d batch items for '%s'", n, job)
-
-	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte(fmt.Sprintf("OK, batch, enqueued %d tasks for %s\n%s", n, job, str)))
 }
 
 // }}}
@@ -274,7 +203,7 @@ func batchFlightScanHandler(w http.ResponseWriter, r *http.Request) {
 // /backend/fdb-batch?job=tracktimezone&date=range&range_to=2016/01/25&range_from=2016/01/25
 
 func jobTrackTimezoneHandler(r *http.Request, f *oldfdb.Flight) (string, error) {
-	c := appengine.NewContext(r)
+	ctx := req2ctx(r)
 
 	defaultTP := f.Track.ClosestTrackpoint(sfo.KFixes["EPICK"])
 	adsbTP    := f.Tracks["ADSB"].ClosestTrackpoint(sfo.KFixes["EPICK"])
@@ -293,45 +222,16 @@ func jobTrackTimezoneHandler(r *http.Request, f *oldfdb.Flight) (string, error) 
 
 		db := oldfgae.NewDB(r)
 		if err := db.UpdateFlight(*f); err != nil {
-			log.Errorf(c, "Persist Flight %s: %v", f, err)
+			log.Errorf(ctx, "Persist Flight %s: %v", f, err)
 			return str, err
 		}
-		log.Infof(c, "Updated flight %s", f)
+		log.Infof(ctx, "Updated flight %s", f)
 		str += fmt.Sprintf("--\nFlight was updated\n")
 
 	} else {
-		log.Debugf(c, "Skipped flight %s, delta=%s", f, trackTimeDelta)
+		log.Debugf(ctx, "Skipped flight %s, delta=%s", f, trackTimeDelta)
 		str += "--\nFlight was OK, left untouched\n"
 	}
-
-	return str, nil
-}
-
-// }}}
-// {{{ jobOceanicTagHandler
-
-// use non-cloudflare hostname: http://backend-dot-serfr0-1000.appspot.com/
-// /backend/fdb-batch?job=oceanictag&date=range&range_to=2016/01/25&range_from=2016/01/25
-
-// THIS IS DEAD AND BROKEN
-
-func jobOceanicTagHandler(r *http.Request, f *oldfdb.Flight) (string, error) {
-	c := appengine.NewContext(r)
-	str := ""
-	
-	if f.HasTag("OCEANIC") { return "", nil }
-	//if !f.IsOceanicOrign() &&  { return "", nil }
-
-	// It's oceanic, but missing a tag ... update
-	//f.Tags[oldfdb.KTagOceanic] = true
-	
-	db := oldfgae.NewDB(r)
-	if err := db.UpdateFlight(*f); err != nil {
-		log.Errorf(c, "Persist Flight %s: %v", f, err)
-		return str, err
-	}
-	log.Infof(c, "Updated flight %s", f)
-	str += fmt.Sprintf("--\nFlight was updated\n")
 
 	return str, nil
 }
@@ -343,13 +243,13 @@ func jobOceanicTagHandler(r *http.Request, f *oldfdb.Flight) (string, error) {
 // /backend/fdb-batch?job=v2adsb&date=range&range_to=2016/01/25&range_from=2016/01/25
 
 func jobV2adsbHandler(r *http.Request, f *oldfdb.Flight) (string, error) {
-	c := appengine.NewContext(r)
+	ctx := req2ctx(r)
 	str := ""
 
 	// Allow overwrite, for the (36,0) disastery
 	// if f.HasTrack("ADSB") { return "", nil } // Already has one
 
-	err,deb := f.GetV2ADSBTrack(urlfetch.Client(c))
+	err,deb := f.GetV2ADSBTrack(urlfetch.Client(ctx))
 	str += fmt.Sprintf("*getv2ADSB [%v]:-\n", err, deb)
 	if err != nil {
 		return str, err
@@ -361,10 +261,10 @@ func jobV2adsbHandler(r *http.Request, f *oldfdb.Flight) (string, error) {
 	
 	db := oldfgae.NewDB(r)
 	if err := db.UpdateFlight(*f); err != nil {
-		log.Errorf(c, "Persist Flight %s: %v", f, err)
+		log.Errorf(ctx, "Persist Flight %s: %v", f, err)
 		return str, err
 	}
-	log.Infof(c, "Updated flight %s", f)
+	log.Infof(ctx, "Updated flight %s", f)
 	str += fmt.Sprintf("--\nFlight was updated\n")
 
 	return str, nil
@@ -391,7 +291,7 @@ func taglistsEqual(t1,t2 []string) bool {
 }
 
 func jobRetagHandler(r *http.Request, f *oldfdb.Flight) (string, error) {
-	c := appengine.NewContext(r)
+	ctx := req2ctx(r)
 	str := ""
 
 	oldtags := f.TagList()
@@ -407,10 +307,10 @@ func jobRetagHandler(r *http.Request, f *oldfdb.Flight) (string, error) {
 	
 	db := oldfgae.NewDB(r)
 	if err := db.UpdateFlight(*f); err != nil {
-		log.Errorf(c, "Persist Flight %s: %v", f, err)
+		log.Errorf(ctx, "Persist Flight %s: %v", f, err)
 		return str, err
 	}
-	log.Infof(c, "Updated flight %s", f)
+	log.Infof(ctx, "Updated flight %s", f)
 	str += fmt.Sprintf("--\nFlight was updated\n")
 
 	return str, nil
@@ -422,7 +322,7 @@ func jobRetagHandler(r *http.Request, f *oldfdb.Flight) (string, error) {
 
 // Attempt to test timeouts in deployed appengine; but proved elusive.
 func slowHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+	ctx := req2ctx(r)
 	d,_ := time.ParseDuration(r.FormValue("d"))
 
 	tStart := time.Now()
@@ -437,9 +337,9 @@ func slowHandler(w http.ResponseWriter, r *http.Request) {
 			Filter("EnterUTC >= ", start).
 			Filter("EnterUTC < ", end).
 			KeysOnly()
-		keys, err := q.GetAll(c, nil);
+		keys, err := q.GetAll(ctx, nil);
 		if err != nil {
-			log.Errorf(c, "batch/day: GetAll: %v", err)
+			log.Errorf(ctx, "batch/day: GetAll: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

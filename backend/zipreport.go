@@ -26,7 +26,8 @@ func zipHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cdb := complaintdb.NewDB(r)
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 	
 	zip := r.FormValue("zip")
 	s,e,_ := widget.FormValueDateRange(r)	

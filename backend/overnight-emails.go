@@ -142,8 +142,8 @@ func GenerateEmail(c context.Context, cap types.ComplaintsAndProfile) (*mail.Mes
 var blacklistAddrs = []string{}
 
 func SendComplaintsWithSpan(r *http.Request, start,end time.Time) (err error, str string) {
-	cdb := complaintdb.NewDB(r)
-	ctx := cdb.Ctx()
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 	cdb.Infof("--- Emails, %s -> %s", start, end)
 
 	blacklist := map[string]bool{}

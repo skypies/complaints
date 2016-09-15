@@ -7,6 +7,9 @@ import(
 	"sort"
 	"time"
 
+	"golang.org/x/net/context"
+	"google.golang.org/appengine"
+
 	"github.com/skypies/util/date"
 	"github.com/skypies/util/widget"
 	"github.com/skypies/complaints/complaintdb/types"
@@ -17,11 +20,17 @@ func init() {
 	http.HandleFunc("/cdb/yesterday/debug", YesterdayDebugHandler)
 }
 
+func req2ctx(r *http.Request) context.Context {
+	ctx,_ := context.WithTimeout(appengine.NewContext(r), 9 * time.Minute)
+	return ctx
+}
+
 // {{{ complaintDebugHandler
 
 // /cdb/comp/debug?key=asdadasdasdasdasdasdsadasdsadasdasdasdasdasdas
 func complaintDebugHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := NewDB(r)
+	ctx := req2ctx(r)
+	cdb := NewDB(ctx)
 
 	c, err := cdb.GetAnyComplaintByKey(r.FormValue("key"))
 	if err != nil {
@@ -66,7 +75,8 @@ func complaintDebugHandler(w http.ResponseWriter, r *http.Request) {
 
 
 func YesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := NewDB(r)
+	ctx := req2ctx(r)
+	cdb := NewDB(ctx)
 
 	offset := 1
 	start,end := date.WindowForToday()
@@ -158,7 +168,8 @@ func YesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ touchAllProfilesHandler
 
 func touchAllProfilesHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := NewDB(r)
+	ctx := req2ctx(r)
+	cdb := NewDB(ctx)
 	tStart := time.Now()
 	n,err := cdb.TouchAllProfiles()
 	if err != nil {

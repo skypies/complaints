@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"sort"
 
+	"golang.org/x/net/context"
+
 	"github.com/skypies/util/date"
 	
 	"github.com/skypies/complaints/complaintdb"
@@ -13,8 +15,8 @@ import (
 )
 
 func init() {
-	http.HandleFunc("/download-complaints", downloadHandler)
-	http.HandleFunc("/personal-report", personalReportHandler)
+	http.HandleFunc("/download-complaints", HandleWithSession(downloadHandler,"/"))
+	http.HandleFunc("/personal-report", HandleWithSession(personalReportHandler,"/"))
 }
 
 // These guys *should* be in backend, but they depend on user sessions, which segfault
@@ -61,12 +63,8 @@ func keysByKeyAsc(m map[string]int) []string {
 
 // {{{ downloadHandler
 
-func downloadHandler(w http.ResponseWriter, r *http.Request) {
-	email,err := getSessionEmail(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+func downloadHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	sesh,_ := GetUserSession(ctx)
 
 	filename := date.NowInPdt().Format("complaints-20060102.csv")
 	w.Header().Set("Content-Type", "application/csv")
@@ -83,8 +81,8 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	csvWriter := csv.NewWriter(w)
 	csvWriter.Write(cols)
 
-	cdb := complaintdb.NewDB(r)
-	iter := cdb.NewIter(cdb.QueryAllByEmailAddress(email))
+	cdb := complaintdb.NewDB(ctx)
+	iter := cdb.NewIter(cdb.QueryAllByEmailAddress(sesh.Email))
 	for {
 		c,err := iter.NextWithErr();
 		if err != nil {
@@ -119,12 +117,8 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 // }}}
 // {{{ personalReportHandler
 
-func personalReportHandler(w http.ResponseWriter, r *http.Request) {
-	email,err := getSessionEmail(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+func personalReportHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	sesh,_ := GetUserSession(ctx)
 
 	if r.FormValue("date") == "" {
 		var params = map[string]interface{}{
@@ -139,12 +133,12 @@ func personalReportHandler(w http.ResponseWriter, r *http.Request) {
 
 	start,end,_ := widget.FormValueDateRange(r)
 
-	cdb := complaintdb.NewDB(r)
+	cdb := complaintdb.NewDB(ctx)
 
 	w.Header().Set("Content-Type", "text/plain")
 	// w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", "sc.txt"))
 	fmt.Fprintf(w, "Personal disturbances report for <%s>:\n From [%s]\n To   [%s]\n",
-		email, start, end)
+		sesh.Email, start, end)
 
 	complaintStrings := []string{}
 	var countsByHour [24]int
@@ -152,7 +146,7 @@ func personalReportHandler(w http.ResponseWriter, r *http.Request) {
 	countsByAirline := map[string]int{}
 	countsByAirport := map[string]int{}
 
-	iter := cdb.NewIter(cdb.QueryInSpanByEmailAddress(start,end,email))
+	iter := cdb.NewIter(cdb.QueryInSpanByEmailAddress(start,end,sesh.Email))
 	n := 0
 	for {
 		c := iter.Next();

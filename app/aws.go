@@ -29,7 +29,8 @@ func (ev AwsIotEvent)String() string {
 }
 
 func awsIotHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 
 	ev := AwsIotEvent{}
 	reqBytes,_ := httputil.DumpRequest(r, true)

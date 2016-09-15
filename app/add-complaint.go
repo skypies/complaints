@@ -6,6 +6,8 @@ import (
 	"net/http/httputil"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/skypies/util/date"
 
 	"github.com/skypies/complaints/complaintdb"
@@ -37,11 +39,11 @@ var (
 
 func init() {
 	http.HandleFunc("/button", buttonHandler)
-	http.HandleFunc("/add-complaint", addComplaintHandler)
-	http.HandleFunc("/add-historical-complaint", addHistoricalComplaintHandler)
-	http.HandleFunc("/update-complaint", updateComplaintHandler)
-	http.HandleFunc("/delete-complaints", deleteComplaintsHandler)
-	http.HandleFunc("/complaint-updateform", complaintUpdateFormHandler)
+	http.HandleFunc("/add-complaint", HandleWithSession(addComplaintHandler, "/"))
+	http.HandleFunc("/add-historical-complaint", HandleWithSession(addHistoricalComplaintHandler,"/"))
+	http.HandleFunc("/update-complaint", HandleWithSession(updateComplaintHandler,"/"))
+	http.HandleFunc("/delete-complaints", HandleWithSession(deleteComplaintsHandler,"/"))
+	http.HandleFunc("/complaint-updateform", HandleWithSession(complaintUpdateFormHandler,"/"))
 }
 
 // {{{ form2Complaint
@@ -84,8 +86,10 @@ func form2Complaint(r *http.Request) types.Complaint {
 
 // {{{ buttonHandler
 
+// This should be deprecated somehow
 func buttonHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 	resp := "OK"
 	cc := r.FormValue("c")
 
@@ -103,18 +107,13 @@ func buttonHandler(w http.ResponseWriter, r *http.Request) {
 // }}}
 // {{{ complaintUpdateFormHandler
 
-func complaintUpdateFormHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
-
-	email,err := getSessionEmail(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+func complaintUpdateFormHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	cdb := complaintdb.NewDB(ctx)
+	sesh,_ := GetUserSession(ctx)
 
 	key := r.FormValue("k")
 
-	if complaint, err := cdb.GetComplaintByKey(key, email); err != nil {
+	if complaint, err := cdb.GetComplaintByKey(key, sesh.Email); err != nil {
 		cdb.Errorf("updateform, getComplaint: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	} else {
@@ -139,8 +138,9 @@ func complaintUpdateFormHandler(w http.ResponseWriter, r *http.Request) {
 // }}}
 // {{{ addComplaintHandler
 
-func addComplaintHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
+// HandleWithSession should handle all situations where we don't have an email address
+func addComplaintHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	cdb := complaintdb.NewDB(ctx)
 
 	cdb.Debugf("ac_001", "num cookies: %d", len(r.Cookies()))
 	for _,c := range r.Cookies() {
@@ -150,17 +150,13 @@ func addComplaintHandler(w http.ResponseWriter, r *http.Request) {
 	reqBytes,_ := httputil.DumpRequest(r, true)
 	cdb.Debugf("ac_002", "req: %s", reqBytes)
 	
-	email,err := getSessionEmail(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	sesh,_ := GetUserSession(ctx)
 	cdb.Debugf("ac_003", "have email")
 
 	complaint := form2Complaint(r)
 	//complaint.Timestamp = complaint.Timestamp.AddDate(0,0,-3)
 	cdb.Debugf("ac_004", "calling cdb.ComplainByEmailAddress")
-	if err := cdb.ComplainByEmailAddress(email, &complaint); err != nil {
+	if err := cdb.ComplainByEmailAddress(sesh.Email, &complaint); err != nil {
 		cdb.Errorf("cdb.Complain failed: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -173,17 +169,12 @@ func addComplaintHandler(w http.ResponseWriter, r *http.Request) {
 // }}}
 // {{{ addHistoricalComplaintHandler
 
-func addHistoricalComplaintHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
-	email,err := getSessionEmail(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	
+func addHistoricalComplaintHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	cdb := complaintdb.NewDB(ctx)
+	sesh,_ := GetUserSession(ctx)	
 	complaint := form2Complaint(r)
 
-	if err := cdb.AddHistoricalComplaintByEmailAddress(email, &complaint); err != nil {
+	if err := cdb.AddHistoricalComplaintByEmailAddress(sesh.Email, &complaint); err != nil {
 		cdb.Errorf("cdb.HistoricalComplain failed: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -195,19 +186,15 @@ func addHistoricalComplaintHandler(w http.ResponseWriter, r *http.Request) {
 // }}}
 // {{{ updateComplaintHandler
 
-func updateComplaintHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
-	email,err := getSessionEmail(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+func updateComplaintHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	cdb := complaintdb.NewDB(ctx)
+	sesh,_ := GetUserSession(ctx)	
 
 	new := form2Complaint(r)
 	newFlightNumber := r.FormValue("manualflightnumber")
 	newTimeString := r.FormValue("manualtimestring")
 
-	if orig, err := cdb.GetComplaintByKey(new.DatastoreKey, email); err != nil {
+	if orig, err := cdb.GetComplaintByKey(new.DatastoreKey, sesh.Email); err != nil {
 		cdb.Errorf("updateform, getComplaint: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 
@@ -231,7 +218,7 @@ func updateComplaintHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		orig.Timestamp = newTimestamp
 
-		err := cdb.UpdateComplaint(*orig, email)
+		err := cdb.UpdateComplaint(*orig, sesh.Email)
 		if err != nil {
 			cdb.Errorf("cdb.UpdateComplaint failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -244,13 +231,9 @@ func updateComplaintHandler(w http.ResponseWriter, r *http.Request) {
 // }}}
 // {{{ deleteComplaintsHandler
 
-func deleteComplaintsHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
-	email,err := getSessionEmail(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+func deleteComplaintsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	cdb := complaintdb.NewDB(ctx)
+	sesh,_ := GetUserSession(ctx)	
 	
 	r.ParseForm()
 	// This is so brittle; need to move away from display text
@@ -267,9 +250,9 @@ func deleteComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 		if len(k) < 50 { continue }
 		keyStrings = append(keyStrings, k)
 	}
-	cdb.Infof("Deleting %d complaints for %s", len(keyStrings), email)
+	cdb.Infof("Deleting %d complaints for %s", len(keyStrings), sesh.Email)
 
-	if err := cdb.DeleteComplaints(keyStrings, email); err != nil {
+	if err := cdb.DeleteComplaints(keyStrings, sesh.Email); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

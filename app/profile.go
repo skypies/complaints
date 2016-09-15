@@ -6,21 +6,23 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
 )
 
 func init() {
-	http.HandleFunc("/profile", profileFormHandler)
-	http.HandleFunc("/profile-update", profileUpdateHandler)
-	http.HandleFunc("/profile-buttons", profileButtonsHandler)
-	http.HandleFunc("/profile-button-add", profileButtonAddHandler)
-	http.HandleFunc("/profile-button-delete", profileButtonDeleteHandler)
+	http.HandleFunc("/profile", HandleWithSession(profileFormHandler,"/"))
+	http.HandleFunc("/profile-update", HandleWithSession(profileUpdateHandler,"/"))
+	http.HandleFunc("/profile-buttons", HandleWithSession(profileButtonsHandler,"/"))
+	http.HandleFunc("/profile-button-add", HandleWithSession(profileButtonAddHandler,"/"))
+	http.HandleFunc("/profile-button-delete", HandleWithSession(profileButtonDeleteHandler,"/"))
 }
 
 // {{{ profileFormHandler
 
-func profileFormHandler(w http.ResponseWriter, r *http.Request) {
+func profileFormHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	// https, yay
 	if r.URL.Host == "stop.jetnoise.net" {
 		// We're behind cloudflare, so we always see http. This is how we can tell if the user is
@@ -33,18 +35,13 @@ func profileFormHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	email,err := getSessionEmail(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	cdb := complaintdb.NewDB(r)
-	cp, _ := cdb.GetProfileByEmailAddress(email)
+	sesh,_ := GetUserSession(ctx)
+	cdb := complaintdb.NewDB(ctx)
+	cp, _ := cdb.GetProfileByEmailAddress(sesh.Email)
 
 	if cp.EmailAddress == "" {
 		// First ever visit - empty profile !
-		cp.EmailAddress = email
+		cp.EmailAddress = sesh.Email
 		cp.CcSfo = true
 	}
 
@@ -62,14 +59,9 @@ func profileFormHandler(w http.ResponseWriter, r *http.Request) {
 // }}}
 // {{{ profileUpdateHandler
 
-func profileUpdateHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
-	email,err := getSessionEmail(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	
+func profileUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	cdb := complaintdb.NewDB(ctx)
+
 	r.ParseForm()
 	
 	lat,err := strconv.ParseFloat(r.FormValue("Lat"), 64)
@@ -85,10 +77,12 @@ func profileUpdateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sesh,_ := GetUserSession(ctx)
+
 	// Maybe make a call to fetch the elevation ??
 	// https://developers.google.com/maps/documentation/elevation/intro
 	cp := types.ComplainerProfile{
-		EmailAddress: email,
+		EmailAddress: sesh.Email,
 		CallerCode: r.FormValue("CallerCode"),
 		FullName: strings.TrimSpace(r.FormValue("FullName")),
 		Address: strings.TrimSpace(r.FormValue("AutoCompletingMagic")),
@@ -109,12 +103,11 @@ func profileUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Preserve some values from the old profile
-	if origProfile,err := cdb.GetProfileByEmailAddress(email); err == nil {
+	if origProfile,err := cdb.GetProfileByEmailAddress(sesh.Email); err == nil {
 		cp.ButtonId = origProfile.ButtonId
 	}
 	
-	err = cdb.PutProfile(cp)
-	if err != nil {
+	if err := cdb.PutProfile(cp); err != nil {
 		cdb.Errorf("profileUpdate: cdb.Put: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -127,16 +120,10 @@ func profileUpdateHandler(w http.ResponseWriter, r *http.Request) {
 
 // {{{ profileButtonsHandler
 
-func profileButtonsHandler(w http.ResponseWriter, r *http.Request) {
-
-	email,err := getSessionEmail(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	cdb := complaintdb.NewDB(r)
-	cp, _ := cdb.GetProfileByEmailAddress(email)
+func profileButtonsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	sesh,_ := GetUserSession(ctx)
+	cdb := complaintdb.NewDB(ctx)
+	cp,_ := cdb.GetProfileByEmailAddress(sesh.Email)
 	
 	var params = map[string]interface{}{ "Buttons": cp.ButtonId }
 	if err := templates.ExecuteTemplate(w, "buttons", params); err != nil {
@@ -151,16 +138,11 @@ func sanitizeButtonId(in string) string {
 	return strings.Replace(strings.ToUpper(in), " ", "", -1)
 }
 
-func profileButtonAddHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
-
-	email,err := getSessionEmail(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+func profileButtonAddHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	cdb := complaintdb.NewDB(ctx)
+	sesh,_ := GetUserSession(ctx)
 	
-	cp, _ := cdb.GetProfileByEmailAddress(email)
+	cp, _ := cdb.GetProfileByEmailAddress(sesh.Email)
 
 	if r.FormValue("NewButtonId") != "" {
 		id := sanitizeButtonId(r.FormValue("NewButtonId"))
@@ -178,7 +160,7 @@ func profileButtonAddHandler(w http.ResponseWriter, r *http.Request) {
 
 		cp.ButtonId = append(cp.ButtonId, id)
 
-		if err = cdb.PutProfile(*cp); err != nil {
+		if err := cdb.PutProfile(*cp); err != nil {
 			cdb.Errorf("profileUpdate: cdb.Put: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -194,17 +176,10 @@ func profileButtonAddHandler(w http.ResponseWriter, r *http.Request) {
 // }}}
 // {{{ profileButtonDeleteHandler
 
-func profileButtonDeleteHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
-
-	email,err := getSessionEmail(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	cp, _ := cdb.GetProfileByEmailAddress(email)
-	_=cp
+func profileButtonDeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	cdb := complaintdb.NewDB(ctx)
+	sesh,_ := GetUserSession(ctx)
+	cp,_ := cdb.GetProfileByEmailAddress(sesh.Email)
 
 	str := "OK\n--\n"
 
@@ -232,7 +207,7 @@ func profileButtonDeleteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	cp.ButtonId = newIds
 
-	if err = cdb.PutProfile(*cp); err != nil {
+	if err := cdb.PutProfile(*cp); err != nil {
 		cdb.Errorf("profileUpdate: cdb.Put: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

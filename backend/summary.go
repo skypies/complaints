@@ -90,7 +90,7 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 	log.Infof(ctx, "Yow: START : %s", s)
 	log.Infof(ctx, "Yow: END   : %s", e)
 
-	cdb := complaintdb.NewDB(r)
+	cdb := complaintdb.NewDB(ctx)
 
 	filename := s.Format("complaints-20060102") + e.Format("-20060102.csv")
 	w.Header().Set("Content-Type", "application/csv")
@@ -194,7 +194,8 @@ func getIP(r *http.Request) string {
 	return ip
 }
 func isBanned(r *http.Request) bool {
-	cdb := complaintdb.NewDB(r)
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 	u := user.Current(cdb.Ctx())
 	userWhitelist := map[string]int{
 		"adam@worrall.cc":1,
@@ -347,7 +348,8 @@ func communityReportHandler(w http.ResponseWriter, r *http.Request) {
 
 	start,end,_ := widget.FormValueDateRange(r)
 
-	cdb := complaintdb.NewDB(r)
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 
 	// Use most-recent city info for all the users, not what got cached per-complaint
 	userCities,err := cdb.GetEmailCityMap()
@@ -454,7 +456,8 @@ func communityReportHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ userReportHandler
 
 func userReportHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 
 	profiles,err := cdb.GetAllProfiles()
 	if err != nil {
@@ -557,7 +560,8 @@ func GetProcedureMap(r *http.Request, s,e time.Time) (map[string]fdb.CondensedFl
 // {{{ SummaryReport
 
 func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (string,error) {
-	cdb := complaintdb.NewDB(r)
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 	u := user.Current(cdb.Ctx())
 
 	str := ""

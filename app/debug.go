@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 	
+	"golang.org/x/net/context"
+
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/log"
 
@@ -19,16 +21,22 @@ import (
 
 func init() {
 	http.HandleFunc("/deb", debHandler)
-	//http.HandleFunc("/counthack", countHackHandler)
+	http.HandleFunc("/deb2", HandleWithSession(debSessionHandler, "/"))
+	http.HandleFunc("/deb3", HandleWithSession(debSessionHandler, ""))
 	http.HandleFunc("/optouts", optoutHandler)
-	//http.HandleFunc("/debbksv", debugHandler3)
-	//http.HandleFunc("/perftester", perftesterHandler)
+}
+
+func debSessionHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	sesh,ok := GetUserSession(ctx)
+	str := fmt.Sprintf("OK\nctx = [%T] %v\nemail=%s, ok=%v\n", ctx, ctx, sesh.Email, ok) 
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(str))
 }
 
 func debHandler(w http.ResponseWriter, r *http.Request) {
 	pos := sfo.KLatlongSFO
-	//client := urlfetch.Client(appengine.NewContext(r)) // complaintdb.NewDB(r).HTTPClient()
-	client := complaintdb.NewDB(r).HTTPClient()
+	ctx := req2ctx(r)
+	client := complaintdb.NewDB(ctx).HTTPClient()
 
 	fr := fr24.Fr24{Client: client}
 	if err := fr.EnsureHostname(); err != nil {
@@ -58,7 +66,8 @@ func debHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func optoutHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 	users,err := cdb.GetComplainersCurrentlyOptedOut()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -76,7 +85,8 @@ func optoutHandler(w http.ResponseWriter, r *http.Request) {
 // These are sorted elsewhere, so it's OK to 'append' out of sequence.
 // Note no deduping is done; if you want that, add it here.
 func countHackHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 
 	cdb.AddDailyCount(complaintdb.DailyCount{
 		Datestring: "2016.06.22",
@@ -151,7 +161,8 @@ func perftesterHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func debugHandler3(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 	tStart := time.Now()
 	
 	start,end := date.WindowForYesterday()

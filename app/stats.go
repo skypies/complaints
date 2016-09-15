@@ -15,7 +15,8 @@ func init() {
 // {{{ statsResetHandler
 
 func statsResetHandler(w http.ResponseWriter, r *http.Request) {
-	complaintdb.NewDB(r).ResetGlobalStats()
+	ctx := req2ctx(r)
+	complaintdb.NewDB(ctx).ResetGlobalStats()
 	w.Write([]byte(fmt.Sprintf("Stats reset\n")))
 }
 
@@ -23,7 +24,8 @@ func statsResetHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ statsHandler
 
 func statsHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 
 	if gs,err := cdb.LoadGlobalStats(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

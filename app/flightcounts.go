@@ -22,6 +22,7 @@ func init() {
 // &debug=1             (render as text/plain)
 
 func complaintsForHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := req2ctx(r)
 
 	s,e := widget.FormValueEpochTime(r,"start"),widget.FormValueEpochTime(r,"end")
 	if r.FormValue("start") == "" {
@@ -39,7 +40,7 @@ func complaintsForHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cdb := complaintdb.NewDB(r)
+	cdb := complaintdb.NewDB(ctx)
 
 	times, err := cdb.GetComplaintTimesInSpanByFlight(s,e,flightnumber)
 	if err != nil {

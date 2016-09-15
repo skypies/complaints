@@ -21,7 +21,6 @@ const(
 func init() {
 	http.HandleFunc("/_ah/bounce", bounceHandler)
 	http.HandleFunc("/email-update", emailUpdateHandler)
-	//http.HandleFunc("/emaildebug", emailDebugHandler)
 }
 
 // {{{ SendEmailToAdmin
@@ -44,7 +43,8 @@ func SendEmailToAdmin(c context.Context, subject, htmlbody string) {
 // {{{ SendEmailToAllUsers
 
 func SendEmailToAllUsers(r *http.Request, subject string) int {
-	cdb := complaintdb.NewDB(r)
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 
 	if cps,err := cdb.GetAllProfiles(); err != nil {
 		cdb.Errorf("SendEmailToAllUsers/GetAllProfiles: %v", err)
@@ -96,72 +96,6 @@ func emailUpdateHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
-
-/*
-// {{{ emailDebugHandler
-
-func emailDebugHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	session := sessions.Get(r)
-	cdb := complaintdb.NewDB(r)
-
-	cp, err := cdb.GetProfileByEmailAddress(session.Values["email"].(string))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	start,end := date.WindowForYesterday()
-	// end = time.Now()
-	complaints, err2 := cdb.GetComplaintsInSpanByEmailAddress(cp.EmailAddress, start, end)
-	if err2 != nil {
-		http.Error(w, err2.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	var cap = types.ComplaintsAndProfile{
-		Profile: *cp,
-		Complaints: complaints,
-	}
-
-	if err := templates.ExecuteTemplate(w, "email-update", map[string]interface{}{}); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	} else {
-		return
-	}
-	
-	msg,err3 := GenerateEmail(c, cap)
-	if err3 != nil {
-		http.Error(w, err3.Error(), http.StatusInternalServerError)
-		return
-	}
-	cap.Profile.CcSfo = true
-	if len(cap.Complaints) == 0 {
-		http.Error(w, "No complaints found ?!", http.StatusInternalServerError)
-		return
-	}
-	msg2,err4 := GenerateSingleComplaintEmail(c, cap.Profile, cap.Complaints[len(cap.Complaints)-1])
-	if err4 != nil {
-		http.Error(w, err4.Error(), http.StatusInternalServerError)
-		return
-	}
-	
-	var params = map[string]interface{}{
-		"Cap": cap,
-		"EmailBundle": msg,
-		"EmailSingle": msg2,
-		"EmailBundleBody": template.HTML(msg.HTMLBody),
-		"EmailSingleBody": template.HTML(msg2.HTMLBody),
-	}
-	
-	if err := templates.ExecuteTemplate(w, "email-debug", params); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-// }}}
-*/
 
 // {{{ -------------------------={ E N D }=----------------------------------
 

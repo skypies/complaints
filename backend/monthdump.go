@@ -27,7 +27,8 @@ func init() {
 // http://backend-dot-serfr0-1000.appspot.com/backend/monthdump?year=2016&month=4
 
 func monthCSVTaskHandler(w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 	
 	month,year,err := FormValueMonthDefaultToPrev(r)
 	if err != nil {

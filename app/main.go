@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"time"
 
+	"golang.org/x/net/context"
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/user"
 
@@ -50,17 +51,13 @@ func templateFormatPdt(t time.Time, format string) string {
 }
 
 func init() {
-	http.HandleFunc("/", rootHandler)
+	http.HandleFunc("/",       HandleWithSession(rootHandler, ""))
+	http.HandleFunc("/masq",   HandleWithSession(masqueradeHandler, "/"))
 	http.HandleFunc("/logout", logoutHandler)
-	http.HandleFunc("/faq", faqHandler)
-	http.HandleFunc("/intro", gettingStartedHandler)
-	http.HandleFunc("/masq", masqueradeHandler)
+	http.HandleFunc("/faq",    faqHandler)
+	http.HandleFunc("/intro",  gettingStartedHandler)
 
 	http.HandleFunc("/report",                  makeRedirectHandler("/report/"))
-	http.HandleFunc("/report2",                 makeRedirectHandler("/report/"))
-	http.HandleFunc("/report2/",                makeRedirectHandler("/report/"))
-	http.HandleFunc("/report3",                 makeRedirectHandler("/report/"))
-	http.HandleFunc("/report3/",                makeRedirectHandler("/report/"))
 	
 	http.HandleFunc("/zip",                     makeRedirectHandler("/report/zip"))
 	http.HandleFunc("/personal-report/results", makeRedirectHandler("/personal-report"))
@@ -110,10 +107,10 @@ func hintComplaints(in []types.Complaint, isSuperHinter bool) []HintedComplaint 
 
 // {{{ rootHandler
 
-func rootHandler (w http.ResponseWriter, r *http.Request) {
-	cdb := complaintdb.NewDB(r)
-	session := sessions.Get(r)
-	
+func rootHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	cdb := complaintdb.NewDB(ctx)
+	sesh,_ := GetUserSession(ctx)
+
 	cdb.Debugf("root_001", "session obtained")
 
 	for _,c := range r.Cookies() {
@@ -122,7 +119,7 @@ func rootHandler (w http.ResponseWriter, r *http.Request) {
 	cdb.Debugf("root_002", "num cookies: %d", len(r.Cookies()))
 	
 	// No session ? Get them to login
-	if session.Values["email"] == nil {
+	if sesh.Email == "" {
 		fb.AppId = kFacebookAppId
 		fb.AppSecret = kFacebookAppSecret
 		loginUrls := map[string]string{
@@ -137,13 +134,8 @@ func rootHandler (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if session.Values["tstamp"] != nil {
-		tstampStr := session.Values["tstamp"].(string)
-		if tstamp,err := time.Parse(time.RFC3339, tstampStr); err != nil {
-			cdb.Debugf("root_003", "tstamp=%s, err=%v", tstampStr, err)
-		} else {
-			cdb.Debugf("root_003", "tstamp=%s, age=%s", tstamp, time.Since(tstamp))
-		}
+	if sesh.HasCreatedAt() {
+		cdb.Debugf("root_003", "tstamp=%s, age=%s", sesh.CreatedAt, time.Since(sesh.CreatedAt))
 	}
 	
 	modes := map[string]bool{}
@@ -162,7 +154,7 @@ func rootHandler (w http.ResponseWriter, r *http.Request) {
 	}
 	
 	cdb.Debugf("root_004", "about get cdb.GetAllByEmailAddress")
-	cap, err := cdb.GetAllByEmailAddress(session.Values["email"].(string), modes["expanded"])
+	cap, err := cdb.GetAllByEmailAddress(sesh.Email, modes["expanded"])
 	if cap==nil && err==nil {
 		// No profile exists; daisy-chain into profile page
 		http.Redirect(w, r, "/profile", http.StatusFound)
@@ -173,9 +165,8 @@ func rootHandler (w http.ResponseWriter, r *http.Request) {
 	}
 	cdb.Debugf("root_005", "cdb.GetAllByEmailAddress done")
 
-	ctx := cdb.Ctx()
 	modes["admin"] = user.Current(ctx)!=nil && user.Current(ctx).Admin
-	modes["superuser"] = modes["admin"] || cap.Profile.EmailAddress == "meekGee@gmail.com"
+	modes["superuser"] = modes["admin"]
 
 	// Default to "", unless we had a complaint in the past hour.
 	lastActivity := ""
@@ -228,6 +219,7 @@ func rootHandler (w http.ResponseWriter, r *http.Request) {
 // {{{ logoutHandler
 
 func logoutHandler (w http.ResponseWriter, r *http.Request) {
+	// Overwrite the session with a nil session
 	session := sessions.Get(r)
 	session.Values["email"] = nil
 	session.Save(r, w)	
@@ -237,9 +229,7 @@ func logoutHandler (w http.ResponseWriter, r *http.Request) {
 // }}}
 // {{{ masqueradeHandler
 
-func masqueradeHandler (w http.ResponseWriter, r *http.Request) {
-	ctx := req2ctx(r)
-
+func masqueradeHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	email := r.FormValue("e")
 	if email == "" {
 		http.Error(w, "masq needs 'e'", http.StatusInternalServerError)

@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/urlfetch"
@@ -24,30 +23,19 @@ var(
 
 // {{{ ComplaintDB{}, NewDB(), cdb.Ctx(), cdb.HTTPClient()
 
+// ComplaintDB is a transient handle to the database
 type ComplaintDB struct {
-	req *http.Request  // To allow the construction of 'newappengine' contexts, for gaeutil
-	// C appengine.Context
-	// Memcache bool
+	ctx context.Context
 	StartTime time.Time
 }
+func (cdb ComplaintDB)Ctx() context.Context { return cdb.ctx }
+func (cdb ComplaintDB)HTTPClient() *http.Client { return urlfetch.Client(cdb.Ctx()) }
 
-func NewDB(r *http.Request) ComplaintDB {
+func NewDB(ctx context.Context) ComplaintDB {
 	return ComplaintDB{
-		req:      r,
-		//C:        appengine.Timeout(appengine.NewContext(r), 300 * time.Second),
-		//Memcache: false,
+		ctx: ctx,
 		StartTime: time.Now(),
 	}
-}
-
-
-func (cdb ComplaintDB)Ctx() context.Context {
-	ctx,_ := context.WithTimeout(appengine.NewContext(cdb.req), 10 * time.Minute)
-	return ctx
-}
-
-func (cdb ComplaintDB)HTTPClient() *http.Client {
-	return urlfetch.Client(cdb.Ctx())
 }
 
 // }}}

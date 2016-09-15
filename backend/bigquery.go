@@ -122,8 +122,8 @@ func publishComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 
 // Returns number of records written (which is zero if the file already exists)
 func writeAnonymizedGCSFile(r *http.Request, datestring, foldername,filename string) (int,error) {
-	cdb := complaintdb.NewDB(r)
-	ctx := appengine.NewContext(r)
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
 
 	// Get a list of users that as of right now, have opted out of data sharing.
 	optOutUsers,err := cdb.GetComplainersCurrentlyOptedOut()
