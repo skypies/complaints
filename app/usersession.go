@@ -1,25 +1,5 @@
 package complaints
 
-import(
-	"time"
-	"net/http"
-	"net/http/httputil"
-
-	"golang.org/x/net/context"
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/log"
-
-	"github.com/skypies/complaints/sessions"
-)
-
-// Pretty much all handlers should expect to be able to pluck this object out of their Context
-type UserSession struct {
-	Email      string     // case sensitive, sadly
-	CreatedAt  time.Time  // when the user last went through the OAuth2 dance
-}
-
-func (us UserSession)HasCreatedAt() bool { return us.CreatedAt.IsZero() }
-
 /* Common code for pulling out a user session cookie, populating a Context, etc.
  * Users that aren't logged in will be redirected to the specified URL.
 
@@ -35,6 +15,27 @@ func debHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 }
 
  */
+
+import(
+	"time"
+	"net/http"
+	"net/http/httputil"
+
+	"golang.org/x/net/context"
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/log"
+
+	"github.com/skypies/complaints/sessions"
+)
+
+// Pretty much all handlers should expect to be able to pluck this object out of their Context
+type UserSession struct {
+	Email        string     // case sensitive, sadly
+	CreatedAt    time.Time  // when the user last went through the OAuth2 dance
+	hasCreatedAt bool
+}
+
+func (us UserSession)HasCreatedAt() bool { return us.hasCreatedAt }
 
 // To prevent other libs colliding in the context.Value keyspace, use this private key
 type contextKey int
@@ -64,14 +65,15 @@ func HandleWithSession(ch contextHandler, ifNoSessionRedirectTo string) baseHand
 			}
 
 		} else {
-			tstampStr := session.Values["tstamp"].(string)
-			tstamp,_ := time.Parse(time.RFC3339, tstampStr)
+			sesh := UserSession{Email: session.Values["email"].(string)}
 
-			sesh := UserSession{
-				Email: session.Values["email"].(string),
-				CreatedAt: tstamp,
+			if session.Values["tstamp"] != nil {
+				tstampStr := session.Values["tstamp"].(string)
+				tstamp,_ := time.Parse(time.RFC3339, tstampStr)
+				sesh.CreatedAt = tstamp
+				sesh.hasCreatedAt = true // time.IsZero seems useless
 			}
-
+			
 			ctx = context.WithValue(ctx, sessionEmailKey, sesh)
 		}
 
