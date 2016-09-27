@@ -17,6 +17,7 @@ func debHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
  */
 
 import(
+	"strings"
 	"time"
 	"net/http"
 	"net/http/httputil"
@@ -47,9 +48,13 @@ type contextHandler func(context.Context, http.ResponseWriter, *http.Request)
 func HandleWithSession(ch contextHandler, ifNoSessionRedirectTo string) baseHandler {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx,_ := context.WithTimeout(appengine.NewContext(r), 55 * time.Second)
-
+		
 		session := sessions.Get(r)
-		if session.Values["email"] == nil {
+
+		if strings.HasPrefix(r.UserAgent(), "Google") {
+			// Robot - do nothing
+
+		} else if session.Values["email"] == nil {
 			reqBytes,_ := httputil.DumpRequest(r, true)
 			log.Errorf(ctx, "session was empty; no cookie ?")
 			log.Errorf(ctx, "session: %#v", session)
