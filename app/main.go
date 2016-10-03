@@ -112,11 +112,9 @@ func rootHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	sesh,_ := GetUserSession(ctx)
 
 	cdb.Debugf("root_001", "session obtained")
-
-	for _,c := range r.Cookies() {
-		cdb.Debugf("root_002", "cookie: %s", c)
-	}
+	for _,c := range r.Cookies() { cdb.Debugf("root_002", "cookie: %s", c) }
 	cdb.Debugf("root_002", "num cookies: %d", len(r.Cookies()))
+	cdb.Debugf("root_002a", "Cf-Connecting-Ip: %s", r.Header.Get("Cf-Connecting-Ip"))
 	
 	// No session ? Get them to login
 	if sesh.Email == "" {

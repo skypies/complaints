@@ -143,10 +143,8 @@ func addComplaintHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 	cdb := complaintdb.NewDB(ctx)
 
 	cdb.Debugf("ac_001", "num cookies: %d", len(r.Cookies()))
-	for _,c := range r.Cookies() {
-		cdb.Debugf("ac_001", "cookie: %s", c)
-	}
-
+	for _,c := range r.Cookies() { cdb.Debugf("ac_001", "cookie: %s", c) }
+	cdb.Debugf("ac_001a", "Cf-Connecting-Ip: %s", r.Header.Get("Cf-Connecting-Ip"))
 	reqBytes,_ := httputil.DumpRequest(r, true)
 	cdb.Debugf("ac_002", "req: %s", reqBytes)
 	
