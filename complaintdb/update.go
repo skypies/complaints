@@ -32,10 +32,8 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 		cdb.Debugf("cbe_011", "rate limit check passed (%d); calling FindOverhead", len(prevKeys))
 	}
 	
-	//cdb.Infof("adding complaint for [%s] %s", cp.CallerCode, overhead.FlightNumber)
+	grabAny := (c.Description == "ANYANY")
 
-	// abw hack hack
-	grabAny := (cp.CallerCode == "QWERTY")
 	if debug,err := fr.FindOverhead(geo.Latlong{cp.Lat,cp.Long}, &overhead, grabAny); err != nil {
 		cdb.Errorf("FindOverhead failed for %s: %v", cp.EmailAddress, err)
 	} else {
@@ -58,6 +56,9 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 			if overhead.FlightNumber != oh2.FlightNumber {
 				t := c.Debug
 				c.Debug = " * * * DIFFERS * * *\n\n" + t
+			} else {
+				// Agree ! Copy over the Fdb IdSpec, and pretend we're living in the future
+				c.AircraftOverhead.Id = oh2.Id
 			}
 		}
 	}

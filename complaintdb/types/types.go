@@ -5,11 +5,13 @@ import (
 	"encoding/base64"
 	"encoding/gob"
 	"fmt"
+	"html/template"
 	"regexp"
 	"strings"
 	"time"
 	
 	"github.com/skypies/geo"
+	fdb "github.com/skypies/flightdb2"
 
 	// "github.com/skypies/complaints/fr24"
 	"github.com/skypies/complaints/flightid"
@@ -210,6 +212,18 @@ func (c Complaint) String() string {
 		c.Submission.String(),
 		c.Description,
 	)
+}
+
+func (c Complaint) AltitudeHrefString() template.HTML {
+	txt := fmt.Sprintf("%.0fft", c.AircraftOverhead.Altitude)
+
+	if id,err := fdb.NewIdSpec(c.AircraftOverhead.Id); err != nil {
+		return template.HTML(txt)
+	} else {
+		url := fmt.Sprintf("http://fdb.serfr1.org/fdb/descent?idspec=%s&classb=1&refpt_lat=%.6f&refpt_long=%.6f&refpt_label=You", id, c.Profile.Lat, c.Profile.Long)
+
+		return template.HTML(fmt.Sprintf("<a target=\"_blank\" href=\"%s\">%s</a>", url, txt))
+	}
 }
 
 // }}}
