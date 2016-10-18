@@ -8,13 +8,11 @@ import(
 
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/urlfetch"
-	//"golang.org/x/net/context"
 
-	"github.com/skypies/geo"
-	"github.com/skypies/util/date"
-
-	"github.com/skypies/pi/airspace"
 	fdb "github.com/skypies/flightdb2"
+	"github.com/skypies/geo"
+	"github.com/skypies/pi/airspace"
+	"github.com/skypies/util/date"
 )
 
 func init() {
@@ -58,14 +56,21 @@ func AirspaceToSnapshots(as *airspace.Airspace) []fdb.FlightSnapshot {
 	ret := []fdb.FlightSnapshot{}
 
 	for _,ad := range as.Aircraft {
+		tp := fdb.TrackpointFromADSB(ad.Msg)
 		fs := fdb.FlightSnapshot{
-			Trackpoint: fdb.TrackpointFromADSB(ad.Msg),
+			Trackpoint: tp,
 			Flight: fdb.BlankFlight(),
 		}
 		fs.Airframe = ad.Airframe
 		fs.Identity.Schedule = ad.Schedule
 		fs.Identity.IcaoId = string(ad.Msg.Icao24)
 		fs.Identity.Callsign = ad.Msg.Callsign
+
+		// Rig up a track from the single datapoint; that's needed to get timestamps for IdSpec
+		track := fdb.Track{}
+		track = append(track, tp)
+		fs.Flight.Tracks[tp.DataSource] = &track
+		
 		ret = append(ret, fs)
 	}
 
