@@ -201,6 +201,7 @@ func isBanned(r *http.Request) bool {
 		"adam@worrall.cc":1,
 		"don.gardner@me.com":1,
 		"ssrhome@gmail.com":1,
+		"b40vicki@gmail.com":1,
 	}
 
 	reqBytes,_ := httputil.DumpRequest(r, true)

@@ -6,9 +6,6 @@ import (
 	"net/http"
 	"strings"
 	
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/urlfetch"
-
 	"github.com/skypies/geo/sfo"
 	"github.com/skypies/util/date"
 
@@ -81,8 +78,7 @@ func report3Handler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	//airframes := ref.NewAirframeCache(c)
-	client := urlfetch.Client(appengine.NewContext(r))
-	metars,err := metar.FetchFromNOAA(client, "KSFO",
+	metars,err := metar.LookupArchive(req2ctx(r), "KSFO",
 		rep.Start.AddDate(0,0,-1), rep.End.AddDate(0,0,1))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
