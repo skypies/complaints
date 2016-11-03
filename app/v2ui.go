@@ -98,7 +98,7 @@ func v2TracksetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	newui.OutputMapLinesOnAStreamingMap(w, r, idspecs, "/fdb/vector2")
+	newui.OutputMapLinesOnAStreamingMap(w, r, "", idspecs, "/fdb/vector2")
 }
 
 // }}}
