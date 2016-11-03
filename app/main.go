@@ -218,7 +218,7 @@ func rootHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
 
 func logoutHandler (w http.ResponseWriter, r *http.Request) {
 	// Overwrite the session with a nil session
-	session := sessions.Get(r)
+	session,_ := sessions.Get(r)
 	session.Values["email"] = nil
 	session.Save(r, w)	
 	http.Redirect(w, r, "/", http.StatusFound)
@@ -236,7 +236,7 @@ func masqueradeHandler (ctx context.Context, w http.ResponseWriter, r *http.Requ
 
 	log.Infof(ctx, "masq into [%s]", email)
 
-	session := sessions.Get(r)
+	session,_ := sessions.Get(r)
 	session.Values["email"] = email
 	session.Save(r,w)
 	

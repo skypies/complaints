@@ -55,7 +55,10 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	//c.Infof(" ** Google user logged in ! [%s]", u.Email)
 
 	// Snag their email address forever more
-	session := sessions.Get(r)
+	session,err := sessions.Get(r)
+	if err != nil {
+		log.Errorf(ctx, "sessions.Get: %v", err)
+	}
 	session.Values["email"] = u.Email
 	session.Values["tstamp"] = time.Now().Format(time.RFC3339)
 	if err := session.Save(r,w); err != nil {
