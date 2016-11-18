@@ -1,6 +1,17 @@
 package complaints
 
 import(
+	"net/http"
+	newui "github.com/skypies/flightdb2/ui"
+)
+
+func init() {
+	http.HandleFunc("/map", newui.MapHandler)
+}
+
+/* This whole thing is almost obsolete ...
+
+import(
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -118,15 +129,12 @@ func v2ApproachHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ v2DescentHandler
 
 func v2DescentHandler(w http.ResponseWriter, r *http.Request) {
-	/*
-	flights,err := idspecsToFlightV2s(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	
-	newui.OutputDescentsAsPDF(w, r, flights)
-*/
+	//flights,err := idspecsToFlightV2s(r)
+	//if err != nil {
+	//	http.Error(w, err.Error(), http.StatusInternalServerError)
+	//	return
+	//}
+	//newui.OutputDescentsAsPDF(w, r, flights)
 
 	db := oldfgae.NewDB(r)
 
@@ -221,6 +229,8 @@ func v2VisualizeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
+
+*/
 
 // {{{ -------------------------={ E N D }=----------------------------------
 
