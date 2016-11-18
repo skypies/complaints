@@ -1,1 +1,0 @@
-../../../flightdb2/ui/templates/map2-setup.js
