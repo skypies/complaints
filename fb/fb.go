@@ -86,11 +86,15 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	session,err := sessions.Get(r)
 	if err != nil {
-		log.Errorf(ctx, "sessions.Get: %v", err)
+		// This isn't usually an important error (the session was most likely expired, which is why
+		// we're logging in) - so log as Info, not Error.
+		log.Infof(ctx, "sessions.Get [failing is OK for this call] had err: %v", err)
 	}
 	session.Values["email"] = jsonMap["email"]
 	session.Values["tstamp"] = time.Now().Format(time.RFC3339)
-	session.Save(r,w)
+	if err := session.Save(r,w); err != nil {
+		log.Errorf(ctx, "session.Save: %v", err)
+	}
 
 	http.Redirect(w, r, "/", http.StatusFound)
 }

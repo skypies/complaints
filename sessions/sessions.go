@@ -13,10 +13,11 @@ func Init(key, prevkey string) {
 		[]byte(prevkey), nil)
 }
 
+// All new sessions are created via this routine, too; so it's the sole place to initialize.
 func Get(r *http.Request) (*gsessions.Session, error) {
 	session,err := sessionStore.Get(r, "serfr0")
 
-	session.Options.MaxAge = 86400 * 180 // Default is 4w. This might be the wrong place to set it.
+	session.Options.MaxAge = 86400 * 180 // Default is 4w.
 
 	return session,err
 }
