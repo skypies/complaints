@@ -11,7 +11,8 @@ import (
 	"net/http"
 	"regexp"
 	"sort"
-
+	"time"
+	
 	"github.com/skypies/util/date"
 	"github.com/skypies/geo"
 	//"github.com/skypies/geo/sfo"
@@ -30,10 +31,6 @@ var(
 	
 	kPlaybackUrl2 = config.Get("fr24.kPlaybackUrl2")
 	kPlaybackUrl = config.Get("fr24.kPlaybackUrl")
-	
-	kBlacklistEquipmentTypes = []string{
-		"SR20",
-	}
 )
 
 type Fr24 struct {
@@ -433,9 +430,8 @@ func (fr *Fr24)SetHost(h string) {fr.host = h}
 
 // {{{ fr24.ParseListBbox
 
-// Used temporarily for dwelltime stuff
+// This isn't the main function; look at ListBBox below
 func (fr *Fr24) ParseListBbox(jsonMap map[string]interface{}, aircraft *[]Aircraft) {
-	// Unpack the aircraft summary object
 	for _,v := range jsonMap["aircraft"].([]interface{}) {
 		a := Aircraft{
 			Id: v.([]interface{})[0].(string),
@@ -458,6 +454,7 @@ func (fr *Fr24) ParseListBbox(jsonMap map[string]interface{}, aircraft *[]Aircra
 			Callsign: v.([]interface{})[17].(string),
 			Unknown2: v.([]interface{})[18].(float64),
 		}
+
 		*aircraft = append(*aircraft,a)
 	}
 
@@ -471,7 +468,7 @@ func (fr *Fr24) ListBbox(sw_lat,sw_long,ne_lat,ne_long float64, aircraft *[]Airc
 	if err := fr.EnsureHostname(); err != nil {	return err }
 
 	bounds := fmt.Sprintf("%.3f,%.3f,%.3f,%.3f", ne_lat, sw_lat, sw_long, ne_long)
-	url := fmt.Sprintf("http://%s%s?array=1&bounds=%s", fr.host, kListUrlPath, bounds)
+	url := fmt.Sprintf("http://%s%s?array=1&faa=1&bounds=%s", fr.host, kListUrlPath, bounds)
 
 	jsonMap,err := fr.Url2jsonMap(url)
 	if err != nil { return err }
@@ -511,13 +508,16 @@ func (fr *Fr24) ListBbox(sw_lat,sw_long,ne_lat,ne_long float64, aircraft *[]Airc
 // {{{ DebugFlightList
 
 func DebugFlightList(aircraft []Aircraft) string {
-	debug := "3Dist  2Dist  Brng   Hdng    Alt      Speed Equp Flight   Orig  Dest  Latlong\n"
+	debug := "3Dist  2Dist  Brng   Hdng    Alt      Speed Equp Flight   Orig:Dest IcaoID Callsign Source  Age\n"
 
 	for _,a := range aircraft {
 		debug += fmt.Sprintf(
-			"%4.1fKM %4.1fKM %3.0fdeg %3.0fdeg %6.0fft %4.0fkt %s %-8.8s %-5.5s %-5.5s (% 8.4f,%8.4f)\n",
+			"%4.1fKM %4.1fKM %3.0fdeg %3.0fdeg %6.0fft %4.0fkt "+
+			"%4.4s %-8.8s %4.4s:%-4.4s %6.6s %-8.8s %-7.7s "+
+			"%2.0fs\n",
 			a.Dist3, a.Dist, a.BearingFromObserver, a.Track, a.Altitude, a.Speed,
-			a.EquipType, a.BestIdent(), a.Origin, a.Destination, a.Lat, a.Long)
+			a.EquipType, a.BestIdent(), a.Origin, a.Destination, a.Id2, a.Callsign, a.Radar,
+			time.Since(time.Unix(int64(a.Epoch),0)).Seconds())
 	}
 
 	return debug
@@ -568,18 +568,13 @@ func (fr24Aircraft Aircraft)IntoFlightIdAircraft(out *flightid.Aircraft) {
 
 func filterAircraft(in []Aircraft) (out []Aircraft) {
 	for _,a := range in {
-		if a.Radar == "T-F5M" { continue }    // 5m delayed data; not what's overhead
-		if a.FlightNumber == "" {continue}
+		age := time.Since(time.Unix(int64(a.Epoch),0))
+		if age > 30 * time.Second { continue } // Data too old to use (T-F5M no longer indicates this)
+
+		if a.FlightNumber == "" { continue }
 		// if a.BestIdent() == "" { continue }  // No ID info; not much interesting to say
 		if a.Altitude > 28000 { continue }    // Too high to be the problem
-		if a.Altitude <  1000 { continue }    // Too low to be the problem
-
-		// Strip out little planes
-		skip := false
-		for _,e := range kBlacklistEquipmentTypes {
-			if a.EquipType == e { skip = true }
-		}
-		if skip { continue }
+		if a.Altitude <   750 { continue }    // Too low to be the problem
 		
 		out = append(out, a)
 	}
@@ -627,6 +622,11 @@ func (fr *Fr24) FindAllOverhead(observerPos geo.Latlong, overhead *flightid.Airc
 	}
 	
 	for i,a := range nearby {
+		// Hack for Surf Air; promote callsigns into (invalid_ flightnumbers, so they don't get stripped
+		if a.FlightNumber == "" && regexp.MustCompile("^URF\\d+$").MatchString(a.Callsign) {
+			nearby[i].FlightNumber = a.Callsign
+		}
+
 		aircraftPos := geo.Latlong{a.Lat,a.Long}
 		nearby[i].Dist = observerPos.Dist(aircraftPos)
 		nearby[i].Dist3 = observerPos.Dist3(aircraftPos, a.Altitude)
@@ -740,7 +740,7 @@ func (fr Fr24) GetPlaybackUrl(id string) string {
 	return fmt.Sprintf("%s?flightId=%s", kPlaybackUrl2, id)
 }
 func (fr Fr24) GetListUrl(bounds string) string {
-	return fmt.Sprintf("http://%s%s?array=1&bounds=%s", fr.host, kListUrlPath, bounds)
+	return fmt.Sprintf("http://%s%s?array=1&bounds=%s&faa=1", fr.host, kListUrlPath, bounds)
 }
 func (fr Fr24) GetLiveDetailsUrl(id string) string {
 	return fmt.Sprintf("http://lhr.data.fr24.com/_external/planedata_json.1.3.php?f=%s", id)
