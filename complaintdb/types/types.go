@@ -41,7 +41,7 @@ type ComplainerProfile struct {
 	FullName          string `datastore:",noindex"`
 	Address           string `datastore:",noindex"`
 	StructuredAddress PostalAddress
-	Lat,Long          float64 `datastore:",noindex"`
+	Lat,Long          float64
 	CcSfo             bool `datastore:",noindex"`
 
 	DataSharing       int  // 0 == unset, 1 == OK/yes, -1 == no

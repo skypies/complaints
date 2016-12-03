@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/appengine/datastore"
 
+	"github.com/skypies/geo"
 	"github.com/skypies/util/date"
 
 	"github.com/skypies/complaints/complaintdb/types"
@@ -224,6 +225,30 @@ func (cdb ComplaintDB)GetComplaintTimesInSpanByFlight(start,end time.Time, fligh
 }
 
 // }}}
+// {{{ cdb.GetComplaintPositionsInSpan
+
+func (cdb ComplaintDB)GetComplaintPositionsInSpan(start,end time.Time) ([]geo.Latlong, error) {
+	ret := []geo.Latlong{}
+
+	q := datastore.
+		NewQuery(kComplaintKind).
+		Project("Profile.Lat","Profile.Long").
+		Filter("Timestamp >= ", start).
+		Filter("Timestamp < ", end)
+
+	var data = []types.Complaint{}
+	if _,err := q.GetAll(cdb.Ctx(), &data); err != nil {
+		return ret,err
+	}
+	
+	for _,c := range data {
+		ret = append(ret, geo.Latlong{Lat:c.Profile.Lat, Long:c.Profile.Long})
+	}
+
+	return ret,nil
+}
+
+// }}}
 
 // {{{ cdb.GetAnyComplaintByKey
 
@@ -338,6 +363,8 @@ func (cdb ComplaintDB)GetComplaintKeysInSpanByEmailAddress(start,end time.Time, 
 }
 
 // }}}
+
+
 
 // {{{ -------------------------={ E N D }=----------------------------------
 
