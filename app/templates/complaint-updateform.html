@@ -16,10 +16,11 @@
           <b>Hdng</b>: The direction the aircraft was pointing in<br/>
           <b>Alt</b>: The pressure altitude (not physical altitude !)<br/>
           <b>Speed</b>: The groundspeed (not airspeed !)<br/>
-          <b>Equip</b>: The kind of aircraft (Airbus 320, etc)<br/>
-          <b>Orig</b>: Origin airport, if we have it<br/>
-          <b>Dest</b>: Destination airport, if we have it<br/>
+          <b>Equp</b>: The kind of aircraft (Airbus 320, etc)<br/>
+          <b>Flight</b>: The IATA scheduled flightnumber (or callsign, for Surf Air)<br/>
+          <b>Orig:Dest</b>: Origin:Destination airport codes, if we have them<br/>
           <b>IcaoID</b>: The hex identifier of the physical aircraft<br/>
+          <b>Callsign</b>: Which callsign the aircraft was broadcasting under<br/>
           <b>Source</b>: Which data system provided the position data<br/>
           <b>Age</b>: How long since the position was generated<br/>
           <br/>Flightnumbers that look like r:N123AB - these are unscheduled flights, even though they're sometimes big jets being moved around by the airlines. I filter these out, as they ruin the accuracy.

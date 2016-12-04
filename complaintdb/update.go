@@ -8,8 +8,10 @@ import (
 	"github.com/skypies/geo"
 	"github.com/skypies/util/date"
 
+	"github.com/skypies/pi/airspace"
+	"github.com/skypies/flightdb2/fr24"
+
 	"github.com/skypies/complaints/complaintdb/types"
-	"github.com/skypies/complaints/fr24"
 
 	"github.com/skypies/complaints/flightid"
 )
@@ -18,7 +20,6 @@ import (
 
 func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Complaint) error {
 	client := cdb.HTTPClient()
-	fr := fr24.Fr24{Client: client}
 	overhead := flightid.Aircraft{}
 
 	// Check we're not over a daily cap for this user
@@ -32,38 +33,45 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 		cdb.Debugf("cbe_011", "rate limit check passed (%d); calling FindOverhead", len(prevKeys))
 	}
 	
-	grabAny := (c.Description == "ANYANY")
+	elev := 0.0
+	pos := geo.Latlong{cp.Lat,cp.Long}
+	algo := flightid.AlgoConservativeNoCongestion
+	if (c.Description == "ANYANY") { algo = flightid.AlgoGrabClosest }
 
-	if debug,err := fr.FindOverhead(geo.Latlong{cp.Lat,cp.Long}, &overhead, grabAny); err != nil {
+	if as,err := fr24.FetchAirspace(client, pos.Box(64,64)); err != nil {
 		cdb.Errorf("FindOverhead failed for %s: %v", cp.EmailAddress, err)
 	} else {
-		c.Debug = debug
-	}
-	cdb.Debugf("cbe_020", "FindOverhead returned")
-	if overhead.Id != "" {
-		c.AircraftOverhead = overhead
-	}
-
-	if cp.CallerCode == "WOR004" || cp.CallerCode == "WOR005" {
-		elev := 0.0
-		oh2,err2,deb2 := flightid.FindOverhead(client,geo.Latlong{cp.Lat,cp.Long},elev, grabAny)
-		cdb.Debugf("cbe_021]", "new.FindOverhead also returned")
-		c.Debug += fmt.Sprintf("\n ***** V2 testing\n * err=%v\n * found=%s\n\n%s\n", err2, oh2, deb2)
-		if oh2 == nil && overhead.FlightNumber != "" {
-			t := c.Debug
-			c.Debug = " * * * DIFFERS * * *\n\n" + t
-		} else if oh2 != nil {
-			if overhead.FlightNumber != oh2.FlightNumber {
-				t := c.Debug
-				c.Debug = " * * * DIFFERS * * *\n\n" + t
-			} else {
-				// Agree ! Copy over the Fdb IdSpec, and pretend we're living in the future
-				c.AircraftOverhead.Id = oh2.Id
-			}
+		oh,deb := flightid.IdentifyOverhead(as,pos,elev,algo)
+		c.Debug = deb
+		if oh != nil {
+			overhead = *oh
+			c.AircraftOverhead = overhead
 		}
 	}
+
+	cdb.Debugf("cbe_020", "FindOverhead returned")
+	
+	// Contrast with the skypi pathway
+	if cp.CallerCode == "WOR004" || cp.CallerCode == "WOR005" {
+		asFdb,_ := airspace.Fetch(client, "", pos.Box(60,60))
+		oh3,deb3 := flightid.IdentifyOverhead(asFdb,pos,elev,algo)
+		if oh3 == nil { oh3 = &flightid.Aircraft{} }
+		newdebug := c.Debug + "\n*** v2 / fdb testing\n" + deb3 + "\n"
+		headline := ""
 		
-	c.Version = kComplaintVersion
+		if overhead.FlightNumber != oh3.FlightNumber {
+			headline = fmt.Sprintf("** * * DIFFERS * * **\n")
+		} else {
+			// Agree ! Copy over the Fdb IdSpec, and pretend we're living in the future
+			headline = fmt.Sprintf("**---- Agrees ! ----**\n")
+			c.AircraftOverhead.Id = oh3.Id
+		}
+		headline += fmt.Sprintf(" * skypi: %s\n * orig : %s\n", oh3, overhead)
+		
+		c.Debug = headline + newdebug
+	}
+	
+	c.Version = kComplaintVersion // Kill this off ?
 
 	c.Profile = cp // Copy the profile fields into every complaint
 	

@@ -1,18 +1,26 @@
 package flightid
 
 import(
-	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"sort"
+	"strings"
+	"time"
 
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/urlfetch"
 
 	fdb "github.com/skypies/flightdb2"
+	"github.com/skypies/flightdb2/fr24"
 	"github.com/skypies/geo"
 	"github.com/skypies/pi/airspace"
-	"github.com/skypies/util/date"
+)
+
+type Algorithm int
+const(
+	AlgoConservativeNoCongestion Algorithm = iota
+	AlgoGrabClosest
 )
 
 func init() {
@@ -23,26 +31,16 @@ func init() {
 
 func airspaceHandler(w http.ResponseWriter, r *http.Request) {
 	client := urlfetch.Client(appengine.NewContext(r))
-
+	pos := geo.Latlong{37.060312,-121.990814}
 	str := ""
-	
-	f,err,debug := FindOverhead(client, geo.Latlong{37.060312,-121.990814}, 0, true)
-	str += fmt.Sprintf("======/// FindOverhead ///======\nerr=%v\nf=%s\n\n%s", err, f, debug)
 
-/*
-	as, err := FetchAirspace(client)
-	if err != nil {
+	if as,err := fr24.FetchAirspace(client, pos.Box(100,100)); err != nil {
 		http.Error(w, fmt.Sprintf("FetchAirspace: %v", err), http.StatusInternalServerError)
 		return
+	} else {		
+		oh,debstr := IdentifyOverhead(as, pos, 0.0, AlgoConservativeNoCongestion)
+		str += fmt.Sprintf("--{ IdentifyOverhead }--\n -{ OH: %s }-\n\n%s\n", oh, debstr)
 	}
-	str += "======/// Airspace ///=====\n\n" + as.String()
-
-	snaps := AirspaceToSnapshots(as)
-	str += "\n\n=====/// Snaps ///=====\n\n"
-	for _,fs := range snaps {
-		str += fmt.Sprintf("* %s\n", fs)
-	}
-*/
 	
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte("OK\n\n"+str))
@@ -50,244 +48,222 @@ func airspaceHandler(w http.ResponseWriter, r *http.Request) {
 
 // }}}
 
-// {{{ AirspaceToSnapshots
+// {{{ AirspaceToLocalizedAircraft
 
-func AirspaceToSnapshots(as *airspace.Airspace) []fdb.FlightSnapshot {
-	ret := []fdb.FlightSnapshot{}
+func AirspaceToLocalizedAircraft(as *airspace.Airspace, pos geo.Latlong, elev float64) []Aircraft {
+	ret := []Aircraft{}
 
+	if as == nil { return ret }
+	
 	for _,ad := range as.Aircraft {
 		tp := fdb.TrackpointFromADSB(ad.Msg)
-		fs := fdb.FlightSnapshot{
-			Trackpoint: tp,
-			Flight: fdb.BlankFlight(),
-		}
-		fs.Airframe = ad.Airframe
-		fs.Identity.Schedule = ad.Schedule
-		fs.Identity.IcaoId = string(ad.Msg.Icao24)
-		fs.Identity.Callsign = ad.Msg.Callsign
+		altitudeDelta := tp.Altitude - elev
 
-		// Rig up a track from the single datapoint; that's needed to get timestamps for IdSpec
-		track := fdb.Track{}
-		track = append(track, tp)
-		fs.Flight.Tracks[tp.DataSource] = &track
+		icaoid := string(ad.Msg.Icao24)
+		icaoid = strings.TrimPrefix(icaoid, "EE") // fr24 airspaces use this prefix
+		icaoid = strings.TrimPrefix(icaoid, "FF") // fa airspaces use this prefix
 		
-		ret = append(ret, fs)
+		a := Aircraft{
+			Dist: pos.DistKM(tp.Latlong),
+			Dist3: pos.Dist3(tp.Latlong, altitudeDelta),
+			BearingFromObserver: tp.Latlong.BearingTowards(pos),
+			//Id: "someid", // This is set via an IdSpec string below
+			Id2: icaoid,
+			Lat: tp.Lat,
+			Long: tp.Long,
+			Track: tp.Heading,
+			Altitude: tp.Altitude,
+			Speed: tp.GroundSpeed,
+			// Squawk string
+			Radar: tp.ReceiverName,
+			EquipType: ad.Airframe.EquipmentType,	
+			Registration: ad.Airframe.Registration,
+			Epoch: float64(tp.TimestampUTC.Unix()),
+			Origin: ad.Schedule.Origin,
+			Destination: ad.Schedule.Destination,
+			FlightNumber: ad.Schedule.IataFlight(),
+			// Unknown float64
+			VerticalSpeed: tp.VerticalRate,
+			Callsign: ad.Msg.Callsign, //"CAL123", //snap.Flight.Callsign,
+			// Unknown2 float64
+		}
+
+		// Even though we may be parsing an fr24 airspace, generate a skypi idspec (which may break)
+		if icaoid != "" {
+			a.Id = fdb.IdSpec{ IcaoId:icaoid, Time:tp.TimestampUTC }.String()
+		}
+
+		// Hack for Surf Air; promote their callsigns into flightnumbers.
+		// The goal is to allow them to get past the filter, and be printable etc.
+		// There is probably a much better place for this kind of munging. But it needs to happen
+		//  regardless of the source of the airspace, so it can't be pushed upstream. (...?)
+		if a.FlightNumber == "" && regexp.MustCompile("^URF\\d+$").MatchString(a.Callsign) {
+			a.FlightNumber = a.Callsign
+		}
+		
+		ret = append(ret, a)
 	}
 
+	sort.Sort(AircraftByDist3(ret))
+	
 	return ret
 }
 
 // }}}
-// {{{ FlightSnapshotToAircraft
+// {{{ AircraftToString
 
-func FlightSnapshotToAircraft(snap *fdb.FlightSnapshot) *Aircraft {
-	if snap == nil { return nil }
+func AircraftToString(list []Aircraft) string {
+	header := "3Dist  2Dist  Brng   Hdng    Alt      Speed Equp Flight   Orig:Dest IcaoID "+
+		"Callsign Source  Age\n"
 
-	return &Aircraft{
-		Dist: snap.DistToReferenceKM,
-		Dist3: snap.Dist3ToReferenceKM,
-		BearingFromObserver: snap.BearingToReference,
-		// Fr24Url string
-		Id: snap.Flight.IdSpecString(),
-		Id2: snap.Flight.IcaoId,
-		Lat: snap.Trackpoint.Lat,
-		Long: snap.Trackpoint.Long,
-		Track: snap.Trackpoint.Heading,
-		Altitude: snap.Trackpoint.Altitude,
-		Speed: snap.Trackpoint.GroundSpeed,
-		// Squawk string
-		// Radar string
-		EquipType: snap.Flight.EquipmentType,	
-		Registration: snap.Flight.Registration,
-		// Epoch float64
-		Origin: snap.Flight.Origin,
-		Destination: snap.Flight.Destination,
-		FlightNumber: snap.Flight.BestFlightNumber(),	
-		// Unknown float64
-		VerticalSpeed: snap.Trackpoint.VerticalRate,
-		Callsign: snap.Flight.Callsign,
-		// Unknown2 float64
+	lines := []string{}
+
+	for _,a := range list {
+		line := fmt.Sprintf(
+			"%4.1fKM %4.1fKM %3.0fdeg %3.0fdeg %6.0fft %4.0fkt "+
+			"%4.4s %-8.8s %4.4s:%-4.4s %6.6s %-8.8s %-7.7s "+
+			"%2.0fs\n",
+			a.Dist3, a.Dist, a.BearingFromObserver, a.Track, a.Altitude, a.Speed,
+			a.EquipType, a.FlightNumber,
+			a.Origin, a.Destination, a.Id2, a.Callsign, a.Radar,
+			time.Since(time.Unix(int64(a.Epoch),0)).Seconds())
+
+		lines = append(lines, line)
 	}
+
+	//sort.Strings(lines)
+
+	return header + strings.Join(lines, "")
 }
 
 // }}}
+// {{{ FilterAircraft
 
-// {{{ FetchAirspace
+func FilterAircraft(in []Aircraft) []Aircraft {
+	out := []Aircraft{}
 
-func FetchAirspace(client *http.Client, bbox geo.LatlongBox) (*airspace.Airspace, string, error) {
-	as := airspace.Airspace{}
-	url := "http://fdb.serfr1.org/?json=1&"+bbox.ToCGIArgs("box")
+	for _,a := range in {
+		age := time.Since(time.Unix(int64(a.Epoch),0))
 
-	str := fmt.Sprintf("* FetchAirspace(%s)\n* %s\n", bbox, url)
-	
-	if resp,err := client.Get(url); err != nil {
-		return nil, str, err
-	} else if resp.StatusCode != http.StatusOK {
-		return nil, str, fmt.Errorf ("Bad status: %v", resp.Status)
-	} else if err := json.NewDecoder(resp.Body).Decode(&as); err != nil {
-		return nil, str, err
-	}
+		if age > 30 * time.Second { continue } // Data too old to use
+		if a.FlightNumber == "" { continue }   // Drop unscheduled traffic; poor way of skipping GA
+		if a.Altitude > 28000 { continue }     // Too high to be the problem
+		if a.Altitude <   750 { continue }     // Too low to be the problem
 
-	return &as, str, nil
-}
-
-// }}}
-// {{{ FilterSnapshots
-
-func FilterSnapshots(in []fdb.FlightSnapshot) []fdb.FlightSnapshot {
-	out := []fdb.FlightSnapshot{}
-
-	for _,snap := range in {
-		if snap.Flight.BestFlightNumber() == "" { continue }
-		if snap.Trackpoint.Altitude > 28000 { continue }
-		if snap.Trackpoint.Altitude <  1000 { continue }
-		if snap.Dist3ToReferenceKM > 80 { continue }
-		
-		out = append(out, snap)
-/*
-		if a.Radar == "T-F5M" { continue }    // 5m delayed data; not what's overhead
-		if a.FlightNumber == "" {continue}
-		// if a.BestIdent() == "" { continue }  // No ID info; not much interesting to say
-		if a.Altitude > 28000 { continue }    // Too high to be the problem
-		if a.Altitude <   500 { continue }    // Too low to be the problem
-
-		// Strip out little planes
-		skip := false
-		for _,e := range kBlacklistEquipmentTypes {
-			if a.EquipType == e { skip = true }
-		}
-		if skip { continue }
-*/
+		out = append(out, a)
 	}
 
 	return out
 }
 
 // }}}
-// {{{ SelectOverhead
+// {{{ IdentifyOverhead
 
-func SelectOverhead(snaps []fdb.FlightSnapshot) (*fdb.FlightSnapshot, string) {
-	if len(snaps) == 0 { return nil, "** empty list\n" }
+func IdentifyOverhead(as *airspace.Airspace, pos geo.Latlong, elev float64, algo Algorithm) (*Aircraft, string) {
+	if as == nil { return nil, "** airspace was nil" }
+	
+	str := "" // fmt.Sprintf("** Airspace **\n%s\n\n", as)
 
-	// closest plane has to be within 12 km to be 'overhead', and it has
-	// to be 4km away from the next-closest
-	if (snaps[0].Dist3ToReferenceKM < 12.0) {
-		if (len(snaps) == 1) || (snaps[1].Dist3ToReferenceKM - snaps[0].Dist3ToReferenceKM) > 4.0 {
-			return &snaps[0], "** selected 1st\n"
+	nearby := AirspaceToLocalizedAircraft(as, pos, elev)
+	filtered := FilterAircraft(nearby)
+	index,outcome := SelectViaAlgorithm(algo,pos,elev,filtered)
+
+	str += fmt.Sprintf("** Unfiltered [%d] **\n%s\n", len(nearby), AircraftToString(nearby))
+	str += fmt.Sprintf("** Filtered [%d] **\n%s\n", len(filtered), AircraftToString(filtered))
+	str += outcome
+
+	if index < 0 {
+		return nil,str
+	} else {
+		return &filtered[index], str
+	}
+}
+
+// }}}
+
+// {{{ SelectViaAlgorithm
+
+func SelectViaAlgorithm(algo Algorithm, pos geo.Latlong, elev float64, aircraft []Aircraft) (int,string) {
+	if len(aircraft) == 0 {
+		return -1, "** no filtered aircraft in range\n"
+	}
+	
+	switch algo {
+	case AlgoConservativeNoCongestion: return SelectViaConservativeHeuristic(aircraft)
+	case AlgoGrabClosest: return 0, "** grabbed closest\n"
+	default: return -1, fmt.Sprintf("** algorithm '%v' not known\n", algo)
+	}
+}
+
+// }}}
+// {{{ SelectViaConservativeHeuristic
+
+// The original, "no congestion allowed" heuristic ...
+//
+// closest plane has to be within 12 km to be 'overhead', and it has
+// to be 4km away from the next-closest
+
+func SelectViaConservativeHeuristic(in []Aircraft) (int, string) {
+	if (in[0].Dist3 < 12.0) {
+		if (len(in) == 1) || (in[1].Dist3 - in[0].Dist3) > 4.0 {
+			return 0, "** selected 1st\n"
 
 		} else {
-			return nil, "** 2nd was too close to 1st\n"
+			return -1, "** 2nd was too close to 1st\n"
 		}
 
 	} else {
-		return nil, "** 1st was too far away\n"
+		return -1, "** 1st was too far away\n"
 	}
 
 }
 
 // }}}
 
-// {{{ FindAllOverhead
+// Prob 1: URF on skypi. fr24 rewrites callsign into 'schedule number'; but the raw MLAT data
+//  has the registration as the callsign. So fr24 know how to map registration into 'schedule'.
+// Even more annoying, fr24 doesn't have IcaoID at this time, because it's on near-time FAA.
+//  fr24:  ["bc96f5f","",36.8055,-122.1902,162,15700,271,"0000","T-F5M","PC12","",1480729635,"SQL","SBA","",0,1088,"URF133",0]
+//  skypi: http://fdb.serfr1.org/fdb/tracks?idspec=AC06C3@1480729827
+// BUT BUT BUT ... the schedcache may save us, as it maps icaoids to flightnumbers; and with
+//  the fr24/URF hack, we'll now have those flightnumbers. Maybe !
 
-func FindAllOverhead(client *http.Client, pos geo.Latlong, elev float64, grabAny bool) (*Aircraft, []*Aircraft, []*Aircraft, error, string) {
-	str := fmt.Sprintf("*** FindAllOverhead for %s@%.0fft, at %s\n", pos, elev, date.NowInPdt())
+// The datatypes in this file can be confusing. The input:
+//
+//   pi/airspace.Airspace         : the input (from skypi, or fr24, or anything else)
+//     pi/airspace.AircraftData   : an ADSB message-based model of a flight at a point in time
+//       fdb/schedule.Schedule    : flightnumber, origin.dest, etc. If we have it.
+//       fdb/airframe.Airframe    : equipment type, registration, keyed from IcaoId. If we have it.
+//
+// And the output, only used within the complaints system:
+//
+//   complaints/flightid.Aircraft : a flattened subset of the above, localized to the user
 
-	outAll := []*Aircraft{}
-	outFilt := []*Aircraft{}	
-	
-	if pos.IsNil() {
-		return nil, outAll, outFilt, fmt.Errorf("flightid.FindOverhead needs a non-nil position"), str
-	}
-	
-	bbox := pos.Box(64,64) // A box with sides ~40 miles, centered on the observer
-	
-	as, deb, err := FetchAirspace(client, bbox)
-	str += deb
-	if err != nil { return nil, outAll, outFilt, err, str }
+/* New algorithm ...
 
-	snaps := AirspaceToSnapshots(as)
-	for i,_ := range snaps {
-		snaps[i].LocalizeTo(pos, elev)
-	}
-	sort.Sort(fdb.FlightSnapshotsByDist3(snaps))
-	str += "** nearby list:-\n"+fdb.DebugFlightSnapshotList(snaps)
+Inputs:
+ list of flights, each with a position, groundspeed, altitude, and timestamp.
+ user, also with a position, elevation, and timestamp (of button press)
 
-	filtered := FilterSnapshots(snaps)
-	str += "** filtered:-\n"+fdb.DebugFlightSnapshotList(filtered)
-	if len(filtered) == 0 { return nil, outAll, outFilt, nil, str }
+0. [Optional fudge]: apply a handicap delay to the user (assume they're late pressing the button)
 
-	overheadSnap,debug := SelectOverhead(filtered)
-	if overheadSnap == nil && grabAny {
-		overheadSnap = &filtered[0]
-		debug += "** grabbing first anyway\n"
-	}
-	str += debug
+1. Forward-extrapolate aircraft's position, based on (user.tstamp - flight.tstamp) * flight.velocity
+This is approximate; assumes level flight, and no acceleration.
 
-	for _,snap := range snaps { outAll = append(outAll, FlightSnapshotToAircraft(&snap)) }
-	for _,snap := range filtered { outFilt = append(outFilt, FlightSnapshotToAircraft(&snap)) }
-	
-	return FlightSnapshotToAircraft(overheadSnap), outAll, outFilt, nil, str
-}
+2. Compute the time delay for sound propagation, based on 3D distance
+This is approximate; speed of sound will vary with atmosphere.
 
-// }}}
-// {{{ FindOverhead
+3. Back-extrapolate the position of the aircraft at the time the button was pressed.
 
-func FindOverhead(client *http.Client, pos geo.Latlong, elev float64, grabAny bool) (*Aircraft, error, string) {
-	result := FindOverheadResult(client, pos, elev, grabAny)
-	return result.Flight, result.Err, result.Debug
-}
+4. Compute distance between aircraft and user.
 
-// }}}
+5. Sort aircraft by this distance.
 
-// {{{ FindOverheadResult
+A jet at 10,000', and 4KM lateral, is ~5KM away.
+A cessna at 2,000', and 4KM lateral, is <5KM away, and would be closest.
 
-func FindOverheadResult(client *http.Client, pos geo.Latlong, elev float64, grabAny bool) (out Result) {
-	out.Debug = fmt.Sprintf("*** FindAllOverhead for %s@%.0fft, at %s\n", pos, elev, date.NowInPdt())
-	
-	if pos.IsNil() {
-		out.Err = fmt.Errorf("flightid.FindOverhead needs a non-nil position")
-		return
-	}
-	
-	bbox := pos.Box(64,64) // A box with sides ~40 miles, centered on the observer
-	
-	as, deb, err := FetchAirspace(client, bbox)
-	out.Debug += deb
-	if err != nil {
-		out.Err = err
-		return
-	}
+ */
 
-	snaps := AirspaceToSnapshots(as)
-	for i,_ := range snaps {
-		snaps[i].LocalizeTo(pos, elev)
-	}
-	sort.Sort(fdb.FlightSnapshotsByDist3(snaps))
-	out.Debug += "** nearby list:-\n"+fdb.DebugFlightSnapshotList(snaps)
-
-	filtered := FilterSnapshots(snaps)
-	out.Debug += "** filtered:-\n"+fdb.DebugFlightSnapshotList(filtered)
-	if len(filtered) == 0 {
-		return
-	}
-
-	overheadSnap,debug := SelectOverhead(filtered)
-	if overheadSnap == nil && grabAny {
-		overheadSnap = &filtered[0]
-		out.Debug += "** grabbing first anyway\n"
-	}
-	out.Debug += debug
-
-	out.All = []*Aircraft{}
-	out.Filtered = []*Aircraft{}	
-	for _,snap := range snaps { out.All = append(out.All, FlightSnapshotToAircraft(&snap)) }
-	for _,snap := range filtered { out.Filtered = append(out.Filtered, FlightSnapshotToAircraft(&snap)) }
-
-	out.Flight = FlightSnapshotToAircraft(overheadSnap)
-	return
-}
-
-// }}}
 
 // {{{ -------------------------={ E N D }=----------------------------------
 
