@@ -2,6 +2,7 @@ package complaintdb
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"time"
 
@@ -227,6 +228,12 @@ func (cdb ComplaintDB)GetComplaintTimesInSpanByFlight(start,end time.Time, fligh
 // }}}
 // {{{ cdb.GetComplaintPositionsInSpan
 
+func round(num float64) int { return int(num + math.Copysign(0.5, num)) }
+func toFixed(num float64, precision int) float64 {
+	output := math.Pow(10, float64(precision))
+	return float64(round(num * output)) / output
+}
+
 func (cdb ComplaintDB)GetComplaintPositionsInSpan(start,end time.Time) ([]geo.Latlong, error) {
 	ret := []geo.Latlong{}
 
@@ -234,7 +241,8 @@ func (cdb ComplaintDB)GetComplaintPositionsInSpan(start,end time.Time) ([]geo.La
 		NewQuery(kComplaintKind).
 		Project("Profile.Lat","Profile.Long").
 		Filter("Timestamp >= ", start).
-		Filter("Timestamp < ", end)
+		Filter("Timestamp < ", end).
+		Limit(-1)
 
 	var data = []types.Complaint{}
 	if _,err := q.GetAll(cdb.Ctx(), &data); err != nil {
@@ -242,7 +250,12 @@ func (cdb ComplaintDB)GetComplaintPositionsInSpan(start,end time.Time) ([]geo.La
 	}
 	
 	for _,c := range data {
-		ret = append(ret, geo.Latlong{Lat:c.Profile.Lat, Long:c.Profile.Long})
+		// Round off the position data to a certain level of precision
+		lat,long := toFixed(c.Profile.Lat,2), toFixed(c.Profile.Long,2)
+		pos := geo.Latlong{Lat:lat, Long:long}
+		if ! pos.IsNil() {
+			ret = append(ret, pos)
+		}
 	}
 
 	return ret,nil
