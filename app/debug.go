@@ -10,13 +10,10 @@ import (
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/log"
 
-	"github.com/skypies/geo/sfo"
 	"github.com/skypies/util/date"
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
-	"github.com/skypies/complaints/flightid"
-	"github.com/skypies/complaints/fr24"
 )
 
 func init() {
@@ -34,35 +31,8 @@ func debSessionHandler(ctx context.Context, w http.ResponseWriter, r *http.Reque
 }
 
 func debHandler(w http.ResponseWriter, r *http.Request) {
-	pos := sfo.KLatlongSFO
-	ctx := req2ctx(r)
-	client := complaintdb.NewDB(ctx).HTTPClient()
-
-	fr := fr24.Fr24{Client: client}
-	if err := fr.EnsureHostname(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	
-	overheadFr24 := flightid.Aircraft{}
-	allFr24,filtFr24,debugFr24,err := fr.FindAllOverhead(pos, &overheadFr24, true)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	fr24Str := fmt.Sprintf("== %2d/%2d : %40.40s", len(filtFr24), len(allFr24), overheadFr24.String())
-
-	f,all,filt,err,debug := flightid.FindAllOverhead(client, pos, 0, true)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	skypiStr := fmt.Sprintf("== %2d/%2d : %40.40s", len(filt), len(all), f)
-	str := fmt.Sprintf("== fr24  %s\n== skypi %s\n\n==== fr24 ====\n%s\n==== SkyPi ====\n%s",
-		fr24Str, skypiStr, debugFr24, debug)
-
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte(str))
+	w.Write([]byte("OK!\n"))
 }
 
 func optoutHandler(w http.ResponseWriter, r *http.Request) {

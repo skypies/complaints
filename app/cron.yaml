@@ -24,8 +24,3 @@ cron:
 #  url: /bksv/scan-yesterday
 #  schedule: every day 02:02
 #  timezone: America/Los_Angeles
-
-# This should really get moved to DBv2 at some point
-- description: FlightDB scanning
-  url: /fdb/scan
-  schedule: every 2 mins

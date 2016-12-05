@@ -13,16 +13,6 @@ inbound_services:
 - mail_bounce
 
 handlers:
-- url: /fdb/scan
-  script: _go_app
-  login: admin
-- url: /fdb/addflight
-  script: _go_app
-  login: admin
-
-- url: /task/.*
-  script: _go_app
-  login: admin
 - url: /cdb/.*
   script: _go_app
   login: admin
@@ -49,6 +39,7 @@ handlers:
 - url: /_ah/bounce
   script: _go_app
   login: admin
+
 - url: /static
   static_dir: static
 - url: /favicon.ico

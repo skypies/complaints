@@ -13,7 +13,6 @@ import (
 	"github.com/skypies/geo"
 	fdb "github.com/skypies/flightdb2"
 
-	// "github.com/skypies/complaints/fr24"
 	"github.com/skypies/complaints/flightid"
 )
 
