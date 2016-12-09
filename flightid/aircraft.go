@@ -12,8 +12,8 @@ type Aircraft struct {
 	BearingFromObserver float64  `datastore:",noindex"`// bearing from the house
 	Fr24Url             string   `datastore:",noindex"`// Flightradar's playback view
 	
-	Id string            `datastore:",noindex"`// Flightradar's ID for this instance of this flight
-	Id2 string           `datastore:",noindex"`// Better known as ModeS
+	Id string            `datastore:",noindex"`// Our ID for this instance of this flight
+	Id2 string                                 // Better known as ModeS
 	Lat float64 `datastore:",noindex"`
 	Long float64 `datastore:",noindex"`
 	Track float64 `datastore:",noindex"`

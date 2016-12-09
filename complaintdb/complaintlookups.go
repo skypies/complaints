@@ -234,15 +234,22 @@ func toFixed(num float64, precision int) float64 {
 	return float64(round(num * output)) / output
 }
 
-func (cdb ComplaintDB)GetComplaintPositionsInSpan(start,end time.Time) ([]geo.Latlong, error) {
+// Leave icaoid as empty string to get all complaints; else limits to that aircraft
+func (cdb ComplaintDB)GetComplaintPositionsInSpanByIcao(start,end time.Time, icaoid string) ([]geo.Latlong, error) {
 	ret := []geo.Latlong{}
 
 	q := datastore.
 		NewQuery(kComplaintKind).
 		Project("Profile.Lat","Profile.Long").
 		Filter("Timestamp >= ", start).
-		Filter("Timestamp < ", end).
-		Limit(-1)
+		Filter("Timestamp < ", end)
+
+	if icaoid != "" {
+		cdb.Infof("Oho, adding id2=%s", icaoid)
+		q = q.Filter("AircraftOverhead.Id2 = ", icaoid)
+	}
+
+	q = q.Limit(-1)
 
 	var data = []types.Complaint{}
 	if _,err := q.GetAll(cdb.Ctx(), &data); err != nil {
@@ -376,7 +383,6 @@ func (cdb ComplaintDB)GetComplaintKeysInSpanByEmailAddress(start,end time.Time, 
 }
 
 // }}}
-
 
 
 // {{{ -------------------------={ E N D }=----------------------------------
