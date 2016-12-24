@@ -251,6 +251,9 @@ func (cdb ComplaintDB)GetComplaintPositionsInSpanByIcao(start,end time.Time, ica
 
 	q = q.Limit(-1)
 
+	// Could do this here ... but maybe semantics clearer higher up the stack.
+	// _,data,err := cdb.getMaybeCachedComplaintsByQuery(q, "my_keyname")
+	
 	var data = []types.Complaint{}
 	if _,err := q.GetAll(cdb.Ctx(), &data); err != nil {
 		return ret,err
