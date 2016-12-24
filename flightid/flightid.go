@@ -66,7 +66,7 @@ func AirspaceToLocalizedAircraft(as *airspace.Airspace, pos geo.Latlong, elev fl
 		a := Aircraft{
 			Dist: pos.DistKM(tp.Latlong),
 			Dist3: pos.Dist3(tp.Latlong, altitudeDelta),
-			BearingFromObserver: tp.Latlong.BearingTowards(pos),
+			BearingFromObserver: pos.BearingTowards(tp.Latlong),
 			//Id: "someid", // This is set via an IdSpec string below
 			Id2: icaoid,
 			Lat: tp.Lat,
@@ -84,7 +84,7 @@ func AirspaceToLocalizedAircraft(as *airspace.Airspace, pos geo.Latlong, elev fl
 			FlightNumber: ad.Schedule.IataFlight(),
 			// Unknown float64
 			VerticalSpeed: tp.VerticalRate,
-			Callsign: ad.Msg.Callsign, //"CAL123", //snap.Flight.Callsign,
+			Callsign: ad.Msg.Callsign,
 			// Unknown2 float64
 		}
 
