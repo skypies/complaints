@@ -5,6 +5,7 @@ import (
 
 	"google.golang.org/appengine/datastore"
 
+	"github.com/skypies/geo"
 	"github.com/skypies/complaints/complaintdb/types"
 )
 
@@ -59,6 +60,39 @@ func (cdb ComplaintDB) GetProfileByEmailAddress(ea string) (*types.ComplainerPro
 }
 
 // }}}
+// {{{ cdb.GetProfileLocations
+
+// uniqueUsers: if true, only one result per unique user; else one result per complaint.
+// icaoid: use empty string to get all complaints; else limits to that aircraft
+
+func (cdb ComplaintDB)GetProfileLocations() ([]geo.Latlong, error) {
+	ret := []geo.Latlong{}
+
+	q := datastore.
+		NewQuery(kComplainerKind).
+		//Project("Lat","Long"). // WTF; this limits the resultset to 280 results, not 5300 ??
+		Limit(-1)
+	
+	var data = []types.ComplainerProfile{}
+	if _,err := q.GetAll(cdb.Ctx(), &data); err != nil {
+		return ret,err
+	}
+
+	cdb.Infof("We saw %d locations", len(data))
+	
+	for _,cp := range data {
+		// Round off the position data to avoid exposing address
+		pos := ApproximatePosition(geo.Latlong{Lat:cp.Lat, Long:cp.Long})
+		if ! pos.IsNil() {
+			ret = append(ret, pos)
+		}
+	}
+
+	return ret,nil
+}
+
+// }}}
+
 // {{{ cdb.PutProfile
 
 func (cdb ComplaintDB) PutProfile(cp types.ComplainerProfile) error {

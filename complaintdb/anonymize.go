@@ -3,8 +3,7 @@ package complaintdb
 import (
 	"crypto/sha512"
 	"fmt"
-
-	//"golang.org/x/crypto/bcrypt"
+	"math"
 
 	"github.com/skypies/geo"
 	"github.com/skypies/util/date"
@@ -69,4 +68,21 @@ func AnonymizeComplaint(c *types.Complaint) *types.AnonymizedComplaint {
 	}
 
 	return &ac
+}
+
+// Rounds off a latlong to nearest KM - something that doesn't reveal addresses
+func ApproximatePosition(in geo.Latlong) geo.Latlong {
+	roundFunc := func (num float64) int {
+		return int(num + math.Copysign(0.5, num))
+	}
+	toDecimalPlacesFunc := func(num float64, precision int) float64 {
+		output := math.Pow(10, float64(precision))
+		return float64(roundFunc(num * output)) / output
+	}
+
+	precision := 2 // 2 decimal places ends up rounding to nearest km, more or less
+	return geo.Latlong{
+		Lat:  toDecimalPlacesFunc(in.Lat,  precision),
+		Long: toDecimalPlacesFunc(in.Long, precision),
+	}
 }

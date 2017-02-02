@@ -2,7 +2,6 @@ package complaintdb
 
 import (
 	"fmt"
-	"math"
 	"sort"
 	"time"
 
@@ -226,16 +225,12 @@ func (cdb ComplaintDB)GetComplaintTimesInSpanByFlight(start,end time.Time, fligh
 }
 
 // }}}
-// {{{ cdb.GetComplaintPositionsInSpan
+// {{{ cdb.GetComplaintPositionsInSpanByIcao
 
-func round(num float64) int { return int(num + math.Copysign(0.5, num)) }
-func toFixed(num float64, precision int) float64 {
-	output := math.Pow(10, float64(precision))
-	return float64(round(num * output)) / output
-}
+// uniqueUsers: if true, only one result per unique user; else one result per complaint.
+// icaoid: use empty string to get all complaints; else limits to that aircraft
 
-// Leave icaoid as empty string to get all complaints; else limits to that aircraft
-func (cdb ComplaintDB)GetComplaintPositionsInSpanByIcao(start,end time.Time, icaoid string) ([]geo.Latlong, error) {
+func (cdb ComplaintDB)GetComplaintPositionsInSpanByIcao(start,end time.Time, uniqueUsers bool, icaoid string) ([]geo.Latlong, error) {
 	ret := []geo.Latlong{}
 
 	q := datastore.
@@ -244,6 +239,19 @@ func (cdb ComplaintDB)GetComplaintPositionsInSpanByIcao(start,end time.Time, ica
 		Filter("Timestamp >= ", start).
 		Filter("Timestamp < ", end)
 
+	if uniqueUsers {
+		cdb.Infof("Oho, limiting to unique users, in a HORRIFIC WAY")
+
+		// Can't simply add Distinct() to this, as it forces us to add Timestamp into the projection,
+		// which renders Distinct() kinda useless, as the timestamps are always distinct :/
+		// So we have to filter afterwards, which is horrible.
+		q = datastore.
+			NewQuery(kComplaintKind).
+			Project("Profile.Lat","Profile.Long","Profile.EmailAddress").
+			Filter("Timestamp >= ", start).
+			Filter("Timestamp < ", end)
+	}
+	
 	if icaoid != "" {
 		cdb.Infof("Oho, adding id2=%s", icaoid)
 		q = q.Filter("AircraftOverhead.Id2 = ", icaoid)
@@ -259,10 +267,18 @@ func (cdb ComplaintDB)GetComplaintPositionsInSpanByIcao(start,end time.Time, ica
 		return ret,err
 	}
 	
+	seen := map[string]int{}
 	for _,c := range data {
-		// Round off the position data to a certain level of precision
-		lat,long := toFixed(c.Profile.Lat,2), toFixed(c.Profile.Long,2)
-		pos := geo.Latlong{Lat:lat, Long:long}
+		if uniqueUsers {
+			if _,exists := seen[c.Profile.EmailAddress]; exists {
+				continue
+			} else {
+				seen[c.Profile.EmailAddress]++
+			}
+		}
+
+		// Round off the position data to avoid exposing address
+		pos := ApproximatePosition(geo.Latlong{Lat:c.Profile.Lat, Long:c.Profile.Long})
 		if ! pos.IsNil() {
 			ret = append(ret, pos)
 		}

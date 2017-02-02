@@ -20,6 +20,11 @@ indexes:
   - name: EmailAddress
   - name: StructuredAddress.City
 
+- kind: ComplainerKind
+  properties:
+  - name: Lat
+  - name: Long
+
 - kind: ComplaintKind
   properties:
   - name: AircraftOverhead.FlightNumber
@@ -36,6 +41,13 @@ indexes:
   properties:
   - name: Profile.StructuredAddress.Zip
   - name: Timestamp
+
+- kind: ComplaintKind
+  properties:
+  - name: Timestamp
+  - name: Profile.EmailAddress
+  - name: Profile.Lat
+  - name: Profile.Long
 
 - kind: ComplaintKind
   properties:

@@ -19,6 +19,12 @@ func init() {
 	gob.Register(geo.LatlongSlice{})
 }
 
+// /heatmap?
+//   d=2h            - duration to get complaints over (end point is 'now')
+//  [icaoid=A04565] - limit to complaints for that one IcaoID
+//  [uniques=1]     - unique users, not complaints (i.e. one complaint per user within duration)
+//  [allusers=1]    - just dump all users via profile lookup (overrides 'd','icaoid' and 'uniques')
+
 // TODO: support explicit s,e values; use a longer lived TTL (and different key) when they're used.
 func heatmapHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
@@ -29,27 +35,39 @@ func heatmapHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Headers",
 		"Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token")
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
-	
-	dur := widget.FormValueDuration(r, "d")
-	if dur == 0 { dur = 15 * time.Minute }
-	if dur > 24 * time.Hour { dur = 24 * time.Hour }
-	
-	e := time.Now()	
-	s := e.Add(-1 * dur)
 
 	icaoid := r.FormValue("icaoid") // Might be empty string (match everything)
+	uniqueUsers := widget.FormValueCheckbox(r,"uniques")
 
-	key := fmt.Sprintf("heatmap-%s:%s", dur, icaoid)
+	dur := widget.FormValueDuration(r, "d")
+	if dur == 0 { dur = 15 * time.Minute }
+	if !uniqueUsers && dur > 24 * time.Hour { dur = 24 * time.Hour }
+
+	e := time.Now()	
+	s := e.Add(-1 * dur)
+	
+	key := fmt.Sprintf("heatmap-uniques=%v-%s:%s", uniqueUsers, dur, icaoid)
 	positions := geo.LatlongSlice{} // Use explicit type as registered with encoding/gob
 
+	// Now try a range of ways to fill up positions[] ...
 	if err := gaeutil.LoadFromMemcacheShardsTTL(ctx, key, &positions); err == nil {
 		// Fresh data from cache; we will use it !
-	} else if positions,err = cdb.GetComplaintPositionsInSpanByIcao(s,e,icaoid); err != nil {
+
+	} else if r.FormValue("allusers") != "" {
+		// Simply dump all user locations
+		if positions,err = cdb.GetProfileLocations(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+	} else if positions,err=cdb.GetComplaintPositionsInSpanByIcao(s,e,uniqueUsers,icaoid); err!=nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+
 	} else {
     // Datastore reutrned data; save to memcache, ignoring errors
 		ttl := time.Second * 2
+		if uniqueUsers { ttl = time.Hour * 24 }
 		gaeutil.SaveToMemcacheShardsTTL(ctx, key, &positions, ttl)
 	}
 
