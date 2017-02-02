@@ -6,7 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"google.golang.org/cloud/bigquery"
+	"cloud.google.com/go/bigquery"
+
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/taskqueue"
@@ -195,9 +196,20 @@ func submitLoadJob(r *http.Request, gcsfolder, gcsfile string) error {
 		return fmt.Errorf("Creating bigquery client: %v", err)
 	}
 
-	gcsSrc := client.NewGCSReference(fmt.Sprintf("gs://%s/%s", gcsfolder, gcsfile))
-	gcsSrc.SourceFormat = bigquery.JSON
+	myDataset := client.Dataset(bigqueryDataset)
+	destTable := myDataset.Table(bigqueryTableName)
 
+	gcsSrc := bigquery.NewGCSReference(fmt.Sprintf("gs://%s/%s", gcsfolder, gcsfile))
+	gcsSrc.SourceFormat = bigquery.JSON
+	gcsSrc.AllowJaggedRows = true
+
+	loader := destTable.LoaderFrom(gcsSrc)
+	loader.CreateDisposition = bigquery.CreateNever
+	job,err := loader.Run(ctx)	
+	if err != nil {
+		return fmt.Errorf("Submission of load job: %v", err)
+	}
+/*	
 	tableDest := &bigquery.Table{
 		ProjectID: bigqueryProject,
 		DatasetID: bigqueryDataset,
@@ -208,7 +220,7 @@ func submitLoadJob(r *http.Request, gcsfolder, gcsfile string) error {
 	if err != nil {
 		return fmt.Errorf("Submission of load job: %v", err)
 	}
-
+*/
 	time.Sleep(5 * time.Second)
 	
 	if status, err := job.Status(ctx); err != nil {
