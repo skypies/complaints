@@ -7,6 +7,7 @@ instance_class: F1
 automatic_scaling:
   # Default is 8; but there are latency issues that I think are
   # explained by requests blocking each other on the same (single) OS thread.
+  # Only python runtimes support this, sadly.
   max_concurrent_requests: 1
 
 inbound_services:
