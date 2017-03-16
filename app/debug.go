@@ -20,7 +20,7 @@ func init() {
 	http.HandleFunc("/deb", debHandler)
 	http.HandleFunc("/deb2", HandleWithSession(debSessionHandler, "/"))
 	http.HandleFunc("/deb3", HandleWithSession(debSessionHandler, ""))
-	http.HandleFunc("/optouts", optoutHandler)
+	http.HandleFunc("/deb4", countsHandler)
 }
 
 func debSessionHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -35,20 +35,16 @@ func debHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK!\n"))
 }
 
-func optoutHandler(w http.ResponseWriter, r *http.Request) {
+func countsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
 	cdb := complaintdb.NewDB(ctx)
-	users,err := cdb.GetComplainersCurrentlyOptedOut()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	str := fmt.Sprintf("OK! (%d results)\n\n", len(users))
-	for user,_ := range users {
-		str += fmt.Sprintf(" %s\n", user)
-	}
+	gs,_ := cdb.LoadGlobalStats()
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte(str))
+	if gs != nil {
+		for _,dc := range gs.Counts {
+			w.Write([]byte(fmt.Sprintf("%#v\n", dc)))
+		}
+	}
 }
 
 // countHackHandler will append a new complaint total to the daily counts object.

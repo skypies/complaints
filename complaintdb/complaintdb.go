@@ -65,8 +65,11 @@ func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem
 	gs,_ := cdb.LoadGlobalStats()
 	cdb.Debugf("gDCBEA_002", "global stats loaded")
 	stats := map[string]*DailyCount{}
+	maxDays := 60 // As many rows as we care about
+
 	if gs != nil {
 		for i,dc := range gs.Counts {
+			if i >= maxDays { break }
 			stats[date.Datestring2MidnightPdt(dc.Datestring).Format("Jan 02")] = &gs.Counts[i]
 		}
 	}
@@ -80,7 +83,8 @@ func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem
 	counts := []types.CountItem{}
 
 	cdb.Debugf("gDCBEA_004", "daily stats loaded (%d dailys, %d stats)", len(dailys), len(stats))
-	for _,daily := range dailys {
+	for i,daily := range dailys {
+		if i >= maxDays { break }
 		item := types.CountItem{
 			Key: daily.Timestamp().Format("Jan 02"),
 			Count: daily.NumComplaints,

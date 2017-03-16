@@ -57,8 +57,6 @@ func init() {
 	http.HandleFunc("/faq",    faqHandler)
 	http.HandleFunc("/intro",  gettingStartedHandler)
 
-	http.HandleFunc("/report",                  makeRedirectHandler("/report/"))
-	
 	http.HandleFunc("/zip",                     makeRedirectHandler("/report/zip"))
 	http.HandleFunc("/personal-report/results", makeRedirectHandler("/personal-report"))
 	

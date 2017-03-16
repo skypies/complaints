@@ -9,7 +9,7 @@ import (
 
 func init() {
 	http.HandleFunc("/stats", statsHandler)
-	http.HandleFunc("/stats-reset", statsResetHandler)
+	//http.HandleFunc("/stats-reset", statsResetHandler)
 }
 
 // {{{ statsResetHandler
