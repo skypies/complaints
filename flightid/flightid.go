@@ -11,8 +11,8 @@ import(
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/urlfetch"
 
-	fdb "github.com/skypies/flightdb2"
-	"github.com/skypies/flightdb2/fr24"
+	fdb "github.com/skypies/flightdb"
+	"github.com/skypies/flightdb/fr24"
 	"github.com/skypies/geo"
 	"github.com/skypies/pi/airspace"
 )

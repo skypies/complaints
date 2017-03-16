@@ -9,7 +9,7 @@ import (
 	"github.com/skypies/util/date"
 
 	"github.com/skypies/pi/airspace"
-	"github.com/skypies/flightdb2/fr24"
+	"github.com/skypies/flightdb/fr24"
 
 	"github.com/skypies/complaints/complaintdb/types"
 

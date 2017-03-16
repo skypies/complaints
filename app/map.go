@@ -2,7 +2,7 @@ package complaints
 
 import(
 	"net/http"
-	"github.com/skypies/flightdb2/ui"
+	"github.com/skypies/flightdb/ui"
 )
 
 func init() {

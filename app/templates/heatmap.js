@@ -1,1 +1,1 @@
-../../../flightdb2/ui/templates/heatmap.js
+../../../flightdb/ui/templates/heatmap.js

@@ -1,1 +1,1 @@
-../../../pi/frontend/templates/map-styles.js
+../../../flightdb/ui/templates/map-styles.js

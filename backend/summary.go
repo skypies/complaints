@@ -26,7 +26,7 @@ import (
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
 
-	fdb "github.com/skypies/flightdb2"
+	fdb "github.com/skypies/flightdb"
 )
 
 func init() {
