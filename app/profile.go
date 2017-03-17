@@ -10,6 +10,7 @@ import (
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
+	"github.com/skypies/complaints/flightid"
 )
 
 func init() {
@@ -47,6 +48,7 @@ func profileFormHandler(ctx context.Context, w http.ResponseWriter, r *http.Requ
 
 	var params = map[string]interface{}{
 		"Profile": cp,
+		"Selectors": flightid.ListSelectors(),
 		"MapsAPIKey": kGoogleMapsAPIKey, // For autocomplete & latlong goodness
 	}
 	params["Message"] = r.FormValue("msg")
@@ -95,8 +97,11 @@ func profileUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Re
 			Country: r.FormValue("AddrCountry"),
 		},
 		CcSfo: true, //FormValueCheckbox(r, "CcSfo"),
+		SelectorAlgorithm: r.FormValue("SelectorAlgorithm"),
+		SendDailyEmail: FormValueTriValuedCheckbox(r, "SendDailyEmail"),
 		DataSharing: FormValueTriValuedCheckbox(r, "DataSharing"),
 		ThirdPartyComms: FormValueTriValuedCheckbox(r, "ThirdPartyComms"),
+
 		Lat: lat,
 		Long: long,
 		ButtonId: []string{},

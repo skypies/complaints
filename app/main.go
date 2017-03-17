@@ -21,14 +21,17 @@ import (
 )
 
 var (
+	// Anything you add here also needs to be added into both of flightdb/*/template.go 
 	templates = template.Must(template.New("").Funcs(template.FuncMap{
 		"add": templateAdd,
 		"km2feet": templateKM2Feet,
 		"spacify": templateSpacifyFlightNumber,
 		"dict": templateDict,
+		"selectdict": templateSelectDict,
 		"formatPdt": templateFormatPdt,
 	}).ParseGlob("templates/*"))
 )
+
 func templateAdd(a int, b int) int { return a + b }
 func templateKM2Feet(x float64) float64 { return x * 3280.84 }
 func templateSpacifyFlightNumber(s string) string {
@@ -48,6 +51,14 @@ func templateDict(values ...interface{}) (map[string]interface{}, error) {
 }
 func templateFormatPdt(t time.Time, format string) string {
 	return date.InPdt(t).Format(format)
+}
+
+func templateSelectDict(name, dflt string, vals interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"Name": name,
+		"Default": dflt,
+		"Vals": vals,
+	}
 }
 
 func init() {

@@ -4,11 +4,12 @@
     <p>Hello, {{.Profile.FullName}} !</p>
 
     <p>All of these complaints have already been auto-submitted to
-    SFO. <b>PLEASE DO NOT FORWARD THIS EMAIL TO SFO.Noise</b> !</p>
+    SFO, so please do not forward this email to sfo.noise - they
+    already have them all !</p>
      
     <p>This is a {{if len .Complaints | ge 1}}single
     report{{else}}list of {{ len .Complaints }} reports{{end}}
-    relating to jets on the new <b>NextGen</b> flight paths for SFO,
+    relating to jets on flight paths for SFO,
     SJC and OAK. Where possible, the aircraft {{if len .Complaints | ne 1}}were{{else}}was{{end}}
     identified via flightradar24.com.</p>
 

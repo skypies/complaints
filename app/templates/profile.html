@@ -66,6 +66,10 @@
                 <i>(optional)</i></td>
             </tr>
 
+            <tr>
+              <td>Flight picker</td>
+              <td>{{template "widget-select-with-default" selectdict "SelectorAlgorithm" .Profile.SelectorAlgorithm .Selectors}}</td>
+            </tr>
           </table>
         </div>
 
@@ -75,6 +79,14 @@
         <p style="text-align:center"><input class="button" type="submit" value="SAVE PROFILE"/></p>
         <br/>
         
+        <div class="box">
+          <p> <input type="checkbox" name="SendDailyEmail"
+                     {{if .Profile.SendDailyEmailOK}}checked="1"{{end}}>
+            <b>I'd like to receive a daily email</b> that lists the details
+            of the complaints I've submitted.</p><br/>
+        </div>
+        <p/>
+
         <div class="box">
           <p> <input type="checkbox" name="DataSharing"
                      {{if .Profile.DataSharingOK}}checked="1"{{end}}>

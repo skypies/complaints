@@ -1,0 +1,9 @@
+{{define "widget-select-with-default"}}
+<!-- [[template "widget-select-with-default" selectdict "InputName" .Foo.Default .Bar.ValsList]] -->
+
+{{$dflt := .Default}}
+<p>
+<select name="{{.Name}}">{{range .Vals}}{{$k := index . 0 }}{{$v := index . 1 }}
+  <option value="{{$k}}"{{if $dflt}}{{if $dflt | eq $k}}selected="1"{{end}}{{end}}>{{$v}}</option>{{end}}
+</select>
+{{end}}

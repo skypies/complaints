@@ -31,6 +31,7 @@ var (
 		"km2feet": templateKM2Feet,
 		"spacify": templateSpacifyFlightNumber,
 		"dict": templateDict,
+		"dict4select": templateDict4select,
 		"formatPdt": templateFormatPdt,
 	}).ParseGlob("templates/*"))
 )
@@ -53,6 +54,13 @@ func templateDict(values ...interface{}) (map[string]interface{}, error) {
 }
 func templateFormatPdt(t time.Time, format string) string {
 	return date.InPdt(t).Format(format)
+}
+func templateDict4select(name, dflt string, vals [][]string) map[string]interface{} {
+	return map[string]interface{}{
+		"Name": name,
+		"Default": dflt,
+		"Vals": vals,
+	}
 }
 
 func req2ctx(r *http.Request) context.Context {

@@ -9,8 +9,15 @@ import (
 
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/urlfetch"
 
+	fdb "github.com/skypies/flightdb"
+	"github.com/skypies/flightdb/fr24"
+	"github.com/skypies/flightdb/ui"
+	"github.com/skypies/geo"
+	"github.com/skypies/geo/sfo"
 	"github.com/skypies/util/date"
+	"github.com/skypies/util/widget"
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
@@ -21,7 +28,18 @@ func init() {
 	http.HandleFunc("/deb2", HandleWithSession(debSessionHandler, "/"))
 	http.HandleFunc("/deb3", HandleWithSession(debSessionHandler, ""))
 	http.HandleFunc("/deb4", countsHandler)
+	http.HandleFunc("/deb5", airspaceHandler2)
 }
+
+// {{{ debHandler
+
+func debHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte("OK!\n"))
+}
+
+// }}}
+// {{{ debSessionHandler
 
 func debSessionHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	sesh,ok := GetUserSession(ctx)
@@ -30,10 +48,8 @@ func debSessionHandler(ctx context.Context, w http.ResponseWriter, r *http.Reque
 	w.Write([]byte(str))
 }
 
-func debHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte("OK!\n"))
-}
+// }}}
+// {{{ countsHandler
 
 func countsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
@@ -46,6 +62,9 @@ func countsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+
+// }}}
+// {{{ countHackHandler
 
 // countHackHandler will append a new complaint total to the daily counts object.
 // These are sorted elsewhere, so it's OK to 'append' out of sequence.
@@ -63,6 +82,9 @@ func countHackHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte("OK!\n"))	
 }
+
+// }}}
+// {{{ perftesterHandler
 
 func perftesterHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
@@ -126,6 +148,9 @@ func perftesterHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(str))	
 }
 
+// }}}
+// {{{ debugHandler3
+
 func debugHandler3(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
 	cdb := complaintdb.NewDB(ctx)
@@ -140,6 +165,45 @@ func debugHandler3(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(str))
 }
+
+// }}}
+
+// {{{ airspaceHandler2
+
+func airspaceHandler2(w http.ResponseWriter, r *http.Request) {
+	client := urlfetch.Client(appengine.NewContext(r))
+	pos := geo.Latlong{37.060312,-121.990814}
+
+	syncedAge := widget.FormValueDuration(r, "sync")
+	if syncedAge == 0 { syncedAge = 2 * time.Minute }
+	
+	as,err := fr24.FetchAirspace(client, pos.Box(100,100))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("FetchAirspace: %v", err), http.StatusInternalServerError)
+		return
+	}
+	ms := ui.NewMapShapes()
+	for _,ad := range as.Aircraft {
+		tp := fdb.TrackpointFromADSB(ad.Msg)
+		age := time.Since(tp.TimestampUTC)
+		rewindDuration := age - syncedAge
+		newTp := tp.RepositionByTime(rewindDuration)
+
+		ms.AddIcon(ui.MapIcon{TP:&tp,    Color:"#404040", Text:ad.Msg.Callsign,     ZIndex:1000})
+		ms.AddIcon(ui.MapIcon{TP:&newTp, Color:"#c04040", Text:ad.Msg.Callsign+"'", ZIndex:2000})
+		ms.AddLine(ui.MapLine{Start:tp.Latlong, End:newTp.Latlong, Color:"#000000"})
+	}
+	
+	var params = map[string]interface{}{
+		"Legend": "Debug Thing",
+		"Center": sfo.KFixes["YADUT"],
+		"Zoom": 9,
+	}
+	
+	ui.MapHandlerWithShapesParams(w, r, ms, params);
+}
+
+// }}}
 
 // {{{ -------------------------={ E N D }=----------------------------------
 

@@ -17,12 +17,6 @@ import(
 	"github.com/skypies/pi/airspace"
 )
 
-type Algorithm int
-const(
-	AlgoConservativeNoCongestion Algorithm = iota
-	AlgoGrabClosest
-)
-
 func init() {
 	http.HandleFunc("/cdb/airspace", airspaceHandler)
 }
@@ -38,12 +32,18 @@ func airspaceHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("FetchAirspace: %v", err), http.StatusInternalServerError)
 		return
 	} else {		
-		oh,debstr := IdentifyOverhead(as, pos, 0.0, AlgoConservativeNoCongestion)
-		str += fmt.Sprintf("--{ IdentifyOverhead }--\n -{ OH: %s }-\n\n%s\n", oh, debstr)
+		names := SelectorNames
+		names = append([]string{"conservative"}, names...)
+		for _,name := range names {
+			algo := NewSelector(name)
+			oh,debstr := IdentifyOverhead(as, pos, 0.0, algo)
+			str += fmt.Sprintf("--{ IdentifyOverhead, algo: %s }--\n -{ OH: %s }-\n\n%s\n",
+				algo, oh, debstr)
+		}
 	}
 	
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte("OK\n\n"+str))
+	w.Write([]byte(str))
 }
 
 // }}}
@@ -69,26 +69,21 @@ func AirspaceToLocalizedAircraft(as *airspace.Airspace, pos geo.Latlong, elev fl
 			BearingFromObserver: pos.BearingTowards(tp.Latlong),
 			//Id: "someid", // This is set via an IdSpec string below
 			Id2: icaoid,
-			Lat: tp.Lat,
-			Long: tp.Long,
-			Track: tp.Heading,
-			Altitude: tp.Altitude,
-			Speed: tp.GroundSpeed,
 			// Squawk string
-			Radar: tp.ReceiverName,
 			EquipType: ad.Airframe.EquipmentType,	
 			Registration: ad.Airframe.Registration,
-			Epoch: float64(tp.TimestampUTC.Unix()),
+			////Epoch: float64(tp.TimestampUTC.Unix()),
 			Origin: ad.Schedule.Origin,
 			Destination: ad.Schedule.Destination,
 			FlightNumber: ad.Schedule.IataFlight(),
 			// Unknown float64
-			VerticalSpeed: tp.VerticalRate,
 			Callsign: ad.Msg.Callsign,
 			// Unknown2 float64
 		}
 
-		// Even though we may be parsing an fr24 airspace, generate a skypi idspec (which may break)
+		a.FromTrackpoint(tp) // Populate basic fields from the trackpoint
+		
+		// Even though we may be parsing an fr24 airspace, generate a (perhaps invalid) skypi idspec
 		if icaoid != "" {
 			a.Id = fdb.IdSpec{ IcaoId:icaoid, Time:tp.TimestampUTC }.String()
 		}
@@ -113,17 +108,17 @@ func AirspaceToLocalizedAircraft(as *airspace.Airspace, pos geo.Latlong, elev fl
 // {{{ AircraftToString
 
 func AircraftToString(list []Aircraft) string {
-	header := "3Dist  2Dist  Brng   Hdng    Alt      Speed Equp Flight   Orig:Dest IcaoID "+
+	header := "3Dist  2Dist  Brng   Hdng    Alt      Speed VertSpd  Equp Flight   Orig:Dest IcaoID "+
 		"Callsign Source  Age\n"
 
 	lines := []string{}
 
 	for _,a := range list {
 		line := fmt.Sprintf(
-			"%4.1fKM %4.1fKM %3.0fdeg %3.0fdeg %6.0fft %4.0fkt "+
+			"%4.1fKM %4.1fKM %3.0fdeg %3.0fdeg %6.0fft %4.0fkt %5.0ffpm "+
 			"%4.4s %-8.8s %4.4s:%-4.4s %6.6s %-8.8s %-7.7s "+
 			"%2.0fs\n",
-			a.Dist3, a.Dist, a.BearingFromObserver, a.Track, a.Altitude, a.Speed,
+			a.Dist3, a.Dist, a.BearingFromObserver, a.Track, a.Altitude, a.Speed, a.VerticalSpeed,
 			a.EquipType, a.FlightNumber,
 			a.Origin, a.Destination, a.Id2, a.Callsign, a.Radar,
 			time.Since(time.Unix(int64(a.Epoch),0)).Seconds())
@@ -157,65 +152,59 @@ func FilterAircraft(in []Aircraft) []Aircraft {
 }
 
 // }}}
+// {{{ TimeSyncAircraft
+
+// datapoints have ages from 3 to 30s. We sync them to a target age, doing some linear extrapolation
+// to adjust the position and altitude. The idea is that they're a more accurate set of data to
+// pick a culprit from.
+
+func TimeSyncAircraft(in []Aircraft, pos geo.Latlong, elev float64, targetAge time.Duration) []Aircraft {
+	out := []Aircraft{}
+	
+	for i,_ := range in {
+		new := in[i] // copy it over, then move the new one
+
+		actualAge := time.Since(time.Unix(int64(new.Epoch),0))
+		timeToWind := actualAge - targetAge
+
+		newTP := new.Trackpoint().RepositionByTime(timeToWind)
+		new.FromTrackpoint(newTP)
+
+		new.Dist = pos.DistKM(new.Latlong())
+		new.Dist3 = pos.Dist3(new.Latlong(), new.Altitude-elev)
+		new.BearingFromObserver = pos.BearingTowards(new.Latlong())
+
+		out = append(out, new)
+	}
+
+	// Resort the array
+	sort.Sort(AircraftByDist3(out))
+
+	return out
+}
+
+// }}}
 // {{{ IdentifyOverhead
 
-func IdentifyOverhead(as *airspace.Airspace, pos geo.Latlong, elev float64, algo Algorithm) (*Aircraft, string) {
-	if as == nil { return nil, "** airspace was nil" }
+func IdentifyOverhead(as *airspace.Airspace, pos geo.Latlong, elev float64, algo Selector) (*Aircraft, string) {
+	if as == nil { return nil, "** airspace was nil\n" }
 	
-	str := "" // fmt.Sprintf("** Airspace **\n%s\n\n", as)
 
 	nearby := AirspaceToLocalizedAircraft(as, pos, elev)
 	filtered := FilterAircraft(nearby)
-	index,outcome := SelectViaAlgorithm(algo,pos,elev,filtered)
 
-	str += fmt.Sprintf("** Unfiltered [%d] **\n%s\n", len(nearby), AircraftToString(nearby))
-	str += fmt.Sprintf("** Filtered [%d] **\n%s\n", len(filtered), AircraftToString(filtered))
-	str += outcome
-
-	if index < 0 {
-		return nil,str
-	} else {
-		return &filtered[index], str
-	}
-}
-
-// }}}
-
-// {{{ SelectViaAlgorithm
-
-func SelectViaAlgorithm(algo Algorithm, pos geo.Latlong, elev float64, aircraft []Aircraft) (int,string) {
-	if len(aircraft) == 0 {
-		return -1, "** no filtered aircraft in range\n"
-	}
-	
-	switch algo {
-	case AlgoConservativeNoCongestion: return SelectViaConservativeHeuristic(aircraft)
-	case AlgoGrabClosest: return 0, "** grabbed closest\n"
-	default: return -1, fmt.Sprintf("** algorithm '%v' not known\n", algo)
-	}
-}
-
-// }}}
-// {{{ SelectViaConservativeHeuristic
-
-// The original, "no congestion allowed" heuristic ...
-//
-// closest plane has to be within 12 km to be 'overhead', and it has
-// to be 4km away from the next-closest
-
-func SelectViaConservativeHeuristic(in []Aircraft) (int, string) {
-	if (in[0].Dist3 < 12.0) {
-		if (len(in) == 1) || (in[1].Dist3 - in[0].Dist3) > 4.0 {
-			return 0, "** selected 1st\n"
-
-		} else {
-			return -1, "** 2nd was too close to 1st\n"
-		}
-
-	} else {
-		return -1, "** 1st was too far away\n"
+	if true {
+		targetAge := 9 * time.Second
+		filtered = TimeSyncAircraft(filtered, pos, elev, targetAge)
 	}
 
+	ret,outcome := algo.Identify(pos,elev,filtered)
+
+	str := fmt.Sprintf("**** identification method: %s\n**** outcome: %s\n\n", algo, outcome)
+	str += fmt.Sprintf("** Processed [%d] **\n%s\n", len(filtered), AircraftToString(filtered))
+	str += fmt.Sprintf("** Raw [%d] **\n%s\n", len(nearby), AircraftToString(nearby))
+
+	return ret,str
 }
 
 // }}}

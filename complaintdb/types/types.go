@@ -42,7 +42,9 @@ type ComplainerProfile struct {
 	StructuredAddress PostalAddress
 	Lat,Long          float64
 	CcSfo             bool `datastore:",noindex"`
+	SelectorAlgorithm string  // Users can have different algorithms (and maybe even params someday)
 
+	SendDailyEmail    int  // 0 == unset, 1 == OK/yes, -1 == no
 	DataSharing       int  // 0 == unset, 1 == OK/yes, -1 == no
 	ThirdPartyComms   int  `datastore:",noindex"` // 0 == unset, 1 == OK/yes, -1 == no
 
@@ -113,18 +115,15 @@ func (p *ComplainerProfile)Base64Decode(str string) error {
 	}
 }
 
-
+func (p ComplainerProfile)SendDailyEmailOK() bool {
+	return p.SendDailyEmail >= 0 // The default is "yes"
+}
 func (p ComplainerProfile)DataSharingOK() bool {
 	return p.DataSharing >= 0 // The default is "yes"
 }
-
 func (p ComplainerProfile)ThirdPartyCommsOK() bool {
 	return p.ThirdPartyComms >= 0 // The default is "yes"
 }
-
-
-//	DataSharingOK     int  // 0 == unknown, 1 == yes, -1 == no
-//	ThirdPartyComssOK int  // 0 == unknown, 1 == yes, -1 == no
 
 // }}}
 // {{{ Submission{}

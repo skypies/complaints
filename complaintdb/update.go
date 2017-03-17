@@ -35,8 +35,10 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 	
 	elev := 0.0
 	pos := geo.Latlong{cp.Lat,cp.Long}
-	algo := flightid.AlgoConservativeNoCongestion
-	if (c.Description == "ANYANY") { algo = flightid.AlgoGrabClosest }
+
+	algoName := cp.SelectorAlgorithm
+	if (c.Description == "ANYANY") { algoName = "random" }
+	algo := flightid.NewSelector(algoName)
 
 	if as,err := fr24.FetchAirspace(client, pos.Box(64,64)); err != nil {
 		cdb.Errorf("FindOverhead failed for %s: %v", cp.EmailAddress, err)

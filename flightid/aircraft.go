@@ -3,6 +3,9 @@ package flightid
 import(
 	"fmt"
 	"regexp"
+	"time"
+	"github.com/skypies/geo"
+	fdb "github.com/skypies/flightdb"
 )
 
 type Aircraft struct {
@@ -45,6 +48,8 @@ func (a Aircraft) String() string {
 	return fmt.Sprintf("%s[%s:%s-%s]", a.Id, a.FlightNumber, a.Origin, a.Destination)
 }
 
+func (a Aircraft)Latlong() geo.Latlong { return geo.Latlong{Lat:a.Lat, Long:a.Long} }
+
 // Why is this not getting invoked correctly ?/
 func (a Aircraft)BestIdent() string {
 	if a.FlightNumber != ""      {
@@ -63,4 +68,27 @@ func (a Aircraft)IATAAirlineCode() string {
 	}
 
 	return ""
+}
+
+func (a Aircraft)Trackpoint() fdb.Trackpoint {
+	return fdb.Trackpoint{
+		Latlong: geo.Latlong{a.Lat, a.Long},
+		Heading: a.Track,
+		Altitude: a.Altitude,
+		GroundSpeed: a.Speed,
+		ReceiverName: a.Radar,
+		TimestampUTC: time.Unix(int64(a.Epoch), 0),
+		VerticalRate: a.VerticalSpeed,
+	}
+}
+
+func (a *Aircraft)FromTrackpoint(tp fdb.Trackpoint) {
+	a.Lat = tp.Latlong.Lat
+	a.Long = tp.Latlong.Long
+	a.Track = tp.Heading
+	a.Altitude = tp.Altitude
+	a.Speed = tp.GroundSpeed
+	a.Radar = tp.ReceiverName
+	a.Epoch = float64(tp.TimestampUTC.Unix())
+	a.VerticalSpeed = tp.VerticalRate
 }

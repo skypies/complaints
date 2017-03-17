@@ -157,6 +157,8 @@ func SendComplaintsWithSpan(r *http.Request, start,end time.Time) (err error, st
 	sent_single_ok,sent_single_fail := 0,0
 	
 	for _,cp := range cps {
+		if cp.SendDailyEmailOK() == false { continue }
+
 		var complaints = []types.Complaint{}
 		complaints, err = cdb.GetComplaintsInSpanByEmailAddress(cp.EmailAddress, start, end)
 
