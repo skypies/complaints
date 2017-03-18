@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"google.golang.org/appengine/datastore"
+	"google.golang.org/appengine/user"
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/urlfetch"
 	"golang.org/x/net/context"
@@ -25,8 +26,9 @@ var(
 
 // ComplaintDB is a transient handle to the database
 type ComplaintDB struct {
-	ctx context.Context
+	ctx       context.Context
 	StartTime time.Time
+	admin     bool
 }
 func (cdb ComplaintDB)Ctx() context.Context { return cdb.ctx }
 func (cdb ComplaintDB)HTTPClient() *http.Client { return urlfetch.Client(cdb.Ctx()) }
@@ -35,6 +37,7 @@ func NewDB(ctx context.Context) ComplaintDB {
 	return ComplaintDB{
 		ctx: ctx,
 		StartTime: time.Now(),
+		admin: (user.Current(ctx) != nil && user.Current(ctx).Admin),
 	}
 }
 

@@ -59,6 +59,19 @@ func (cdb ComplaintDB)getComplaintsByQuery(q *datastore.Query, memKey string) ([
 
 // }}}
 
+// {{{ cdb.GetRecentComplaintsByEmailAddress
+
+func (cdb ComplaintDB) GetRecentComplaintsByEmailAddress(ea string, n int) ([]types.Complaint, error) {
+	q := datastore.
+		NewQuery(kComplaintKind).
+		Ancestor(cdb.emailToRootKey(ea)).
+		Order("-Timestamp").
+		Limit(n)
+
+	return cdb.getComplaintsByQuery(q,"")
+}
+
+// }}}
 // {{{ cdb.GetComplaintsByEmailAddress
 
 func (cdb ComplaintDB) GetComplaintsByEmailAddress(ea string) ([]types.Complaint, error) {
@@ -315,7 +328,7 @@ func (cdb ComplaintDB) GetComplaintByKey(keyString string, ownerEmail string) (*
 	if k.Parent() == nil {
 		return nil,fmt.Errorf("Get: key <%v> had no parent", k)
 	}
-	if k.Parent().StringID() != ownerEmail {
+	if !cdb.admin && k.Parent().StringID() != ownerEmail {
 		return nil,fmt.Errorf("Get: key <%v> owned by %s, not %s", k, k.Parent().StringID(), ownerEmail)
 	}
 

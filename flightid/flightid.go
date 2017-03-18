@@ -192,7 +192,7 @@ func IdentifyOverhead(as *airspace.Airspace, pos geo.Latlong, elev float64, algo
 	nearby := AirspaceToLocalizedAircraft(as, pos, elev)
 	filtered := FilterAircraft(nearby)
 
-	if true {
+	if false {
 		targetAge := 9 * time.Second
 		filtered = TimeSyncAircraft(filtered, pos, elev, targetAge)
 	}
