@@ -187,8 +187,7 @@ func TimeSyncAircraft(in []Aircraft, pos geo.Latlong, elev float64, targetAge ti
 // {{{ IdentifyOverhead
 
 func IdentifyOverhead(as *airspace.Airspace, pos geo.Latlong, elev float64, algo Selector) (*Aircraft, string) {
-	if as == nil { return nil, "** airspace was nil\n" }
-	
+	if as == nil { return nil, "** airspace was nil\n" }	
 
 	nearby := AirspaceToLocalizedAircraft(as, pos, elev)
 	filtered := FilterAircraft(nearby)

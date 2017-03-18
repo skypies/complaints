@@ -74,8 +74,14 @@ func profileUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Re
 	}		
 	long,err2 := strconv.ParseFloat(r.FormValue("Long"), 64)
 	if err2 != nil {
-		cdb.Errorf("profileUpdate:, parse long '%s': %v", r.FormValue("Long"), err)
+		cdb.Errorf("profileUpdate:, parse long '%s': %v", r.FormValue("Long"), err2)
 		http.Error(w, err2.Error(), http.StatusInternalServerError)
+		return
+	}
+	elev,err3 := strconv.ParseFloat(r.FormValue("Elevation"), 64)
+	if err3 != nil {
+		cdb.Errorf("profileUpdate:, parse elev '%s': %v", r.FormValue("Elevation"), err3)
+		http.Error(w, err3.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -104,6 +110,7 @@ func profileUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Re
 
 		Lat: lat,
 		Long: long,
+		Elevation: elev,
 		ButtonId: []string{},
 	}
 

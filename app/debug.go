@@ -28,7 +28,7 @@ func init() {
 	http.HandleFunc("/deb2", HandleWithSession(debSessionHandler, "/"))
 	http.HandleFunc("/deb3", HandleWithSession(debSessionHandler, ""))
 	http.HandleFunc("/deb4", countsHandler)
-	http.HandleFunc("/deb5", airspaceHandler2)
+	http.HandleFunc("/deb5", airspaceHandler2)  // http://localhost:8080/deb5?sync=-20s
 }
 
 // {{{ debHandler

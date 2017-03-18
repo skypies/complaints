@@ -41,6 +41,17 @@ function fillInAddress() {
 
   document.getElementById('mylat').value = place.geometry.location.lat()
   document.getElementById('mylong').value = place.geometry.location.lng()
+
+  var elevator = new google.maps.ElevationService;
+  elevator.getElevationForLocations({
+      'locations': [place.geometry.location]
+  }, function(results, status) {
+    if (status === 'OK') {
+      if (results[0]) {
+          document.getElementById('myelev').value = results[0].elevation
+      }
+    }
+  });
     
   // Get each component of the address from the place details
   // and fill the corresponding field on the form.

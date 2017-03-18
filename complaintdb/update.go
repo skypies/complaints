@@ -33,7 +33,7 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 		cdb.Debugf("cbe_011", "rate limit check passed (%d); calling FindOverhead", len(prevKeys))
 	}
 	
-	elev := 0.0
+	elev := cp.ElevationFeet()
 	pos := geo.Latlong{cp.Lat,cp.Long}
 
 	algoName := cp.SelectorAlgorithm

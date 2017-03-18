@@ -4,7 +4,7 @@
   {{template "header"}}
   <body>
     <h1>Make them count&nbsp;!</h1>
-
+    
     <form action="/profile-update" method="post" onkeypress="return event.keyCode != 13;">
       
       <div class="stack">
@@ -51,13 +51,15 @@
                        name="AddrZip" value="{{.Profile.StructuredAddress.Zip}}"/>
             </tr>
             <tr>
-              <td valign="top"><i>Lat/long</i></td>
+              <td valign="top">Position</td>
               <td>
-                <input class="disabled" readonly="1" id="mylat" type="text" size="9" 
+                (<input class="disabled" readonly="1" id="mylat" type="text" size="9" 
                        name="Lat" value="{{.Profile.Lat}}"/>, 
                 <input class="disabled" readonly="1" id="mylong" type="text" size="10" 
-                       name="Long" value="{{.Profile.Long}}"/>
-                </td>
+                       name="Long" value="{{.Profile.Long}}"/>), at
+                <input class="disabled" readonly="1" id="myelev" type="text" size="6"
+                       name="Elevation" value="{{.Profile.Elevation}}"/> meters
+              </td>
             </tr>
             
             <tr>
@@ -83,7 +85,7 @@
           <p> <input type="checkbox" name="SendDailyEmail"
                      {{if .Profile.SendDailyEmailOK}}checked="1"{{end}}>
             <b>I'd like to receive a daily email</b> that lists the details
-            of the complaints I've submitted.</p><br/>
+            of the complaints I've submitted.</p>
         </div>
         <p/>
 

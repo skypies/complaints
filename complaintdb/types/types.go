@@ -41,6 +41,7 @@ type ComplainerProfile struct {
 	Address           string `datastore:",noindex"`
 	StructuredAddress PostalAddress
 	Lat,Long          float64
+	Elevation         float64 // in meters
 	CcSfo             bool `datastore:",noindex"`
 	SelectorAlgorithm string  // Users can have different algorithms (and maybe even params someday)
 
@@ -49,6 +50,10 @@ type ComplainerProfile struct {
 	ThirdPartyComms   int  `datastore:",noindex"` // 0 == unset, 1 == OK/yes, -1 == no
 
 	ButtonId        []string // AWS IoT button serial numbers
+}
+func (p ComplainerProfile)ElevationFeet() float64 {
+	elevKM := p.Elevation / 1000.0
+	return elevKM * geo.KFeetPerKM
 }
 
 // Attempt to split into firstname, surname

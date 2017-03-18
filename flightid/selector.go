@@ -4,6 +4,7 @@ import(
 	"fmt"
 	"math"
 	"math/rand"
+	"sort"
 	"github.com/skypies/geo"
 )
 
@@ -18,13 +19,13 @@ type Selector interface {
 }
 
 // SelectorNames is the list of selectors we want users to be able to pick from
-var SelectorNames = []string{"conservative","lowest"}
+var SelectorNames = []string{"conservative","cone"}
 
 func NewSelector(name string) Selector {
 	switch name {
 	case "random": return AlgoRandom{}
 	case "conservative": return AlgoConservativeNoCongestion{}
-	case "lowest": return AlgoLowestBreaksTies{}
+	case "cone": return AlgoLowestInCone{}
 	default: return AlgoRandom{}
 	}
 }
@@ -59,26 +60,34 @@ func (a AlgoConservativeNoCongestion)Identify(pos geo.Latlong, elev float64, in 
 	}
 }
 
-// The original, "no congestion allowed" heuristic ...
-type AlgoLowestBreaksTies struct{}
-func (a AlgoLowestBreaksTies)String() string { return "Picks lowest if there's congestion [EXPERIMENTAL]" } 
-func (a AlgoLowestBreaksTies)Identify(pos geo.Latlong, elev float64, in []Aircraft) (*Aircraft,string) {
+
+type AlgoLowestInCone struct{}
+func (a AlgoLowestInCone)String() string {
+	return "Picks lowest inside a 45deg cone [EXPERIMENTAL]"
+}
+
+func (a AlgoLowestInCone)Identify(pos geo.Latlong, elev float64, in []Aircraft) (*Aircraft,string) {
 	if (in[0].Dist3 >= 12.0) {
 		return nil, "not picked; 1st closest was too far away (>12KM)"
 	} else if (len(in) == 1) || (in[1].Dist3 - in[0].Dist3) > 4.0 {
 		return &in[0], "selected 1st closest"
-	} else {
-		// Congestion.
-		hDist := in[1].Dist3 - in[0].Dist3
-		if math.Abs(in[1].Altitude - in[0].Altitude) > 2000 {
-			if in[1].Altitude > in[0].Altitude {
-				return &in[0], fmt.Sprintf("selected 1st closest (2nd was only %.1fKM away from 1st, but was %.0ft higher)", hDist, in[1].Altitude-in[0].Altitude)
-			} else {
-				return &in[1], fmt.Sprintf("selected 2nd closest (2nd was only %.1fKM away from 1st, but was %.0ft lower)", hDist, in[0].Altitude-in[1].Altitude)
-			}
-		} else {
-			return nil, fmt.Sprintf("not picked; 2nd closest was too close to 1st (%.1fKM away, and %.0fft away)",
-				hDist, in[1].Altitude-in[0].Altitude)
+	}
+
+	// Build new list of just those flights which are within the cone (i.e. angle <45deg)
+	enconed := []Aircraft{}
+	for _,a := range in {
+		// angle between a vertical line from pos, and the line from pos to the aircraft.
+		horizDistKM := a.Dist
+		vertDistKM := (a.Altitude - elev) / geo.KFeetPerKM
+		if angle := math.Atan2(horizDistKM,vertDistKM) * (180.0 / math.Pi); angle <= 45 {
+			enconed = append(enconed, a)
 		}
 	}
+
+	if len(enconed) == 0 {
+		return nil, "not picked; nothing found inside 45deg cone."
+	}
+
+	sort.Sort(AircraftByAltitude(enconed))
+	return &enconed[0], "picked lowest in cone."
 }

@@ -44,6 +44,11 @@ func (s AircraftByDist3) Len() int      { return len(s) }
 func (s AircraftByDist3) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 func (s AircraftByDist3) Less(i, j int) bool { return s[i].Dist3 < s[j].Dist3 }
 
+type AircraftByAltitude []Aircraft
+func (s AircraftByAltitude) Len() int      { return len(s) }
+func (s AircraftByAltitude) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s AircraftByAltitude) Less(i, j int) bool { return s[i].Altitude < s[j].Altitude }
+
 func (a Aircraft) String() string {
 	return fmt.Sprintf("%s[%s:%s-%s]", a.Id, a.FlightNumber, a.Origin, a.Destination)
 }
