@@ -53,7 +53,9 @@ func (a AlgoRandom)Identify(pos geo.Latlong, elev float64, in []Aircraft) (*Airc
 type AlgoConservativeNoCongestion struct{}
 func (a AlgoConservativeNoCongestion)String() string { return "Conservative, gives up on congestion" } 
 func (a AlgoConservativeNoCongestion)Identify(pos geo.Latlong, elev float64, in []Aircraft) (*Aircraft,string) {
-	if (in[0].Dist3 >= 12.0) {
+	if len(in) == 0 {
+		return nil, "nothing in list"
+	} else if (in[0].Dist3 >= 12.0) {
 		return nil, "not picked; 1st closest was too far away (>12KM)"
 	} else if (len(in) == 1) || (in[1].Dist3 - in[0].Dist3) > 4.0 {
 		return &in[0], "selected 1st closest"

@@ -197,7 +197,10 @@ func IdentifyOverhead(as *airspace.Airspace, pos geo.Latlong, elev float64, algo
 		filtered = TimeSyncAircraft(filtered, pos, elev, targetAge)
 	}
 
-	ret,outcome := algo.Identify(pos,elev,filtered)
+	ret, outcome := nil, "nothing found in the sky"
+	if len(filtered) > 0 {
+		ret,outcome = algo.Identify(pos,elev,filtered)
+	}
 
 	str := fmt.Sprintf("**** identification method: %s\n**** outcome: %s\n\n", algo, outcome)
 	str += fmt.Sprintf("** Processed [%d] **\n%s\n", len(filtered), AircraftToString(filtered))
