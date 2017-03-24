@@ -9,8 +9,6 @@ import (
 
 	"github.com/skypies/util/date"
 	"github.com/skypies/util/gaeutil"
-
-	"google.golang.org/appengine/datastore"
 )
 
 // {{{ DailyCount
@@ -44,7 +42,7 @@ func (a DailyCountDesc) Less(i, j int) bool { return a[i].Datestring > a[j].Date
 
 // {{{ cdb.fetchDailyCountSingleton
 
-// 	might return: datastore.ErrNoSuchEntity
+// 	might return: gaeutil.ErrNoSuchEntityDS
 func  (cdb *ComplaintDB)fetchDailyCountSingleton(key string) ([]DailyCount, error) {
 	if data,err := gaeutil.LoadSingletonFromDatastore(cdb.Ctx(), key); err == nil {
 		buf := bytes.NewBuffer(data)
@@ -83,10 +81,11 @@ func (cdb *ComplaintDB) GetDailyCounts(email string) ([]DailyCount, error) {
 	cdb.Debugf("GDC_001", "GetDailyCounts() starting")
 
 	// 	might return: datastore.ErrNoSuchEntity
-	if dcs,err := cdb.fetchDailyCountSingleton(k); err == datastore.ErrNoSuchEntity {
+	if dcs,err := cdb.fetchDailyCountSingleton(k); err == gaeutil.ErrNoSuchEntityDS {
 		// Singleton not found; we don't care; treat same as empty singleton.
 	} else if err != nil {
-    cdb.Errorf("error getting item: %v", err)
+		err = fmt.Errorf("GetDailyCounts/fetchDailyCountSingleton: %v", err)
+    cdb.Errorf("%v", err)
 		return c, err
 	} else {
 		c = dcs

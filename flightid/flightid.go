@@ -187,7 +187,7 @@ func TimeSyncAircraft(in []Aircraft, pos geo.Latlong, elev float64, targetAge ti
 // {{{ IdentifyOverhead
 
 func IdentifyOverhead(as *airspace.Airspace, pos geo.Latlong, elev float64, algo Selector) (*Aircraft, string) {
-	if as == nil { return nil, "** airspace was nil\n" }	
+	if as == nil { return (*Aircraft)(nil), "** airspace was nil\n" }	
 
 	nearby := AirspaceToLocalizedAircraft(as, pos, elev)
 	filtered := FilterAircraft(nearby)
@@ -197,7 +197,7 @@ func IdentifyOverhead(as *airspace.Airspace, pos geo.Latlong, elev float64, algo
 		filtered = TimeSyncAircraft(filtered, pos, elev, targetAge)
 	}
 
-	ret, outcome := nil, "nothing found in the sky"
+	ret, outcome := (*Aircraft)(nil), "nothing found in the sky"
 	if len(filtered) > 0 {
 		ret,outcome = algo.Identify(pos,elev,filtered)
 	}

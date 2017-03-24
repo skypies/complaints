@@ -64,7 +64,7 @@ func HandleWithSession(ch contextHandler, ifNoSessionRedirectTo string) baseHand
 			//	log.Errorf(ctx, "cookie: %s", c)
 			//}
 			log.Errorf(ctx, "req: %s", reqBytes)
-			
+
 			// If we have a URL to redirect to, in cases of no session, then do it
 			if ifNoSessionRedirectTo != "" {
 				http.Redirect(w, r, ifNoSessionRedirectTo, http.StatusFound)
