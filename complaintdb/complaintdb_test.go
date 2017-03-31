@@ -39,6 +39,17 @@ func newConsistentContext() (context.Context, func(), error) {
 }
 
 // }}}
+// {{{ getProfile
+
+func getProfile(email string) types.ComplainerProfile {
+	return types.ComplainerProfile{
+		EmailAddress: email,
+		FullName: "A Tester",
+		Address: "1 Some St",
+	}
+}
+
+// }}}
 // {{{ getComplaints
 
 func getComplaints(n int) []types.Complaint {
@@ -47,10 +58,7 @@ func getComplaints(n int) []types.Complaint {
 		ret = append(ret, types.Complaint{
 			Timestamp: time.Now().Add(-1 * time.Minute * time.Duration(i)),
 			Description: fmt.Sprintf("This is complaint %d of %d", i+1, n),
-			Profile: types.ComplainerProfile{
-				EmailAddress: "a@b.cc",
-				FullName: "A Tester",
-			},
+			Profile: getProfile("a@b.cc"),
 		})
 	}
 	return ret
@@ -68,13 +76,38 @@ func TestCoreAPI(t *testing.T) {
 
 	cdb := NewDB(ctx)
 	cdb.Provider = p
+
+	// Quick test of profile calls
+	//
+	profile := getProfile("a@b.cc")
+	if err := cdb.PersistProfile(profile); err != nil {
+		t.Errorf("Persist profile err: %v\n", err)
+	}
+	if p,err := cdb.LookupProfile("no@such.address.com"); err != nil {
+		t.Errorf("Lookup on missing returned err: %v\n", err)
+	} else if p != nil {
+		t.Errorf("Lookup on missing found something: %v\n", p)
+	}
+	if p,err := cdb.LookupProfile(profile.EmailAddress); err != nil {
+		t.Errorf("Lookup err: %v\n", err)
+	} else if p == nil {
+		t.Errorf("Lookup on existing found nothing\n")
+	}
+	if profiles,err := cdb.LookupAllProfiles(cdb.NewProfileQuery()); err != nil {
+		t.Fatal(err)
+	} else if len(profiles) != 1 {
+		t.Errorf("Didn't find profile via generic query")
+	}
+
 	
+	// Now get onto complaints
+	//
 	complaints := getComplaints(5)
 	for _,c := range complaints {
 		if err := cdb.PersistComplaint(c); err != nil { t.Fatal(err) }
 	}
 	
-	run := func(expected int, q *CQuery) []types.Complaint {
+	runC := func(expected int, q *CQuery) []types.Complaint {
 		if results,err := cdb.LookupAll(q); err != nil {
 			t.Fatal(err)
 		} else if len(results) != expected {
@@ -85,20 +118,20 @@ func TestCoreAPI(t *testing.T) {
 		}
 		return nil
 	}
-	run(len(complaints), cdb.NewComplaintQuery())
-	run(3,               cdb.NewComplaintQuery().Limit(3))
+	runC(len(complaints), cdb.NewComplaintQuery())
+	runC(3,               cdb.NewComplaintQuery().Limit(3))
 
 	// Tests for the various semantic builders
 	//
 	tm := time.Now()
-	run(2,               cdb.NewComplaintQuery().ByTimespan(tm.Add(-90*time.Second), tm))
-	run(0,               cdb.NewComplaintQuery().ByTimespan(tm, tm.Add(1*time.Hour)))
+	runC(2,               cdb.NewComplaintQuery().ByTimespan(tm.Add(-90*time.Second), tm))
+	runC(0,               cdb.NewComplaintQuery().ByTimespan(tm, tm.Add(1*time.Hour)))
 
-	run(len(complaints), cdb.CQByEmail(complaints[0].Profile.EmailAddress))
-	run(0,               cdb.CQByEmail("no@such.address.com"))
+	runC(len(complaints), cdb.CQByEmail(complaints[0].Profile.EmailAddress))
+	runC(0,               cdb.CQByEmail("no@such.address.com"))
 
-	c1 := run(1,         cdb.NewComplaintQuery().OrderTimeAsc().Limit(1))
-	c2 := run(1,         cdb.NewComplaintQuery().OrderTimeDesc().Limit(1))
+	c1 := runC(1,         cdb.NewComplaintQuery().OrderTimeAsc().Limit(1))
+	c2 := runC(1,         cdb.NewComplaintQuery().OrderTimeDesc().Limit(1))
 	if c1[0].Timestamp.After(c2[0].Timestamp) {
 		t.Errorf("First from TimeAsc() was more recent than TimeDesc()")
 	}
@@ -125,7 +158,7 @@ func TestCoreAPI(t *testing.T) {
 	}
 
 	nExpected := len(complaints)-1
-	run(nExpected, cdb.NewComplaintQuery())
+	runC(nExpected, cdb.NewComplaintQuery())
 
 	// Test the iterator
 	nSeen := 0

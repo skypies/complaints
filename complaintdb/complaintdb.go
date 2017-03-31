@@ -3,17 +3,15 @@ package complaintdb
 import (
 	"fmt"
 	"net/http"
+	"sort"
 	"time"
 
-	"google.golang.org/appengine/datastore"  // for ErrFieldMismatch :/
 	"google.golang.org/appengine/user"
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/urlfetch"
 	"golang.org/x/net/context"
 
-	"github.com/skypies/util/date"
 	"github.com/skypies/util/dsprovider"
-
 	"github.com/skypies/complaints/complaintdb/types"
 )
 
@@ -65,194 +63,209 @@ func (cdb ComplaintDB)Errorf(fmtstr string, varargs ...interface{}) {
 // }}}
 
 
-// {{{ cdb.getDailyCountsByEmailAdress
+// {{{ cdb.emailToRootKeyer
 
-func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem, error) {
-	cdb.Debugf("gDCBEA_001", "starting")
-	gs,_ := cdb.LoadGlobalStats()
-	cdb.Debugf("gDCBEA_002", "global stats loaded")
-	stats := map[string]*DailyCount{}
-	maxDays := 60 // As many rows as we care about
-
-	if gs != nil {
-		for i,dc := range gs.Counts {
-			if i >= maxDays { break }
-			stats[date.Datestring2MidnightPdt(dc.Datestring).Format("Jan 02")] = &gs.Counts[i]
-		}
-	}
-	cdb.Debugf("gDCBEA_003", "global stats munged; loading daily")
-	
-	dailys,err := cdb.GetDailyCounts(ea)
-	if err != nil {
-		return []types.CountItem{}, err
-	}
-
-	counts := []types.CountItem{}
-
-	cdb.Debugf("gDCBEA_004", "daily stats loaded (%d dailys, %d stats)", len(dailys), len(stats))
-	for i,daily := range dailys {
-		if i >= maxDays { break }
-		item := types.CountItem{
-			Key: daily.Timestamp().Format("Jan 02"),
-			Count: daily.NumComplaints,
-		}
-		if dc,exists := stats[item.Key]; exists {
-			item.TotalComplainers = dc.NumComplainers
-			item.TotalComplaints = dc.NumComplaints
-			item.IsMaxComplainers = dc.IsMaxComplainers
-			item.IsMaxComplaints = dc.IsMaxComplaints
-		}
-		counts = append(counts, item)
-	}
-	cdb.Debugf("gDCBEA_005", "daily stats munged (%d counts)", len(counts))
-
-	return counts, nil
-}
-
-// }}}
-
-// {{{ cdb.EmailToRootKey[er]
-
-// The new(!?!) thing
-func (cdb ComplaintDB)EmailToRootKeyer(email string) dsprovider.Keyer {
+func (cdb ComplaintDB)emailToRootKeyer(email string) dsprovider.Keyer {
 	return cdb.Provider.NewNameKey(cdb.Ctx(), kComplainerKind, email, nil)
 }
 
-// The old things
-func (cdb ComplaintDB) emailToRootKey(email string) *datastore.Key {
-	return datastore.NewKey(cdb.Ctx(), kComplainerKind, email, 0, nil)
-}
-// Sigh
-func (cdb ComplaintDB) EmailToRootKey(email string) *datastore.Key {
-	return cdb.emailToRootKey(email)
-}
-
 // }}}
-// {{{ cdb.GetAllProfiles
 
-func (cdb ComplaintDB) GetAllProfiles() (cps []types.ComplainerProfile, err error) {
-	q := datastore.NewQuery(kComplainerKind)
-	cps = []types.ComplainerProfile{}
-	_, err = q.GetAll(cdb.Ctx(), &cps)
-	return
+// {{{ cdb.ComplaintKeyOwnedBy
+
+// We need to assert this in a few places
+func (cdb ComplaintDB)ComplaintKeyOwnedBy(keyer dsprovider.Keyer, owner string) (bool,error) {
+	parentKeyer := cdb.Provider.KeyParent(keyer)
+	if parentKeyer == nil {
+		// Insist on a parent, else we can't do owner checks
+		return false, fmt.Errorf("LookupKey: key <%v> had no parent", keyer)
+	}
+
+	if owner != "" && !cdb.admin && cdb.Provider.KeyName(parentKeyer) != owner {
+		return false,fmt.Errorf("LookupKey: key <%v> owned by %s, not %s",
+			keyer, cdb.Provider.KeyName(parentKeyer), owner)
+	}
+
+	return true, nil
 }
 
-// }}}
-// {{{ cdb.TouchAllProfiles
-
-// Does a Get and a Put on all the profile objects. This seems to be necessary to fully
-// undo the historic effects of a `datastore=noindex`.
-func (cdb ComplaintDB) TouchAllProfiles() (int,error) {
-	profiles, err := cdb.GetAllProfiles()
+func (cdb ComplaintDB)ComplaintKeyStrOwnedBy(keyStr, owner string) (bool,error) {
+	keyer,err := cdb.Provider.DecodeKey(keyStr)
 	if err != nil {
-		return 0,err
+		return false, fmt.Errorf("LookupKey: %v", err)
 	}
-
-	for i,cp := range profiles {
-		if err := cdb.PutProfile(cp); err != nil {
-			return i,err
-		}
-	}
-
-	return len(profiles), nil
+	return cdb.ComplaintKeyOwnedBy(keyer, owner)
 }
 
 // }}}
-// {{{ cdb.GetEmailCityMap
 
-func (cdb ComplaintDB) GetEmailCityMap() (map[string]string, error) {
-	cities := map[string]string{}
+// {{{ cdb.PersistComplaint
 
-	q := datastore.NewQuery(kComplainerKind).Project("EmailAddress", "StructuredAddress.City")
+func (cdb ComplaintDB)PersistComplaint(c types.Complaint) error {
+	rootKeyer := cdb.emailToRootKeyer(c.Profile.EmailAddress)
+	keyer := cdb.Provider.NewIncompleteKey(cdb.Ctx(), kComplaintKind, rootKeyer)
+	if _,err := cdb.Provider.Put(cdb.Ctx(), keyer, &c); err != nil {
+		return fmt.Errorf("PersistComplaint/Put: %v", err)
+	}
+	return nil
+}
+
+// }}}
+// {{{ cdb.LookupKey
+
+// If owner is non-empty, return error if the looked-up key doesn't have that owner. Unless
+// the admin flag is set on the DB handle.
+func (cdb ComplaintDB)LookupKey(keyerStr string, owner string) (*types.Complaint, error) {
+	keyer,err := cdb.Provider.DecodeKey(keyerStr)
+	if err != nil {
+		return nil, fmt.Errorf("LookupKey: %v", err)
+	}
+
+	if _,err := cdb.ComplaintKeyOwnedBy(keyer, owner); err != nil {
+		return nil, fmt.Errorf("LookupKey: ACL failure: %v\n", err)
+	}
+
+	c := types.Complaint{}
+	if err := cdb.Provider.Get(cdb.Ctx(), keyer, &c); err != nil {
+		return nil, fmt.Errorf("LookupKey: %v", err)
+	}
+	
+	FixupComplaint(&c, keyer.Encode())
+
+	return &c, nil
+}
+
+// }}}
+// {{{ cdb.LookupAll
+
+func (cdb ComplaintDB)LookupAll(cq *CQuery) ([]types.Complaint, error) {
+	complaints := []types.Complaint{}
+
+	cdb.Debugf("cdbLA_201", "calling GetAll() ...")
+	keyers, err := cdb.Provider.GetAll(cdb.Ctx(), (*dsprovider.Query)(cq), &complaints)
+	cdb.Debugf("cdbLA_202", "... call done (n=%d)", len(keyers))
+
+	// We tolerate missing fields, because the DB is full of old objects with dead fields
+	if err != nil && err != dsprovider.ErrFieldMismatch {
+		return nil, fmt.Errorf("cdbLA: %v", err)
+	}
+	
+	for i,_ := range complaints {
+		FixupComplaint(&complaints[i], keyers[i].Encode())
+	}
+
+	sort.Sort(types.ComplaintsByTimeDesc(complaints))
+
+	return complaints,nil
+}
+
+// }}}
+// {{{ cdb.LookupFirst
+
+func (cdb ComplaintDB)LookupFirst(cq *CQuery) (*types.Complaint, error) {
+	if complaints,err := cdb.LookupAll(cq.Limit(1)); err != nil {
+		return nil, err
+	} else if len(complaints) == 0 {
+		return nil, nil
+	} else {
+		return &complaints[0], nil
+	}
+}
+
+// }}}
+// {{{ cdb.LookupAllKeys
+
+func (cdb ComplaintDB)LookupAllKeys(cq *CQuery) ([]dsprovider.Keyer, error) {
+	q := (*dsprovider.Query)(cq)
+	return cdb.Provider.GetAll(cdb.Ctx(), q.KeysOnly(), nil)
+}
+
+// }}}
+// {{{ cdb.DeleteByKey
+
+func (cdb ComplaintDB)DeleteByKey(keyer dsprovider.Keyer) error {
+	return cdb.Provider.Delete(cdb.Ctx(), keyer)
+}
+
+// }}}
+// {{{ cdb.DeleteAllKeys
+
+func (cdb ComplaintDB)DeleteAllKeys(keyers []dsprovider.Keyer) error {
+	return cdb.Provider.DeleteMulti(cdb.Ctx(), keyers)
+}
+
+// }}}
+
+// {{{ cdb.PersistProfile
+
+func (cdb ComplaintDB)PersistProfile(p types.ComplainerProfile) error {
+	keyer := cdb.emailToRootKeyer(p.EmailAddress)
+	if _,err := cdb.Provider.Put(cdb.Ctx(), keyer, &p); err != nil {
+		return fmt.Errorf("PersistProfile/Put: %v", err)
+	}
+	return nil
+}
+
+// }}}
+// {{{ cdb.[Must]LookupProfile
+
+// If not found, returns an error
+func (cdb ComplaintDB)MustLookupProfile(email string) (*types.ComplainerProfile, error) {
+	profile := types.ComplainerProfile{}
+	keyer := cdb.emailToRootKeyer(email)
+	
+	if err := cdb.Provider.Get(cdb.Ctx(), keyer, &profile); err != nil {
+		return nil,err
+	}
+
+	return &profile,nil
+}
+
+// LookupProfile swallows the not-found error; and returns an empty profile on all errors.
+func (cdb ComplaintDB)LookupProfile(email string) (*types.ComplainerProfile, error) {
+	if p,err := cdb.MustLookupProfile(email); err == dsprovider.ErrNoSuchEntity {
+		return &types.ComplainerProfile{}, nil
+	} else if err != nil {
+		return &types.ComplainerProfile{}, fmt.Errorf("LookupProfile: %v", err)
+	} else {
+		return p, nil
+	}
+}
+
+// }}}
+// {{{ cdb.LookupAllProfiles
+
+func (cdb ComplaintDB)LookupAllProfiles(cq *CQuery) ([]types.ComplainerProfile, error) {
 	profiles := []types.ComplainerProfile{}
-	if _,err := q.GetAll(cdb.Ctx(), &profiles); err != nil {
-		return cities, err
-	}
 
-	for _,profile := range profiles {
-		city := profile.StructuredAddress.City
-		if city == "" { city = "Unknown" }
-		cities[profile.EmailAddress] = city
-	}
+	cdb.Debugf("cdbLAP_201", "calling GetAll() ...")
+	keyers, err := cdb.Provider.GetAll(cdb.Ctx(), (*dsprovider.Query)(cq), &profiles)
+	cdb.Debugf("cdbLAP_202", "... call done (n=%d)", len(keyers))
 
-	return cities, nil
+	return profiles,err
 }
 
 // }}}
 
-// {{{ cdb.DeleteComplaints
 
-func (cdb ComplaintDB) DeleteComplaints(keyStrings []string, ownerEmail string) error {
-	keys := []*datastore.Key{}
-	for _,s := range keyStrings {
-		k,err := datastore.DecodeKey(s)
-		if err != nil { return err }
+/* TODO
 
-		if k.Parent() == nil {
-			return fmt.Errorf("key <%v> had no parent", k)
-		}
-		if k.Parent().StringID() != ownerEmail {
-			return fmt.Errorf("key <%v> owned by %s, not %s", k, k.Parent().StringID(), ownerEmail)
-		}
-		keys = append(keys, k)
-	}
-	return datastore.DeleteMulti(cdb.Ctx(), keys)
-}
+1. Look in complaintdb/lookups.go - can this layer of logic live elsewhere ?
 
-// }}}
+3. Move ./types/types.go into ./<type>.go ?
 
-// {{{ cdb.GetComplainersCurrentlyOptedOut
+7. counts.go: rename to "usersummary" or something; make generation less magical, more explicit
+7a. consider renaming the DailyCount{} struct
+7b. house cdb.getDailyCounts somewhere with counts
+8. globalstats.go: rename to "sitesummary" ? Add something for monthly totals ? (unqiue users:/)
 
-func (cdb ComplaintDB)GetComplainersCurrentlyOptedOut() (map[string]int, error) {
-	q := datastore.
-		NewQuery(kComplainerKind).
-		Project("EmailAddress").
-		Filter("DataSharing =", -1).
-		Limit(-1)
+10. Kill off the address inference stuff ?
+11. Kill off kComplaintVersion
+12. Make use of that __datastorekey__ trick ?
+13. Remove cdb.Ctx() ?
+14. Kill off any memoization magic that is YAGNI
 
-	var data = []types.ComplainerProfile{}
-	if _,err := q.GetAll(cdb.Ctx(), &data); err != nil {
-		return map[string]int{}, err
-	}
-	
-	ret := map[string]int{}
-	for _,cp := range data {
-		ret[cp.EmailAddress]++
-	}
-	
-	return ret, nil
-}
-
-// }}}
-// {{{ cdb.GetComplainersWithinSpan
-
-func (cdb ComplaintDB)GetComplainersWithinSpan(start,end time.Time) ([]string, error) {
-	q := datastore.
-		NewQuery(kComplaintKind).
-		Project("Profile.EmailAddress").//Distinct(). // Sigh, can't do that *and* filter
-		Filter("Timestamp >= ", start).
-		Filter("Timestamp < ", end).
-		Limit(-1)
-
-	var data = []types.Complaint{}
-	if _,err := q.GetAll(cdb.Ctx(), &data); err != nil {
-		return []string{}, err
-	}
-	
-	uniques := map[string]int{}
-	for _,c := range data {
-		uniques[c.Profile.EmailAddress]++
-	}
-
-	ret := []string{}
-	for e,_ := range uniques {
-		ret = append(ret, e)
-	}
-	
-	return ret, nil
-}
-
-// }}}
+ */
 
 // {{{ -------------------------={ E N D }=----------------------------------
 

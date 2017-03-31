@@ -25,10 +25,9 @@ func init() {
 func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
 	cdb := complaintdb.NewDB(ctx)
-	var cps = []types.ComplainerProfile{}
-	cps, err := cdb.GetAllProfiles()
+	cps, err := cdb.LookupAllProfiles(cdb.NewProfileQuery())
 	if err != nil {
-		cdb.Errorf(" /bksv/scan-yesterday: getallprofiles: %v", err)
+		cdb.Errorf(" /bksv/scan-yesterday: getprofiles: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -75,7 +74,7 @@ func bksvSubmitUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	email := r.FormValue("user")
 
-	if cp,err := cdb.GetProfileByEmailAddress(email); err != nil {
+	if cp,err := cdb.MustLookupProfile(email); err != nil {
 		cdb.Errorf(" /bksv/submit-user(%s): getprofile: %v", email, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

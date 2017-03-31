@@ -9,6 +9,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
+	"github.com/skypies/util/dsprovider"
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
@@ -243,14 +244,17 @@ func deleteComplaintsHandler(ctx context.Context, w http.ResponseWriter, r *http
 		return
 	}
 	
-	keyStrings := []string{}
-	for k,_ := range r.Form {
-		if len(k) < 50 { continue }
-		keyStrings = append(keyStrings, k)
+	keyers := []dsprovider.Keyer{}
+	for keyStr,_ := range r.Form {
+		if len(keyStr) < 50 { continue }
+		keyer,_ := cdb.Provider.DecodeKey(keyStr)
+		if _,err := cdb.ComplaintKeyOwnedBy(keyer, sesh.Email); err == nil {
+			keyers = append(keyers, keyer)
+		}
 	}
-	cdb.Infof("Deleting %d complaints for %s", len(keyStrings), sesh.Email)
+	cdb.Infof("Deleting %d complaints for %s", len(keyers), sesh.Email)
 
-	if err := cdb.DeleteComplaints(keyStrings, sesh.Email); err != nil {
+	if err := cdb.DeleteAllKeys(keyers); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

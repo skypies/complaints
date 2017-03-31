@@ -222,6 +222,31 @@ func isBanned(r *http.Request) bool {
 }
 
 // }}}
+// {{{ getEmailCityMap
+
+func getEmailCityMap(cdb complaintdb.ComplaintDB) (map[string]string, error) {
+	cities := map[string]string{}
+
+	//q := datastore.NewQuery(kComplainerKind).Project("EmailAddress", "StructuredAddress.City")
+	//profiles := []types.ComplainerProfile{}
+	//if _,err := q.GetAll(cdb.Ctx(), &profiles);
+
+	q := cdb.NewProfileQuery().Project("EmailAddress", "StructuredAddress.City")
+	profiles,err := cdb.LookupAllProfiles(q)
+	if err != nil {
+		return cities, err
+	}
+
+	for _,profile := range profiles {
+		city := profile.StructuredAddress.City
+		if city == "" { city = "Unknown" }
+		cities[profile.EmailAddress] = city
+	}
+
+	return cities, nil
+}
+
+// }}}
 
 // {{{ summaryReportHandler
 
@@ -352,7 +377,7 @@ func communityReportHandler(w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(ctx)
 
 	// Use most-recent city info for all the users, not what got cached per-complaint
-	userCities,err := cdb.GetEmailCityMap()
+	userCities,err := getEmailCityMap(cdb)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -459,7 +484,7 @@ func userReportHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
 	cdb := complaintdb.NewDB(ctx)
 
-	profiles,err := cdb.GetAllProfiles()
+	profiles,err := cdb.LookupAllProfiles(cdb.NewProfileQuery())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

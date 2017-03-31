@@ -46,8 +46,8 @@ func SendEmailToAllUsers(r *http.Request, subject string) int {
 	ctx := req2ctx(r)
 	cdb := complaintdb.NewDB(ctx)
 
-	if cps,err := cdb.GetAllProfiles(); err != nil {
-		cdb.Errorf("SendEmailToAllUsers/GetAllProfiles: %v", err)
+	if cps,err := cdb.LookupAllProfiles(cdb.NewProfileQuery()); err != nil {
+		cdb.Errorf("SendEmailToAllUsers/GetProfiles: %v", err)
 		return 0
 
 	} else {

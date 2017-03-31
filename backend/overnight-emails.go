@@ -149,8 +149,7 @@ func SendComplaintsWithSpan(r *http.Request, start,end time.Time) (err error, st
 	blacklist := map[string]bool{}
 	for _,e := range blacklistAddrs { blacklist[e] = true }
 	
-	var cps = []types.ComplainerProfile{}
-	cps, err = cdb.GetAllProfiles()
+	cps,err := cdb.LookupAllProfiles(cdb.NewProfileQuery())
 	if err != nil { return }
 
 	complaints_private,complaints_submitted,no_data,sent_ok,sent_fail := 0,0,0,0,0

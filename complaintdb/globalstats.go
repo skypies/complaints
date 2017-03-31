@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"sort"
 	"time"
-	
-	"google.golang.org/appengine/datastore"
 
 	"github.com/skypies/util/date"
+	"github.com/skypies/util/dsprovider"
 )
 
 const (
@@ -28,12 +27,15 @@ type FrozenGlobalStats struct { Bytes []byte }
 
 func (cdb ComplaintDB)DeletAllGlobalStats() error {
 	fgs := []FrozenGlobalStats{}
-	q := datastore.NewQuery(kGlobalStatsKind).KeysOnly()
 
-	if keys,err := q.GetAll(cdb.Ctx(), &fgs); err != nil {
+	//q := datastore.NewQuery(kGlobalStatsKind).KeysOnly()
+	//if keys,err := q.GetAll(cdb.Ctx(), &fgs); err != nil {
+	q := cdb.NewQuery(kGlobalStatsKind).KeysOnly()
+	dsq := (*dsprovider.Query)(q)
+	if keyers,err := cdb.Provider.GetAll(cdb.Ctx(), dsq, &fgs); err != nil {
 		return err
 	} else {
-		return datastore.DeleteMulti(cdb.Ctx(), keys)
+		return cdb.Provider.DeleteMulti(cdb.Ctx(), keyers)
 	}
 }
 
@@ -44,11 +46,12 @@ func (cdb ComplaintDB)SaveGlobalStats(gs GlobalStats) error {
 	if gs.DatastoreKey == "" {
 		return fmt.Errorf("SaveGlobalStats: no .DatstoreKey")
 	}
-	key,_ := datastore.DecodeKey(gs.DatastoreKey)
+	//key,_ := datastore.DecodeKey(gs.DatastoreKey)
+	keyer,_ := cdb.Provider.DecodeKey(gs.DatastoreKey)
 	
 	var buf bytes.Buffer
 	if err := gob.NewEncoder(&buf).Encode(gs); err != nil { return err }
-	_,err := datastore.Put(cdb.Ctx(), key, &FrozenGlobalStats{Bytes: buf.Bytes()} )
+	_,err := cdb.Provider.Put(cdb.Ctx(), keyer, &FrozenGlobalStats{Bytes: buf.Bytes()} )
 
 	return err
 }
@@ -60,16 +63,19 @@ func (cdb ComplaintDB)LoadGlobalStats() (*GlobalStats, error) {
 	gs := GlobalStats{}
 
 	fgs := []FrozenGlobalStats{}
-	q := datastore.NewQuery(kGlobalStatsKind).Limit(10)
+	//q := datastore.NewQuery(kGlobalStatsKind).Limit(10)
+	//if keys, err := q.GetAll(cdb.Ctx(), &fgs); err != nil {
 
-	if keys, err := q.GetAll(cdb.Ctx(), &fgs); err != nil {
+	q := cdb.NewQuery(kGlobalStatsKind).Limit(10)
+	dsq := (*dsprovider.Query)(q)
+	if keyers,err := cdb.Provider.GetAll(cdb.Ctx(), dsq, &fgs); err != nil {
 		return nil, err
 	} else if len(fgs) != 1 {
 		return nil, fmt.Errorf("LoadGlobalStats: found %d, expected 1", len(fgs))
 	} else {
 		buf := bytes.NewBuffer(fgs[0].Bytes)
 		err := gob.NewDecoder(buf).Decode(&gs)
-		gs.DatastoreKey = keys[0].Encode()  // Store this, so we can overwrite
+		gs.DatastoreKey = keyers[0].Encode()  // Store this, so we can overwrite
 
 		// Pick out the high water marks ...
 		if len(gs.Counts) > 0 {
@@ -116,14 +122,14 @@ func (cdb ComplaintDB)ResetGlobalStats() {
 		return
 	}
 
-	profiles, err := cdb.GetAllProfiles()
+	profiles, err := cdb.LookupAllProfiles(cdb.NewProfileQuery())
 	if err != nil { return }
 
 	// Upon reset (writing a fresh new singleton), we need to generate a key
-	rootKey := datastore.NewKey(cdb.Ctx(), kGlobalStatsKind, "foo", 0, nil)
-	key := datastore.NewIncompleteKey(cdb.Ctx(), kGlobalStatsKind, rootKey)
+	rootKey := cdb.Provider.NewNameKey(cdb.Ctx(), kGlobalStatsKind, "foo", nil)
+	keyer := cdb.Provider.NewIncompleteKey(cdb.Ctx(), kGlobalStatsKind, rootKey)
 	gs := GlobalStats{
-		DatastoreKey: key.Encode(),
+		DatastoreKey: keyer.Encode(),
 	}
 	
 	// This is too slow to recalculate this way; it runs into the 10m timeout

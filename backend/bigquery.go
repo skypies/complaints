@@ -127,8 +127,19 @@ func writeAnonymizedGCSFile(r *http.Request, datestring, foldername,filename str
 	cdb := complaintdb.NewDB(ctx)
 
 	// Get a list of users that as of right now, have opted out of data sharing.
-	optOutUsers,err := cdb.GetComplainersCurrentlyOptedOut()
-	if err != nil { return 0, fmt.Errorf("get optout users: %v", err) }
+	optOutUsers := map[string]int{}
+	q := cdb.NewProfileQuery().
+		Project("EmailAddress").
+		Filter("DataSharing =", -1).
+		Limit(-1)
+	profiles,err := cdb.LookupAllProfiles(q)
+	if err != nil {
+		return 0, fmt.Errorf("get optout users: %v", err)
+	} else {
+		for _,cp := range profiles {
+			optOutUsers[cp.EmailAddress]++
+		}
+	}
 	
 	if exists,err := gcs.Exists(ctx, foldername, filename); err != nil {
 		return 0,err

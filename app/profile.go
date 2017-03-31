@@ -38,8 +38,7 @@ func profileFormHandler(ctx context.Context, w http.ResponseWriter, r *http.Requ
 
 	sesh,_ := GetUserSession(ctx)
 	cdb := complaintdb.NewDB(ctx)
-	cp, _ := cdb.GetProfileByEmailAddress(sesh.Email)
-
+	cp,_ := cdb.LookupProfile(sesh.Email)
 	if cp.EmailAddress == "" {
 		// First ever visit - empty profile !
 		cp.EmailAddress = sesh.Email
@@ -115,11 +114,11 @@ func profileUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Re
 	}
 
 	// Preserve some values from the old profile
-	if origProfile,err := cdb.GetProfileByEmailAddress(sesh.Email); err == nil {
+	if origProfile,err := cdb.MustLookupProfile(sesh.Email); err == nil {
 		cp.ButtonId = origProfile.ButtonId
 	}
 	
-	if err := cdb.PutProfile(cp); err != nil {
+	if err := cdb.PersistProfile(cp); err != nil {
 		cdb.Errorf("profileUpdate: cdb.Put: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -135,7 +134,7 @@ func profileUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Re
 func profileButtonsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	sesh,_ := GetUserSession(ctx)
 	cdb := complaintdb.NewDB(ctx)
-	cp,_ := cdb.GetProfileByEmailAddress(sesh.Email)
+	cp,_ := cdb.LookupProfile(sesh.Email)
 	
 	var params = map[string]interface{}{ "Buttons": cp.ButtonId }
 	if err := templates.ExecuteTemplate(w, "buttons", params); err != nil {
@@ -154,7 +153,7 @@ func profileButtonAddHandler(ctx context.Context, w http.ResponseWriter, r *http
 	cdb := complaintdb.NewDB(ctx)
 	sesh,_ := GetUserSession(ctx)
 	
-	cp, _ := cdb.GetProfileByEmailAddress(sesh.Email)
+	cp, _ := cdb.LookupProfile(sesh.Email)
 
 	if r.FormValue("NewButtonId") != "" {
 		id := sanitizeButtonId(r.FormValue("NewButtonId"))
@@ -165,14 +164,17 @@ func profileButtonAddHandler(ctx context.Context, w http.ResponseWriter, r *http
 		}
 
 		// Check we don't have the button registered already. This isn't super safe.
-		if existingProfile,_ := cdb.GetProfileByButtonId(id); existingProfile != nil {
+		if existing,err := cdb.LookupAllProfiles(cdb.NewProfileQuery().ByButton(id)); err != nil {
+			http.Error(w, err.Error(),http.StatusInternalServerError)
+			return
+		} else if len(existing) != 0 {
 			http.Error(w, fmt.Sprintf("Button '%s' is already claimed", id), http.StatusBadRequest)
 			return
 		}
 
 		cp.ButtonId = append(cp.ButtonId, id)
 
-		if err := cdb.PutProfile(*cp); err != nil {
+		if err := cdb.PersistProfile(*cp); err != nil {
 			cdb.Errorf("profileUpdate: cdb.Put: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -191,7 +193,7 @@ func profileButtonAddHandler(ctx context.Context, w http.ResponseWriter, r *http
 func profileButtonDeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(ctx)
 	sesh,_ := GetUserSession(ctx)
-	cp,_ := cdb.GetProfileByEmailAddress(sesh.Email)
+	cp,_ := cdb.LookupProfile(sesh.Email)
 
 	str := "OK\n--\n"
 
@@ -219,7 +221,7 @@ func profileButtonDeleteHandler(ctx context.Context, w http.ResponseWriter, r *h
 	}
 	cp.ButtonId = newIds
 
-	if err := cdb.PutProfile(*cp); err != nil {
+	if err := cdb.PersistProfile(*cp); err != nil {
 		cdb.Errorf("profileUpdate: cdb.Put: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

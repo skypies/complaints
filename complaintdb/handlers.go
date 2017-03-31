@@ -165,17 +165,25 @@ func YesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ touchAllProfilesHandler
 
 func touchAllProfilesHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := req2ctx(r)
-	cdb := NewDB(ctx)
+	cdb := NewDB(req2ctx(r))
 	tStart := time.Now()
-	n,err := cdb.TouchAllProfiles()
+
+	profiles, err := cdb.LookupAllProfiles(cdb.NewProfileQuery())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	for _,cp := range profiles {
+		if err := cdb.PersistProfile(cp); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte(fmt.Sprintf("OK backend! (%d profiles touched, tool %s)\n\n", n, time.Since(tStart))))
+	w.Write([]byte(fmt.Sprintf("OK backend! (%d profiles touched, tool %s)\n\n",
+		len(profiles), time.Since(tStart))))
 }
 
 // }}}

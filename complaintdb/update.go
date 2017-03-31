@@ -3,8 +3,6 @@ package complaintdb
 import (
 	"fmt"
 
-	"google.golang.org/appengine/datastore"
-
 	"github.com/skypies/geo"
 	"github.com/skypies/util/date"
 
@@ -91,21 +89,11 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 		cdb.Debugf("cbe_032", "updated in place (all done)")
 		return err
 	}
-	cdb.Debugf("cbe_033", "returned, distinct/first; about to put()")
 
-	key := datastore.NewIncompleteKey(cdb.Ctx(), kComplaintKind, cdb.emailToRootKey(cp.EmailAddress))	
-	_, err := datastore.Put(cdb.Ctx(), key, c)
+	cdb.Debugf("cbe_033", "returned, distinct/first; about to put()")
+	err := cdb.PersistComplaint(*c)
 	cdb.Debugf("cbe_034", "new entity added (all done)")
 
-	// TEMP
-/*
-	if debug,err := bksv.PostComplaint(client, cp, *c); err != nil {
-		cdb.Infof("BKSV Debug\n------\n%s\n------\n", debug)
-		cdb.Infof("BKSV posting error: %v", err)
-	} else {
-		cdb.Infof("BKSV Debug\n------\n%s\n------\n", debug)
-	}
-*/
 	return err
 }
 
@@ -118,7 +106,7 @@ func (cdb ComplaintDB) ComplainByEmailAddress(ea string, c *types.Complaint) err
 	var err error
 
 	cdb.Debugf("cbe_001", "ComplainByEmailAddress starting")
-	cp, err = cdb.GetProfileByEmailAddress(ea)
+	cp, err = cdb.MustLookupProfile(ea)
 	if err != nil { return err }
 	cdb.Debugf("cbe_002", "profile obtained")
 
@@ -129,24 +117,26 @@ func (cdb ComplaintDB) ComplainByEmailAddress(ea string, c *types.Complaint) err
 // {{{ cdb.ComplainByCallerCode
 
 func (cdb ComplaintDB) ComplainByCallerCode(cc string, c *types.Complaint) error {
-	var cp *types.ComplainerProfile
-	var err error
-	cp, err = cdb.GetProfileByCallerCode(cc)
-	if err != nil || cp == nil { return err }
-
-	return cdb.complainByProfile(*cp, c)
+	if profiles, err := cdb.LookupAllProfiles(cdb.NewProfileQuery().ByCallerCode(cc)); err != nil {
+		return err
+	} else if len(profiles) != 1 {
+		return fmt.Errorf("ComplainByCallerCode: %d profiles for id='%s'", len(profiles))
+	} else {
+		return cdb.complainByProfile(profiles[0], c)
+	}
 }
 
 // }}}
 // {{{ cdb.ComplainByButtonId
 
 func (cdb ComplaintDB) ComplainByButtonId(id string, c *types.Complaint) error {
-	var cp *types.ComplainerProfile
-	var err error
-	cp, err = cdb.GetProfileByButtonId(id)
-	if err != nil || cp == nil { return err }
-
-	return cdb.complainByProfile(*cp, c)
+	if profiles, err := cdb.LookupAllProfiles(cdb.NewProfileQuery().ByButton(id)); err != nil {
+		return err
+	} else if len(profiles) != 1 {
+		return fmt.Errorf("ComplainByButtonId: %d profiles for id='%s'", len(profiles))
+	} else {
+		return cdb.complainByProfile(profiles[0], c)
+	}
 }
 
 // }}}
@@ -156,52 +146,34 @@ func (cdb ComplaintDB) AddHistoricalComplaintByEmailAddress(ea string, c *types.
 	var cp *types.ComplainerProfile
 	var err error
 
-	cp, err = cdb.GetProfileByEmailAddress(ea)
+	cp, err = cdb.MustLookupProfile(ea)
 	if err != nil { return err }
 
 	c.Profile = *cp
 
-	key := datastore.NewIncompleteKey(cdb.Ctx(), kComplaintKind, cdb.emailToRootKey(cp.EmailAddress))	
-	_, err = datastore.Put(cdb.Ctx(), key, c)
-	return err
+	return cdb.PersistComplaint(*c)
 }
 
 // }}}
 
-// {{{ cdb.UpdateAnyComplaint
-
-func (cdb ComplaintDB) UpdateAnyComplaint(complaint types.Complaint) error {
-	if k,err := datastore.DecodeKey(complaint.DatastoreKey); err != nil {
-		return err
-
-	} else {
-		complaint.Version = kComplaintVersion
-		_,err := datastore.Put(cdb.Ctx(), k, &complaint)
-		return err
-	}
-}
-
-// }}}
 // {{{ cdb.UpdateComplaint
 
-func (cdb ComplaintDB) UpdateComplaint(complaint types.Complaint, ownerEmail string) error {
-	k,err := datastore.DecodeKey(complaint.DatastoreKey)
-	if err != nil { return err }
+// If owner is not nil, then complaint must be owned by it
+func (cdb ComplaintDB) UpdateComplaint(c types.Complaint, owner string) error {
+	keyer,err := cdb.Provider.DecodeKey(c.DatastoreKey)
+	if err != nil { return fmt.Errorf("UpdateComplaint/DecodeKey: %v", err) }
 
-	if k.Parent() == nil {
-		return fmt.Errorf("Update: key <%v> had no parent", k)
-	}
-	if k.Parent().StringID() != ownerEmail {
-		return fmt.Errorf("Update: key <%v> owned by %s, not %s", k, k.Parent().StringID(), ownerEmail)
-	}
+	parentKeyer := cdb.Provider.KeyParent(keyer)
+	if parentKeyer == nil { return fmt.Errorf("UpdateComplaint: key <%v> had no parent", keyer) }
 
-	complaint.Version = kComplaintVersion
-	
-	if _, err2 := datastore.Put(cdb.Ctx(), k, &complaint); err2 != nil {
-		return err2
+	if owner != "" && !cdb.admin && cdb.Provider.KeyName(parentKeyer) != owner {
+		return fmt.Errorf("UpdateComplaint: key <%v> owned by %s, not %s",
+			keyer, cdb.Provider.KeyName(parentKeyer), owner)
 	}
 
-	return nil
+	c.Version = kComplaintVersion // DIE
+
+	return cdb.PersistComplaint(c)
 }
 
 // }}}

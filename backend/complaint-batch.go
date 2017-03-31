@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"net/http"
 	
-	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/taskqueue"
 
 	"github.com/skypies/util/date"
 
 	"github.com/skypies/complaints/complaintdb"
-	"github.com/skypies/complaints/complaintdb/types"
 )
 
 func init() {
@@ -26,10 +24,9 @@ func upgradeHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
 	cdb := complaintdb.NewDB(ctx)
 
-	var cps = []types.ComplainerProfile{}
-	cps, err := cdb.GetAllProfiles()
+	cps,err := cdb.LookupAllProfiles(cdb.NewProfileQuery())
 	if err != nil {
-		cdb.Errorf("upgradeHandler: getallprofiles: %v", err)
+		cdb.Errorf("upgradeHandler: getprofiles: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -108,23 +105,22 @@ func purgeuserHandler(w http.ResponseWriter, r *http.Request) {
 
 	str := fmt.Sprintf("(purgeuser for %s)\n", email)
 
-	q := cdb.QueryAllByEmailAddress(email).KeysOnly()
-	keys, err := q.GetAll(cdb.Ctx(), nil)
+	keyers, err := cdb.LookupAllKeys(cdb.CQByEmail(email))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	str += fmt.Sprintf("purge: %d complaints found\n", len(keys))
+	str += fmt.Sprintf("purge: %d complaints found\n", len(keyers))
 
 	if r.FormValue("forrealz") == "1" {
 		maxRm := 400
-		for len(keys)>maxRm {
-			if err := datastore.DeleteMulti(cdb.Ctx(), keys[0:maxRm-1]); err != nil {
+		for len(keyers)>maxRm {
+			if err := cdb.DeleteAllKeys(keyers[0:maxRm-1]); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			keys = keys[maxRm:]
+			keyers = keyers[maxRm:]
 		}
 		str += "all deleted :O\n"
 	}

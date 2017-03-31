@@ -3,10 +3,9 @@ package complaintdb
 import (
 	"time"
 
-	"google.golang.org/appengine/datastore"
-
 	"github.com/skypies/geo"
 	"github.com/skypies/util/date"
+	"github.com/skypies/util/dsprovider"
 
 	"github.com/skypies/complaints/complaintdb/types"
 )
@@ -69,7 +68,83 @@ func (cdb ComplaintDB)GetComplaintPositionsInSpanByIcao(start,end time.Time, uni
 }
 
 // }}}
+// {{{ cdb.GetProfileLocations
 
+// uniqueUsers: if true, only one result per unique user; else one result per complaint.
+// icaoid: use empty string to get all complaints; else limits to that aircraft
+
+func (cdb ComplaintDB)GetProfileLocations() ([]geo.Latlong, error) {
+	ret := []geo.Latlong{}
+
+	q := cdb.NewProfileQuery().
+		//Project("Lat","Long"). // WTF; this limits the resultset to 280 results, not 5300 ??
+		Limit(-1)
+	
+	profiles,err := cdb.LookupAllProfiles(q)
+	if err != nil {
+		return ret,err
+	}
+
+	cdb.Infof("We saw %d locations", len(profiles))
+	
+	for _,cp := range profiles {
+		// Round off the position data to avoid exposing address
+		pos := ApproximatePosition(geo.Latlong{Lat:cp.Lat, Long:cp.Long})
+		if ! pos.IsNil() {
+			ret = append(ret, pos)
+		}
+	}
+
+	return ret,nil
+}
+
+// }}}
+
+// {{{ cdb.getDailyCountsByEmailAdress
+
+func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem, error) {
+	cdb.Debugf("gDCBEA_001", "starting")
+	gs,_ := cdb.LoadGlobalStats()
+	cdb.Debugf("gDCBEA_002", "global stats loaded")
+	stats := map[string]*DailyCount{}
+	maxDays := 60 // As many rows as we care about
+
+	if gs != nil {
+		for i,dc := range gs.Counts {
+			if i >= maxDays { break }
+			stats[date.Datestring2MidnightPdt(dc.Datestring).Format("Jan 02")] = &gs.Counts[i]
+		}
+	}
+	cdb.Debugf("gDCBEA_003", "global stats munged; loading daily")
+	
+	dailys,err := cdb.GetDailyCounts(ea)
+	if err != nil {
+		return []types.CountItem{}, err
+	}
+
+	counts := []types.CountItem{}
+
+	cdb.Debugf("gDCBEA_004", "daily stats loaded (%d dailys, %d stats)", len(dailys), len(stats))
+	for i,daily := range dailys {
+		if i >= maxDays { break }
+		item := types.CountItem{
+			Key: daily.Timestamp().Format("Jan 02"),
+			Count: daily.NumComplaints,
+		}
+		if dc,exists := stats[item.Key]; exists {
+			item.TotalComplainers = dc.NumComplainers
+			item.TotalComplaints = dc.NumComplaints
+			item.IsMaxComplainers = dc.IsMaxComplainers
+			item.IsMaxComplaints = dc.IsMaxComplaints
+		}
+		counts = append(counts, item)
+	}
+	cdb.Debugf("gDCBEA_005", "daily stats munged (%d counts)", len(counts))
+
+	return counts, nil
+}
+
+// }}}
 // {{{ cdb.GetAllByEmailAddress
 
 func (cdb ComplaintDB) GetAllByEmailAddress(ea string, everything bool) (*types.ComplaintsAndProfile, error) {
@@ -77,7 +152,7 @@ func (cdb ComplaintDB) GetAllByEmailAddress(ea string, everything bool) (*types.
 
 	cdb.Debugf("GABEA_001", "cdb.GetAllByEmailAddress starting (everything=%v)", everything)
 	
-	if cp,err := cdb.GetProfileByEmailAddress(ea); err == datastore.ErrNoSuchEntity {
+	if cp,err := cdb.MustLookupProfile(ea); err == dsprovider.ErrNoSuchEntity {
 		return nil,nil  // No such profile exists
 	} else if err != nil {
 		return nil,err  // A real problem occurred
@@ -116,7 +191,6 @@ func (cdb ComplaintDB) GetAllByEmailAddress(ea string, everything bool) (*types.
 }
 
 // }}}
-
 
 // {{{ -------------------------={ E N D }=----------------------------------
 
