@@ -32,9 +32,9 @@ func complaintDebugHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
 	cdb := NewDB(ctx)
 
-	c, err := cdb.GetAnyComplaintByKey(r.FormValue("key"))
+	c, err := cdb.LookupKey(r.FormValue("key"), "")
 	if err != nil {
-		http.Error(w, fmt.Sprintf("GetAnyComplaintByKey '%s': %v", r.FormValue("key"), err),
+		http.Error(w, fmt.Sprintf("LookupKey '%s': %v", r.FormValue("key"), err),
 			http.StatusInternalServerError)
 		return
 	}
@@ -73,7 +73,6 @@ func complaintDebugHandler(w http.ResponseWriter, r *http.Request) {
 // ?all=1 (will list thousands !)
 // ?offset=d (how many days to go back from today; default is 1d, i.e. yesterday)
 
-
 func YesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
 	cdb := NewDB(ctx)
@@ -85,8 +84,7 @@ func YesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	start,end = start.AddDate(0,0,-1*offset), end.AddDate(0,0,-1*offset)
 
-	keys,err := cdb.GetComplaintKeysInSpan(start,end)
-	// complaints,err := cdb.GetComplaintsInSpanNew(start,end)
+	keyers,err := cdb.LookupAllKeys(cdb.NewComplaintQuery().ByTimespan(start,end))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -96,10 +94,9 @@ func YesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
 	problems := []types.Complaint{}
 	good := []types.Complaint{}
 	retries := []types.Complaint{}
-	
-	//for _,c := range complaints {
-	for _,k := range keys {
-		c,err := cdb.GetAnyComplaintByKey(k.Encode())
+
+	for _,keyer := range keyers {
+		c,err := cdb.LookupKey(keyer.Encode(), "")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

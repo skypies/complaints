@@ -160,8 +160,8 @@ func SendComplaintsWithSpan(r *http.Request, start,end time.Time) (err error, st
 		if cp.SendDailyEmailOK() == false { continue }
 
 		var complaints = []types.Complaint{}
-		complaints, err = cdb.GetComplaintsInSpanByEmailAddress(cp.EmailAddress, start, end)
-
+		complaints, err = cdb.LookupAll(cdb.CQByEmail(cp.EmailAddress).ByTimespan(start,end))
+		
 		if err != nil {
 			cdb.Errorf("Could not get complaints [%v->%v] for <%s>: %v", start, end, cp.EmailAddress, err)
 			no_data++

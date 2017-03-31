@@ -157,10 +157,10 @@ func debugHandler3(w http.ResponseWriter, r *http.Request) {
 	tStart := time.Now()
 	
 	start,end := date.WindowForYesterday()
-	keys,err := cdb.GetComplaintKeysInSpan(start,end)
+	keyers,err := cdb.LookupAllKeys(cdb.NewComplaintQuery().ByTimespan(start,end))
 
 	str := fmt.Sprintf("OK\nret: %d\nerr: %v\nElapsed: %s\ns: %s\ne: %s\n",
-		len(keys), err, time.Since(tStart), start, end)
+		len(keyers), err, time.Since(tStart), start, end)
 	
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(str))

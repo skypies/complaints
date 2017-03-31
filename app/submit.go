@@ -40,7 +40,8 @@ func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 		// if cp.CcSfo == false { continue }  // We do not care about this value.
 
 		var complaints = []types.Complaint{}
-		complaints, err = cdb.GetComplaintsInSpanByEmailAddress(cp.EmailAddress, start, end)
+
+		complaints, err = cdb.LookupAll(cdb.CQByEmail(cp.EmailAddress).ByTimespan(start,end))
 		if err != nil {
 			cdb.Errorf(" /bksv/scan-yesterday: getbyemail(%s): %v", cp.EmailAddress, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -79,7 +80,7 @@ func bksvSubmitUserHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	
-	} else if complaints,err := cdb.GetComplaintsInSpanByEmailAddress(email, start, end); err != nil {
+	} else if complaints,err := cdb.LookupAll(cdb.CQByEmail(email).ByTimespan(start,end)); err != nil{
 		cdb.Errorf(" /bksv/submit-user(%s): getcomplaints: %v", email, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -138,10 +138,11 @@ func (cdb ComplaintDB)ResetGlobalStats() {
 		dc := DailyCount{Datestring: date.Time2Datestring(dayStart)}
 		
 		for _,p := range profiles {
-			if keys,err := cdb.GetComplaintKeysInSpanByEmailAddress(dayStart,dayEnd,p.EmailAddress); err != nil {
+			q := cdb.CQByEmail(p.EmailAddress).ByTimespan(dayStart,dayEnd)
+			if keyers,err := cdb.LookupAllKeys(q); err != nil {
 				cdb.Errorf("Reset/Lookup fail, %v", err)
-			} else if len(keys) > 0 {
-				dc.NumComplaints += len(keys)
+			} else if len(keyers) > 0 {
+				dc.NumComplaints += len(keyers)
 				dc.NumComplainers += 1
 			}
 		}

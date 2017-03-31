@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/skypies/complaints/complaintdb"
@@ -20,6 +21,11 @@ func init() {
 // ?flight=UA123        (IATA flight number)
 // &start=123&end=123   (epochs; defaults to current PDT day)
 // &debug=1             (render as text/plain)
+
+type timeAsc []time.Time
+func (a timeAsc) Len() int           { return len(a) }
+func (a timeAsc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a timeAsc) Less(i, j int) bool { return a[i].Before(a[j]) }
 
 func complaintsForHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
@@ -40,13 +46,18 @@ func complaintsForHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	times := []time.Time{}
 	cdb := complaintdb.NewDB(ctx)
-
-	times, err := cdb.GetComplaintTimesInSpanByFlight(s,e,flightnumber)
-	if err != nil {
+	q := cdb.NewComplaintQuery().ByTimespan(s,e).ByFlight(flightnumber).Project("Timestamp")
+	if complaints,err := cdb.LookupAll(q); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	} else {
+		for _,c := range complaints {
+			times = append(times, c.Timestamp)
+		}
 	}
+	sort.Sort(timeAsc(times))
 
 	if r.FormValue("debug") != "" {
 		str := fmt.Sprintf("* %s\n* %s\n* %s\n* [%d]\n\n", s, e, flightnumber, len(times))

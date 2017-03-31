@@ -80,6 +80,11 @@ func heatmapHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+/*
+func lookupComplaintPositions(s,e time.Time, uniqueUsers bool, icaoid string) ([]geo.Latlong, error) {
+}
+*/
+
 // {{{ -------------------------={ E N D }=----------------------------------
 
 // Local variables:

@@ -113,7 +113,7 @@ func complaintUpdateFormHandler(ctx context.Context, w http.ResponseWriter, r *h
 
 	key := r.FormValue("k")
 
-	if complaint, err := cdb.GetComplaintByKey(key, sesh.Email); err != nil {
+	if complaint, err := cdb.LookupKey(key, sesh.Email); err != nil {
 		cdb.Errorf("updateform, getComplaint: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	} else {
@@ -192,7 +192,7 @@ func updateComplaintHandler(ctx context.Context, w http.ResponseWriter, r *http.
 	newFlightNumber := r.FormValue("manualflightnumber")
 	newTimeString := r.FormValue("manualtimestring")
 
-	if orig, err := cdb.GetComplaintByKey(new.DatastoreKey, sesh.Email); err != nil {
+	if orig, err := cdb.LookupKey(new.DatastoreKey, sesh.Email); err != nil {
 		cdb.Errorf("updateform, getComplaint: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 

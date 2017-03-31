@@ -42,6 +42,17 @@ func (cq *CQuery)ByZip(zip string) *CQuery {
 	return cq.Filter("Profile.StructuredAddress.Zip = ", zip)
 }
 
+func (cq *CQuery)ByFlight(flightnumber string) *CQuery {
+	return cq.Filter("AircraftOverhead.FlightNumber = ", flightnumber)
+}
+
+func (cq *CQuery)ByIcaoId(icaoid string) *CQuery {
+	return cq.Filter("AircraftOverhead.Id2 = ", icaoid)
+}
+
+func (cq *CQuery)OrderTimeAsc() *CQuery  { return cq.Order("Timestamp") }
+func (cq *CQuery)OrderTimeDesc() *CQuery { return cq.Order("-Timestamp") }
+
 // func (cq *CQuery)ByEmail(e string) *CQuery { return nil }
 //   This isn't possible with just a CQuery; it needs access to the cdb
 //   to generate the key needed for the ancestor query.

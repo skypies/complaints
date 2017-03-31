@@ -4,14 +4,12 @@ import (
 	"fmt"
 	"sort"
 
-	"google.golang.org/appengine/datastore"  // for ErrFieldMismatch :/
+	"google.golang.org/appengine/datastore"  // for ErrFieldMismatch
 
 	"github.com/skypies/util/dsprovider"
 	"github.com/skypies/complaints/complaintdb/types"
 )
 
-// New API
-//
 // {{{ cdb.PersistComplaint
 
 func (cdb ComplaintDB)PersistComplaint(c types.Complaint) error {
@@ -24,12 +22,21 @@ func (cdb ComplaintDB)PersistComplaint(c types.Complaint) error {
 }
 
 // }}}
+
 // {{{ cdb.LookupKey
 
-func (cdb ComplaintDB)LookupKey(keyerStr string) (*types.Complaint, error) {
+// If owner is non-empty, return error if the looked-up key doesn't have that owner. Unless
+// the admin flag is set on the DB handle.
+func (cdb ComplaintDB)LookupKey(keyerStr string, owner string) (*types.Complaint, error) {
 	keyer,err := cdb.Provider.DecodeKey(keyerStr)
 	if err != nil {
 		return nil, fmt.Errorf("LookupKey: %v", err)
+	}
+
+	parentKeyer := cdb.Provider.KeyParent(keyer)
+	if parentKeyer == nil {
+		// Insist on a parent, else we can't do owner checks
+		return nil, fmt.Errorf("LookupKey: key <%v> had no parent", keyer)
 	}
 
 	c := types.Complaint{}
@@ -38,9 +45,14 @@ func (cdb ComplaintDB)LookupKey(keyerStr string) (*types.Complaint, error) {
 		return nil, fmt.Errorf("LookupKey: %v", err)
 	}
 
+	if owner != "" && !cdb.admin && cdb.Provider.KeyName(parentKeyer) != owner {
+		return nil,fmt.Errorf("LookupKey: key <%v> owned by %s, not %s",
+			keyer, cdb.Provider.KeyName(parentKeyer), owner)
+	}
+	
 	FixupComplaint(&c, keyer.Encode())
 
-	return &c,nil
+	return &c, nil
 }
 
 // }}}
@@ -70,6 +82,19 @@ func (cdb ComplaintDB)LookupAll(cq *CQuery) ([]types.Complaint, error) {
 }
 
 // }}}
+// {{{ cdb.LookupFirst
+
+func (cdb ComplaintDB)LookupFirst(cq *CQuery) (*types.Complaint, error) {
+	if complaints,err := cdb.LookupAll(cq.Limit(1)); err != nil {
+		return nil, err
+	} else if len(complaints) == 0 {
+		return nil, nil
+	} else {
+		return &complaints[0], nil
+	}
+}
+
+// }}}
 // {{{ cdb.LookupAllKeys
 
 func (cdb ComplaintDB)LookupAllKeys(cq *CQuery) ([]dsprovider.Keyer, error) {
@@ -78,6 +103,7 @@ func (cdb ComplaintDB)LookupAllKeys(cq *CQuery) ([]dsprovider.Keyer, error) {
 }
 
 // }}}
+
 // {{{ cdb.DeleteByKey
 
 func (cdb ComplaintDB)DeleteByKey(keyer dsprovider.Keyer) error {
@@ -93,10 +119,11 @@ func (cdb ComplaintDB)DeleteAllKeys(keyers []dsprovider.Keyer) error {
 
 // }}}
 
-
 /* TODO
 
-2. remove memcache.go (if required, use gaeutil/)
+0. Kill off profilelookups (reconsider ComplaintsAndProfile ?)
+1. Do some kind of cdb.UpdateComplaint, maybe; not sure what the logic is there.
+
 3. Move ./types/types.go into ./<type>.go ?
 5. Rewrite queries.go to sit on top of the basic impl
 6. Retire most of complaintlookups; call sites should compose queries

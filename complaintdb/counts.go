@@ -99,7 +99,7 @@ func (cdb *ComplaintDB) GetDailyCounts(email string) ([]DailyCount, error) {
 		start = date.Datestring2MidnightPdt(c[0].Datestring)
 	} else {
 		cdb.Debugf("GDC_003", "counts empty ! track down oldest every, to start iteration range")
-		if complaint,err := cdb.GetOldestComplaintByEmailAddress(email); err != nil {
+		if complaint,err := cdb.LookupFirst(cdb.CQByEmail(email).OrderTimeAsc()); err != nil {
 			cdb.Errorf("error looking up first complaint for %s: %v", email, err)
 			return c, err
 		} else if complaint != nil {
@@ -123,7 +123,7 @@ func (cdb *ComplaintDB) GetDailyCounts(email string) ([]DailyCount, error) {
 		for _,m := range missing {
 			cdb.Debugf("GDC_005", "looking up a single span")
 			dayStart,dayEnd := date.WindowForTime(m)
-			if comp, err := cdb.GetComplaintsInSpanByEmailAddress(email, dayStart, dayEnd); err!=nil {
+			if comp,err := cdb.LookupAll(cdb.CQByEmail(email).ByTimespan(dayStart,dayEnd)); err!=nil {
 				return []DailyCount{}, err
 			} else {
 				c = append(c, DailyCount{date.Time2Datestring(dayStart),len(comp),1,false,false})

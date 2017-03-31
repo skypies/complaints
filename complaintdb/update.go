@@ -25,7 +25,8 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 	// Check we're not over a daily cap for this user
 	cdb.Debugf("cbe_010", "doing rate limit check")
 	s,e := date.WindowForToday()
-	if prevKeys,err := cdb.GetComplaintKeysInSpanByEmailAddress(s,e,cp.EmailAddress); err != nil {
+	//if prevKeys,err := cdb.GetComplaintKeysInSpanByEmailAddress(s,e,cp.EmailAddress); err != nil {
+	if prevKeys,err := cdb.LookupAllKeys(cdb.CQByEmail(cp.EmailAddress).ByTimespan(s,e)); err != nil {
 		return err
 	} else if len(prevKeys) >= KMaxComplaintsPerDay {
 		return fmt.Errorf("Too many complaints filed today")
@@ -79,7 +80,8 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 	
 	// Too much like the last complaint by this user ? Just update that one.
 	cdb.Debugf("cbe_030", "retrieving prev complaint")
-	if prev, err := cdb.GetNewestComplaintByEmailAddress(cp.EmailAddress); err != nil {
+
+	if prev, err := cdb.LookupFirst(cdb.CQByEmail(cp.EmailAddress).Order("-Timestamp")); err != nil {
 		cdb.Errorf("complainByProfile/GetNewest: %v", err)
 	} else if prev != nil && ComplaintsAreEquivalent(*prev, *c) {
 		cdb.Debugf("cbe_031", "returned, equiv; about to UpdateComlaint()")

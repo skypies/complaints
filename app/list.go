@@ -24,11 +24,13 @@ func listHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	complaints,err := cdb.GetRecentComplaintsByEmailAddress(userToList,n)
+	q := cdb.CQByEmail(userToList).OrderTimeDesc().Limit(n)
+	complaints,err := cdb.LookupAll(q)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	if len(complaints) < n { n = len(complaints) }
 
 	str := fmt.Sprintf("<html><body><h1>%d complaints for %s</h1><table>\n", n, userToList)	
 	for _,c := range complaints {

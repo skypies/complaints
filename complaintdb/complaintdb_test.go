@@ -58,9 +58,10 @@ func getComplaints(n int) []types.Complaint {
 
 // }}}
 
-// {{{ testEverything
+// {{{ TestCoreAPI
 
-func testEverything(t *testing.T, p dsprovider.DatastoreProvider) {
+func TestCoreAPI(t *testing.T) {
+	p := dsprovider.AppengineDSProvider{} // can't make CloudDSProvider{} work with aetest
 	ctx, done, err := newConsistentContext()
 	if err != nil { t.Fatal(err) }
 	defer done()
@@ -87,6 +88,8 @@ func testEverything(t *testing.T, p dsprovider.DatastoreProvider) {
 	run(len(complaints), cdb.NewComplaintQuery())
 	run(3,               cdb.NewComplaintQuery().Limit(3))
 
+	// Tests for the various semantic builders
+	//
 	tm := time.Now()
 	run(2,               cdb.NewComplaintQuery().ByTimespan(tm.Add(-90*time.Second), tm))
 	run(0,               cdb.NewComplaintQuery().ByTimespan(tm, tm.Add(1*time.Hour)))
@@ -94,11 +97,28 @@ func testEverything(t *testing.T, p dsprovider.DatastoreProvider) {
 	run(len(complaints), cdb.CQByEmail(complaints[0].Profile.EmailAddress))
 	run(0,               cdb.CQByEmail("no@such.address.com"))
 
+	c1 := run(1,         cdb.NewComplaintQuery().OrderTimeAsc().Limit(1))
+	c2 := run(1,         cdb.NewComplaintQuery().OrderTimeDesc().Limit(1))
+	if c1[0].Timestamp.After(c2[0].Timestamp) {
+		t.Errorf("First from TimeAsc() was more recent than TimeDesc()")
+	}
+
+	// Check the ownership stuff
+	if c,err := cdb.LookupKey(c1[0].DatastoreKey,""); c==nil || err != nil {
+		t.Errorf("LookupKey with no owner; %v, %v", c, err)
+	}
+	if c,err := cdb.LookupKey(c1[0].DatastoreKey,c1[0].Profile.EmailAddress); c==nil || err != nil {
+		t.Errorf("LookupKey with correct owner; %v, %v", c, err)
+	}
+	if c,err := cdb.LookupKey(c1[0].DatastoreKey,"no@such.owner.com"); c!=nil || err == nil {
+		t.Errorf("LookupKey with incorrect owner; %v, %v", c, err)
+	}
+	
 	// Now delete something
-	results,err := cdb.LookupAll(cdb.NewComplaintQuery().Limit(1).Order("Timestamp"))
-	if err != nil || len(results) != 1 {
-		t.Errorf("db.GetFirstByQuery: %v / %v\n", err, results)
-	} else if keyer,err := cdb.Provider.DecodeKey(results[0].DatastoreKey); err != nil {
+	first,err := cdb.LookupFirst(cdb.NewComplaintQuery().OrderTimeAsc())
+	if err != nil || first == nil {
+		t.Errorf("db.GetFirstByQuery: %v / %v\n", err, first)
+	} else if keyer,err := cdb.Provider.DecodeKey(first.DatastoreKey); err != nil {
 		t.Errorf("p.DecodeKey: %v\n", err)
 	} else if err := cdb.DeleteByKey(keyer); err != nil {
 		t.Errorf("p.Delete: %v\n", err)
@@ -107,7 +127,7 @@ func testEverything(t *testing.T, p dsprovider.DatastoreProvider) {
 	nExpected := len(complaints)-1
 	run(nExpected, cdb.NewComplaintQuery())
 
-	// Now test the iterator
+	// Test the iterator
 	nSeen := 0
 	it := cdb.NewComplaintIterator(cdb.NewComplaintQuery())
 		for it.Iterate(ctx) {
@@ -124,12 +144,6 @@ func testEverything(t *testing.T, p dsprovider.DatastoreProvider) {
 }
 
 // }}}
-
-func TestEverything(t *testing.T) {
-	testEverything(t, dsprovider.AppengineDSProvider{})
-	// Sadly, the aetest framework hangs on the first Put from the cloud client
-	// testEverything(t, dsprovider.CloudDSProvider{appid})
-}
 
 // {{{ -------------------------={ E N D }=----------------------------------
 
