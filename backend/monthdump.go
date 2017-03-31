@@ -102,14 +102,10 @@ func generateMonthlyCSV(cdb complaintdb.ComplaintDB, month,year int) (string, in
 		log.Infof(ctx, " /be/month: %s - %s", dayStart, dayEnd)
 
 		tIter := time.Now()
-		iter := cdb.NewLongBatchingIter(cdb.QueryInSpan(dayStart, dayEnd))
-		for {
-			c,err := iter.NextWithErr();
-			if err != nil {
-				return gcsName,0,fmt.Errorf("iterator failed after %s (%s): %v", err, time.Since(tIter),
-					time.Since(tStart))
-			}
-			if c == nil { break }
+		iter := cdb.NewComplaintIterator(cdb.NewComplaintQuery().ByTimespan(dayStart, dayEnd))
+
+		for iter.Iterate(ctx) {
+			c := iter.Complaint()
 		
 			r := []string{
 				c.Profile.CallerCode,
@@ -134,6 +130,10 @@ func generateMonthlyCSV(cdb complaintdb.ComplaintDB, month,year int) (string, in
 			}
 
 			n++
+		}
+		if iter.Err() != nil {
+			return gcsName,0,fmt.Errorf("iterator failed after %s (%s): %v", iter.Err(),
+				time.Since(tIter), time.Since(tStart))
 		}
 	}
 	csvWriter.Flush()

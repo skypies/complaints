@@ -1,5 +1,28 @@
 package complaintdb
 
+/* TODO
+
+2. remove memcache.go (if required, use gaeutil/)
+3. Move ./types/types.go into ./<type>.go ?
+4. Clone the basic query impl from flightdb (move to gaeutil ??)
+5. Rewrite queries.go to sit on top of the basic impl
+6. Retire most of complaintlookups; call sites should compose queries
+
+7. counts.go: rename to "usersummary" or something; make generation less magical, more explicit
+7a. consider renaming the DailyCount{} struct
+7b. house cdb.getDailyCounts somewhere with counts
+8. globalstats.go: rename to "sitesummary" ? Add something for monthly totals ? (unqiue users:/)
+
+9. Look at all the primary functions in complaintdb.go; grep them; can we retire/generalize ?
+
+10. Kill off the address inference stuff ?
+11. Kill off kComplaintVersion
+12. Make use of that __datastorekey__ trick ?
+13. Remove cdb.Ctx() ?
+14. Kill off any memoization magic that is YAGNI
+
+ */
+
 import (
 	"fmt"
 	"net/http"
@@ -12,6 +35,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
+	"github.com/skypies/util/dsprovider"
 
 	"github.com/skypies/complaints/complaintdb/types"
 )
@@ -29,6 +53,7 @@ type ComplaintDB struct {
 	ctx       context.Context
 	StartTime time.Time
 	admin     bool
+	Provider  dsprovider.DatastoreProvider
 }
 func (cdb ComplaintDB)Ctx() context.Context { return cdb.ctx }
 func (cdb ComplaintDB)HTTPClient() *http.Client { return urlfetch.Client(cdb.Ctx()) }
@@ -38,6 +63,7 @@ func NewDB(ctx context.Context) ComplaintDB {
 		ctx: ctx,
 		StartTime: time.Now(),
 		admin: (user.Current(ctx) != nil && user.Current(ctx).Admin),
+		Provider: dsprovider.AppengineDSProvider{},
 	}
 }
 
@@ -109,6 +135,12 @@ func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem
 
 // {{{ cdb.EmailToRootKey
 
+// The new(!?!) thing
+func (cdb ComplaintDB)EmailToRootKeyer(email string) dsprovider.Keyer {
+	return cdb.Provider.NewNameKey(cdb.Ctx(), kComplainerKind, email, nil)
+}
+
+// The old things
 func (cdb ComplaintDB) emailToRootKey(email string) *datastore.Key {
 	return datastore.NewKey(cdb.Ctx(), kComplainerKind, email, 0, nil)
 }

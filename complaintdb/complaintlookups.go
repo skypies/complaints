@@ -49,7 +49,7 @@ func (cdb ComplaintDB)getComplaintsByQuery(q *datastore.Query, memKey string) ([
 	
 	// Data fixups !
 	for i, _ := range complaints {
-		FixupComplaint(&complaints[i], keys[i])
+		FixupComplaint(&complaints[i], keys[i].Encode())
 	}
 
 	sort.Sort(types.ComplaintsByTimeDesc(complaints))
@@ -313,7 +313,7 @@ func (cdb ComplaintDB) GetAnyComplaintByKey(keyString string) (*types.Complaint,
 		return nil,err
 	}
 
-	FixupComplaint(&complaint, k)
+	FixupComplaint(&complaint, k.Encode())
 	
 	return &complaint, nil
 }
@@ -337,7 +337,7 @@ func (cdb ComplaintDB) GetComplaintByKey(keyString string, ownerEmail string) (*
 		return nil,err
 	}
 
-	FixupComplaint(&complaint, k)
+	FixupComplaint(&complaint, k.Encode())
 	
 	return &complaint, nil
 }

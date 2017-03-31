@@ -14,12 +14,11 @@ import (
 )
 
 func init() {
-	http.HandleFunc("/backend/cdb-batch", upgradeHandler)
+	//http.HandleFunc("/backend/cdb-batch", upgradeHandler)
 	//http.HandleFunc("/backend/cdb-batch-user", upgradeUserHandler)
 	//http.HandleFunc("/backend/cdb-batch-user", fixupthing)
 	//http.HandleFunc("/backend/purge", purgeuserHandler)
 }
-
 
 // {{{ upgradeHandler
 
@@ -84,31 +83,9 @@ func upgradeUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	nGood,nBad := 0,0
 	for i,complaint := range data {
-		complaintdb.FixupComplaint(&complaint, keys[i]) // Put the key where cdb.* expect to find it
-
-		/*
-		str += fmt.Sprintf("BEFORE %s : {%s} {%s} {%s}\n",
-			complaint.Timestamp.Format("2006.01.02"),
-			cp.GetStructuredAddress().City,
-			complaint.Profile.GetStructuredAddress().City,
-			complaint.Profile.StructuredAddress.City)
-*/		
+		complaintdb.FixupComplaint(&complaint, keys[i].Encode())
 		if complaint.Profile.GetStructuredAddress().City != cp.GetStructuredAddress().City {
-/*
-		str += fmt.Sprintf("BEFORE %s : {%s} {%s} {%s}\n",
-			complaint.Timestamp.Format("2006.01.02"),
-			cp.GetStructuredAddress().City,
-			complaint.Profile.GetStructuredAddress().City,
-			complaint.Profile.StructuredAddress.City)
-*/
 			complaint.Profile.StructuredAddress = cp.GetStructuredAddress()
-/*
-			str += fmt.Sprintf("AFTER  %s : {%s} {%s} {%s}\n\n",
-			complaint.Timestamp.Format("2006.01.02"),
-			cp.GetStructuredAddress().City,
-			complaint.Profile.GetStructuredAddress().City,
-			complaint.Profile.StructuredAddress.City)
-*/
 			if err := cdb.UpdateComplaint(complaint, email); err != nil {
 				str += fmt.Sprintf("Oh, error updating: %v\n",err)
 			}

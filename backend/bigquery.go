@@ -149,17 +149,10 @@ func writeAnonymizedGCSFile(r *http.Request, datestring, foldername,filename str
 	n := 0
 	// An iterator expires after 60s, no matter what; so carve up into short-lived iterators
 	for _,dayWindow := range DayWindows(s,e) {
-		iter := cdb.NewLongBatchingIter(cdb.QueryInSpan(dayWindow[0],dayWindow[1]))
+		iter := cdb.NewComplaintIterator(cdb.NewComplaintQuery().ByTimespan(dayWindow[0],dayWindow[1]))
 
-
-		for {
-			c,err := iter.NextWithErr();
-			if err != nil {
-				return 0,fmt.Errorf("iterator [%s,%s] failed at %s: %v",
-					dayWindow[0],dayWindow[1], time.Now(), err)
-			} else if c == nil {
-				break // we're all done with this iterator
-			}
+		for iter.Iterate(ctx) {
+			c := iter.Complaint()
 
 			// If the user is currently opted out, ignore their data
 			if _,exists := optOutUsers[c.Profile.EmailAddress]; exists {
@@ -172,6 +165,10 @@ func writeAnonymizedGCSFile(r *http.Request, datestring, foldername,filename str
 			if err := encoder.Encode(ac); err != nil {
 				return 0,err
 			}
+		}
+		if iter.Err() != nil {
+			return 0,fmt.Errorf("iterator [%s,%s] failed at %s: %v",
+				dayWindow[0],dayWindow[1], time.Now(), iter.Err())
 		}
 	}
 

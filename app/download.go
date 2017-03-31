@@ -82,14 +82,10 @@ func downloadHandler(ctx context.Context, w http.ResponseWriter, r *http.Request
 	csvWriter.Write(cols)
 
 	cdb := complaintdb.NewDB(ctx)
-	iter := cdb.NewIter(cdb.QueryAllByEmailAddress(sesh.Email))
-	for {
-		c,err := iter.NextWithErr();
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if c == nil { break }
+
+	iter := cdb.NewComplaintIterator(cdb.CQueryByEmailAddress(sesh.Email))
+	for iter.Iterate(ctx) {
+		c := iter.Complaint()
 	
 		a := c.AircraftOverhead
 		speedbrakes := ""
@@ -109,6 +105,9 @@ func downloadHandler(ctx context.Context, w http.ResponseWriter, r *http.Request
 		if err := csvWriter.Write(r); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
+	}
+	if iter.Err() != nil {
+		http.Error(w, iter.Err().Error(), http.StatusInternalServerError)
 	}
 
 	csvWriter.Flush()
@@ -146,11 +145,12 @@ func personalReportHandler(ctx context.Context, w http.ResponseWriter, r *http.R
 	countsByAirline := map[string]int{}
 	countsByAirport := map[string]int{}
 
-	iter := cdb.NewIter(cdb.QueryInSpanByEmailAddress(start,end,sesh.Email))
+	q := cdb.CQueryByEmailAddress(sesh.Email).ByTimespan(start,end)
+	iter := cdb.NewComplaintIterator(q)
+
 	n := 0
-	for {
-		c := iter.Next();
-		if c == nil { break }
+	for iter.Iterate(ctx) {
+		c := iter.Complaint()
 
 		str := fmt.Sprintf("Time: %s, Loudness:%d, Speedbrakes:%v, Flight:%6.6s, Notes:%s",
 			c.Timestamp.Format("2006.01.02 15:04:05"), c.Loudness, c.HeardSpeedbreaks,
@@ -167,7 +167,11 @@ func personalReportHandler(ctx context.Context, w http.ResponseWriter, r *http.R
 			countsByAirline[airline]++
 		}
 	}
-
+	if iter.Err() != nil {
+		fmt.Fprintf(w, "ERR: %v\n", iter.Err())
+		return
+	}
+	
 	fmt.Fprintf(w, "\nTotal number of disturbance reports, over %d days:  %d\n",
 		len(countsByDate), n)
 

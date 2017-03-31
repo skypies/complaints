@@ -104,15 +104,10 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 	csvWriter := csv.NewWriter(w)
 	csvWriter.Write(cols)
 	
-	iter := cdb.NewIter(cdb.QueryInSpan(s,e))
-	for {
-		c,err := iter.NextWithErr();
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Zip iterator failed: %v", err), http.StatusInternalServerError)
-			return
-		} else if c == nil {
-			break  // We've hit EOF
-		}
+	iter := cdb.NewComplaintIterator(cdb.NewComplaintQuery().ByTimespan(s,e))
+	// iter := cdb.NewIter(cdb.QueryInSpan(s,e))
+	for iter.Iterate(ctx) {
+		c := iter.Complaint()
 		
 		r := []string{
 			c.Profile.CallerCode, c.Profile.FullName, c.Profile.Address,
@@ -125,13 +120,17 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("%v",c.Profile.CcSfo),
 		}
 
-		//r = []string{c.Timestamp.Format("15:04:05")}
-
 		if err := csvWriter.Write(r); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
+	if iter.Err() != nil {
+		http.Error(w, fmt.Sprintf("Summary iterator failed: %v", iter.Err()),
+			http.StatusInternalServerError)
+		return
+	}
+
 	csvWriter.Flush()
 }
 
@@ -366,7 +365,7 @@ func communityReportHandler(w http.ResponseWriter, r *http.Request) {
 	counts := map[string]map[string]int{}  // {datestr}{city}
 	users := map[string]map[string]int{}   // {datestr}{city}
 	
-	// An iterator expires after 60s, no matter what; so carve up into short-lived iterators
+	// To reduce risk of timeouts, do things day by day
 	n := 0
 
 	currCounts := map[string]int{}
@@ -377,18 +376,12 @@ func communityReportHandler(w http.ResponseWriter, r *http.Request) {
 		//daycounts := map[string]int{}             // {city}
 		//dayusers := map[string]map[string]int{}   // {city}{email}
 
-		q := cdb.QueryInSpan(dayWindow[0],dayWindow[1])
+		q := cdb.NewComplaintQuery().ByTimespan(dayWindow[0],dayWindow[1])
 		q = q.Project("Profile.StructuredAddress.City", "Profile.EmailAddress")
-		iter := cdb.NewIter(q)
-		for {
-			c,err := iter.NextWithErr();
-			if err != nil {
-				http.Error(w, fmt.Sprintf("iterator failed at %s: %v", time.Now(), err),
-					http.StatusInternalServerError)
-				return
-			} else if c == nil {
-				break // we're all done with this iterator
-			}
+		iter := cdb.NewComplaintIterator(q)
+
+		for iter.Iterate(ctx) {
+			c := iter.Complaint()
 			n++
 
 			//email,city := c.Profile.EmailAddress,c.Profile.StructuredAddress.City
@@ -400,6 +393,12 @@ func communityReportHandler(w http.ResponseWriter, r *http.Request) {
 			currUsers[city][email]++
 			currCounts[city]++			
 		}
+		if iter.Err() != nil {
+			http.Error(w, fmt.Sprintf("comrep iterator failed: %v", iter.Err()),
+				http.StatusInternalServerError)
+			return
+		}
+
 		currN++  // number of days processed since last flush.
 
 		// End of a day; should we flush the counters ?
@@ -604,17 +603,12 @@ func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (stri
 			if cf.Procedure.String() != "" { flightCountsByProcedure[cf.Procedure.String()]++ }
 		}
 
-		iter := cdb.NewLongBatchingIter(cdb.QueryInSpan(dayWindow[0],dayWindow[1]))
+		q := cdb.NewComplaintQuery().ByTimespan(dayWindow[0],dayWindow[1])
+		iter := cdb.NewComplaintIterator(q)
 		cdb.Infof("running summary across %s-%s, for %v", dayWindow[0],dayWindow[1],u)
 		
-		for {
-			c,err := iter.NextWithErr();
-			if err != nil {
-				return str, fmt.Errorf("iterator [%s,%s] failed at %s: %v",
-					dayWindow[0],dayWindow[1], time.Now(), err)
-			} else if c == nil {
-				break // we're all done with this iterator
-			}
+		for iter.Iterate(ctx) {
+			c := iter.Complaint()
 
 			n++
 			d := c.Timestamp.Format("2006.01.02")
@@ -673,6 +667,11 @@ func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (stri
 			if equip := c.AircraftOverhead.EquipType; equip != "" {
 				countsByEquip[equip]++
 			}
+
+		}
+		if iter.Err() != nil {
+			return str, fmt.Errorf("iterator [%s,%s] failed at %s: %v",
+				dayWindow[0],dayWindow[1], time.Now(), err)
 		}
 
 		unknowns := len(flightsWithComplaintsButNoProcedureToday)

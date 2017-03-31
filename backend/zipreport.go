@@ -38,15 +38,12 @@ func zipHandler(w http.ResponseWriter, r *http.Request) {
 	uniquesByDate := map[string]map[string]int{}
 	uniquesAll := map[string]int{}
 
-	iter := cdb.NewIter(cdb.QueryInSpanInZip(s,e,zip))
-	for {
-		c,err := iter.NextWithErr();
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Zip iterator failed: %v", err), http.StatusInternalServerError)
-			return
-		} else if c == nil {
-			break  // We've hit EOF
-		}
+	q := cdb.NewComplaintQuery().ByTimespan(s,e).ByZip(zip)
+	iter := cdb.NewComplaintIterator(q)
+	//iter := cdb.NewIter(cdb.QueryInSpanInZip(s,e,zip))
+
+	for iter.Iterate(ctx) {
+		c := iter.Complaint()
 
 		h := c.Timestamp.Hour()
 		countsByHour[h]++
@@ -60,7 +57,12 @@ func zipHandler(w http.ResponseWriter, r *http.Request) {
 
 		uniquesAll[c.Profile.EmailAddress]++
 	}
-
+	if iter.Err() != nil {
+		http.Error(w, fmt.Sprintf("Zip iterator failed: %v", iter.Err()),
+			http.StatusInternalServerError)
+		return
+	}
+		
 	dateKeys := []string{}
 	for k,_ := range countsByDate { dateKeys = append(dateKeys, k) }
 	sort.Strings(dateKeys)

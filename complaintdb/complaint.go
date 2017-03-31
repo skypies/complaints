@@ -3,8 +3,6 @@ package complaintdb
 import (
 	"time"
 
-	"google.golang.org/appengine/datastore"
-
 	"github.com/skypies/util/date"
 
 	"github.com/skypies/geo"
@@ -65,9 +63,9 @@ func ComplaintsAreEquivalent(this, next types.Complaint) bool {
 // }}}
 // {{{ FixupComplaint
 
-func FixupComplaint(c *types.Complaint, key *datastore.Key) {
+func FixupComplaint(c *types.Complaint, keyStr string) {
 	// 0. Snag the key, so we can refer to this object later
-	c.DatastoreKey = key.Encode()
+	c.DatastoreKey = keyStr //key.Encode()
 
 	// 1. GAE datastore helpfully converts timezones to UTC upon storage; fix that
 	c.Timestamp = date.InPdt(c.Timestamp)
