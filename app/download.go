@@ -83,7 +83,7 @@ func downloadHandler(ctx context.Context, w http.ResponseWriter, r *http.Request
 
 	cdb := complaintdb.NewDB(ctx)
 
-	iter := cdb.NewComplaintIterator(cdb.CQueryByEmailAddress(sesh.Email))
+	iter := cdb.NewComplaintIterator(cdb.CQByEmail(sesh.Email))
 	for iter.Iterate(ctx) {
 		c := iter.Complaint()
 	
@@ -145,8 +145,7 @@ func personalReportHandler(ctx context.Context, w http.ResponseWriter, r *http.R
 	countsByAirline := map[string]int{}
 	countsByAirport := map[string]int{}
 
-	q := cdb.CQueryByEmailAddress(sesh.Email).ByTimespan(start,end)
-	iter := cdb.NewComplaintIterator(q)
+	iter := cdb.NewComplaintIterator(cdb.CQByEmail(sesh.Email).ByTimespan(start,end))
 
 	n := 0
 	for iter.Iterate(ctx) {

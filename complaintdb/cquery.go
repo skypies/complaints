@@ -42,10 +42,14 @@ func (cq *CQuery)ByZip(zip string) *CQuery {
 	return cq.Filter("Profile.StructuredAddress.Zip = ", zip)
 }
 
+// func (cq *CQuery)ByEmail(e string) *CQuery { return nil }
+//   This isn't possible with just a CQuery; it needs access to the cdb
+//   to generate the key needed for the ancestor query.
+
 
 // Canned queries
 //
-func (cdb ComplaintDB)CQueryByEmailAddress(email string) *CQuery {
+func (cdb ComplaintDB)CQByEmail(email string) *CQuery {
 	return NewComplaintQuery().
 		Ancestor(cdb.EmailToRootKeyer(email)).
 		Order("Timestamp").

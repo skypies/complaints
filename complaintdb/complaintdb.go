@@ -1,34 +1,11 @@
 package complaintdb
 
-/* TODO
-
-2. remove memcache.go (if required, use gaeutil/)
-3. Move ./types/types.go into ./<type>.go ?
-4. Clone the basic query impl from flightdb (move to gaeutil ??)
-5. Rewrite queries.go to sit on top of the basic impl
-6. Retire most of complaintlookups; call sites should compose queries
-
-7. counts.go: rename to "usersummary" or something; make generation less magical, more explicit
-7a. consider renaming the DailyCount{} struct
-7b. house cdb.getDailyCounts somewhere with counts
-8. globalstats.go: rename to "sitesummary" ? Add something for monthly totals ? (unqiue users:/)
-
-9. Look at all the primary functions in complaintdb.go; grep them; can we retire/generalize ?
-
-10. Kill off the address inference stuff ?
-11. Kill off kComplaintVersion
-12. Make use of that __datastorekey__ trick ?
-13. Remove cdb.Ctx() ?
-14. Kill off any memoization magic that is YAGNI
-
- */
-
 import (
 	"fmt"
 	"net/http"
 	"time"
 
-	"google.golang.org/appengine/datastore"
+	"google.golang.org/appengine/datastore"  // for ErrFieldMismatch :/
 	"google.golang.org/appengine/user"
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/urlfetch"
@@ -87,6 +64,7 @@ func (cdb ComplaintDB)Errorf(fmtstr string, varargs ...interface{}) {
 
 // }}}
 
+
 // {{{ cdb.getDailyCountsByEmailAdress
 
 func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem, error) {
@@ -133,7 +111,7 @@ func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem
 
 // }}}
 
-// {{{ cdb.EmailToRootKey
+// {{{ cdb.EmailToRootKey[er]
 
 // The new(!?!) thing
 func (cdb ComplaintDB)EmailToRootKeyer(email string) dsprovider.Keyer {
