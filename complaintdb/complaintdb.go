@@ -118,6 +118,15 @@ func (cdb ComplaintDB)ComplaintKeyStrOwnedBy(keyStr, owner string) (bool,error) 
 func (cdb ComplaintDB)PersistComplaint(c types.Complaint) error {
 	rootKeyer := cdb.emailToRootKeyer(c.Profile.EmailAddress)
 	keyer := cdb.Provider.NewIncompleteKey(cdb.Ctx(), kComplaintKind, rootKeyer)
+
+	if c.DatastoreKey != "" {
+		if k,err := cdb.Provider.DecodeKey(c.DatastoreKey); err != nil {
+			return err
+		} else {
+			keyer = k
+		}
+	}
+
 	if _,err := cdb.Provider.Put(cdb.Ctx(), keyer, &c); err != nil {
 		return fmt.Errorf("PersistComplaint/Put: %v", err)
 	}
