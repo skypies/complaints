@@ -2,12 +2,13 @@ package complaintdb
 
 import (
 	"fmt"
+	pkglog "log"
 	"net/http"
 	"sort"
 	"time"
 
 	"google.golang.org/appengine/user"
-	"google.golang.org/appengine/log"
+	aelog "google.golang.org/appengine/log"
 	"google.golang.org/appengine/urlfetch"
 	"golang.org/x/net/context"
 
@@ -29,6 +30,7 @@ type ComplaintDB struct {
 	StartTime time.Time
 	admin     bool
 	Provider  dsprovider.DatastoreProvider
+	Logger   *pkglog.Logger
 }
 func (cdb ComplaintDB)Ctx() context.Context { return cdb.ctx }
 func (cdb ComplaintDB)HTTPClient() *http.Client { return urlfetch.Client(cdb.Ctx()) }
@@ -49,19 +51,31 @@ func NewDB(ctx context.Context) ComplaintDB {
 // Debugf is has a 'step' arg, and adds its own latency timings
 func (cdb ComplaintDB)Debugf(step string, fmtstr string, varargs ...interface{}) {
 	payload := fmt.Sprintf(fmtstr, varargs...)
-	log.Debugf(cdb.Ctx(), "[%s] %9.6f %s", step, time.Since(cdb.StartTime).Seconds(), payload)
+	str := fmt.Sprintf("[%s] %9.6f ", step, time.Since(cdb.StartTime).Seconds(), payload)
+	if cdb.Logger != nil {
+		cdb.Logger.Print(str)
+	} else {
+		aelog.Debugf(cdb.Ctx(), str)
+	}
 }
 
 func (cdb ComplaintDB)Infof(fmtstr string, varargs ...interface{}) {
-	log.Infof(cdb.Ctx(), fmtstr, varargs...)
+	if cdb.Logger != nil {
+		cdb.Logger.Printf(fmtstr, varargs...)
+	} else {
+		aelog.Infof(cdb.Ctx(), fmtstr, varargs...)
+	}
 }
 
 func (cdb ComplaintDB)Errorf(fmtstr string, varargs ...interface{}) {
-	log.Errorf(cdb.Ctx(), fmtstr, varargs...)
+	if cdb.Logger != nil {
+		cdb.Logger.Printf("ERROR: "+fmtstr, varargs...)
+	} else {
+		aelog.Errorf(cdb.Ctx(), fmtstr, varargs...)
+	}
 }
 
 // }}}
-
 
 // {{{ cdb.emailToRootKeyer
 

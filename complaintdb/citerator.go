@@ -19,6 +19,11 @@ func (ci *ComplaintIterator)Iterate(ctx context.Context) bool {
 	return it.Iterate(ctx)
 }
 
+func (ci *ComplaintIterator)Remaining() int {
+	it := (*dsprovider.Iterator)(ci)
+	return it.Remaining()
+}
+
 func (ci *ComplaintIterator)Err() error {
 	it := (*dsprovider.Iterator)(ci)
 	return it.Err()
