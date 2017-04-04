@@ -190,10 +190,8 @@ func generateMonthlyCSV2(cdb complaintdb.ComplaintDB, month,year int) (string, i
 		q := cdb.NewComplaintQuery().ByTimespan(dayStart, dayEnd)
 		log.Infof(ctx, " /be/month: %s - %s", dayStart, dayEnd)
 
-		tIter := time.Now()
 		if num,err := cdb.WriteCQueryToCSV(q, gcsHandle.IOWriter(), (n==0)); err != nil {
-			return gcsName,0,fmt.Errorf("failed; time since start: %s. Err: %v", time.Since(tStart),
-				iter.Err())
+			return gcsName,0,fmt.Errorf("failed; time since start: %s. Err: %v", time.Since(tStart), err)
 		} else {
 			n += num
 		}
