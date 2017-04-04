@@ -19,6 +19,7 @@ func (cdb *ComplaintDB)NewComplaintQuery() *CQuery { return NewComplaintQuery() 
 func (cdb *ComplaintDB)NewProfileQuery() *CQuery { return NewProfileQuery() }
 
 // Thin wrapper in util/dsprovider.Query
+func (cq *CQuery)String() string { return (*ds.Query)(cq).String() }
 func (cq *CQuery)Order(str string) *CQuery { return (*CQuery)((*ds.Query)(cq).Order(str)) }
 func (cq *CQuery)Limit(val int) *CQuery { return (*CQuery)((*ds.Query)(cq).Limit(val)) }
 func (cq *CQuery)Filter(str string, val interface{}) *CQuery {
@@ -33,6 +34,7 @@ func (cq *CQuery)Project(fields ...string) *CQuery {
 func (cq *CQuery)KeysOnly() *CQuery {
 	return (*CQuery)((*ds.Query)(cq).KeysOnly())
 }
+
 
 // Query builders for Complaint
 //

@@ -51,7 +51,7 @@ func NewDB(ctx context.Context) ComplaintDB {
 // Debugf is has a 'step' arg, and adds its own latency timings
 func (cdb ComplaintDB)Debugf(step string, fmtstr string, varargs ...interface{}) {
 	payload := fmt.Sprintf(fmtstr, varargs...)
-	str := fmt.Sprintf("[%s] %9.6f ", step, time.Since(cdb.StartTime).Seconds(), payload)
+	str := fmt.Sprintf("[%s] %9.6f %s", step, time.Since(cdb.StartTime).Seconds(), payload)
 	if cdb.Logger != nil {
 		cdb.Logger.Print(str)
 	} else {
@@ -81,6 +81,20 @@ func (cdb ComplaintDB)Errorf(fmtstr string, varargs ...interface{}) {
 
 func (cdb ComplaintDB)emailToRootKeyer(email string) dsprovider.Keyer {
 	return cdb.Provider.NewNameKey(cdb.Ctx(), kComplainerKind, email, nil)
+}
+
+// }}}
+// {{{ cdb.findOrGenerateComplaintKeyer
+
+func (cdb ComplaintDB)findOrGenerateComplaintKeyer(c types.Complaint) (dsprovider.Keyer, error) {
+	if c.DatastoreKey != "" {
+		return cdb.Provider.DecodeKey(c.DatastoreKey)
+	}
+
+	// The obj must be brand new - so new key
+	rootKeyer := cdb.emailToRootKeyer(c.Profile.EmailAddress)
+	keyer := cdb.Provider.NewIncompleteKey(cdb.Ctx(), kComplaintKind, rootKeyer)
+	return keyer,nil
 }
 
 // }}}
@@ -116,20 +130,36 @@ func (cdb ComplaintDB)ComplaintKeyStrOwnedBy(keyStr, owner string) (bool,error) 
 // {{{ cdb.PersistComplaint
 
 func (cdb ComplaintDB)PersistComplaint(c types.Complaint) error {
-	rootKeyer := cdb.emailToRootKeyer(c.Profile.EmailAddress)
-	keyer := cdb.Provider.NewIncompleteKey(cdb.Ctx(), kComplaintKind, rootKeyer)
-
-	if c.DatastoreKey != "" {
-		if k,err := cdb.Provider.DecodeKey(c.DatastoreKey); err != nil {
-			return err
-		} else {
-			keyer = k
-		}
+	keyer,err := cdb.findOrGenerateComplaintKeyer(c)
+	if err != nil {
+		return fmt.Errorf("PersistComplaint/findKey: %v", err)
 	}
 
 	if _,err := cdb.Provider.Put(cdb.Ctx(), keyer, &c); err != nil {
 		return fmt.Errorf("PersistComplaint/Put: %v", err)
 	}
+
+	return nil
+}
+
+// }}}
+// {{{ cdb.PersistComplaints
+
+func (cdb ComplaintDB)PersistComplaints(complaints []types.Complaint) error {
+	keyers := make([]dsprovider.Keyer, len(complaints))
+	for i,c := range complaints {
+		keyer,err := cdb.findOrGenerateComplaintKeyer(c)
+		if err != nil {
+			return fmt.Errorf("PersistComplaints/findKey: %v", err)
+		}
+		keyers[i] = keyer
+	}
+
+	if _,err := cdb.Provider.PutMulti(cdb.Ctx(), keyers, complaints); err != nil {
+		return fmt.Errorf("PersistComplaints/PutMulti: %v (%d,%d)", err,
+			len(keyers), len(complaints))
+	}
+
 	return nil
 }
 
