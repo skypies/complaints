@@ -1,1 +1,1 @@
-../../../pi/frontend/templates/textboxes.js
+../../../pi/app/frontend/templates/textboxes.js

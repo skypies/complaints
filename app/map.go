@@ -6,5 +6,5 @@ import(
 )
 
 func init() {
-	http.HandleFunc("/map", ui.MapHandler)
+	http.HandleFunc("/map", ui.WithCtxTmpl(templates, ui.MapHandler))
 }

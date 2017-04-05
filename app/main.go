@@ -1,5 +1,11 @@
 package complaints
 
+// complaints/app/main.go    HandleFunc("/")
+// complaints/app/map.go     import "github.com/skypies/flightdb/ui"
+// flightdb/ui/ui.go         import "github.com/skypies/pi/frontend"
+// pi/frontend/frontend.go   HandleFunc("/")
+// ... oh noes !
+
 import (
 	"errors"
 	"fmt"

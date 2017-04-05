@@ -49,13 +49,13 @@ func monthCSVTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 // }}}
 
-// {{{ generateMonthlyCSV
+// {{{ generateMonthlyCSVOLD
 
 // Dumps the monthly CSV file into Google Cloud Storage, ready to be emailed to BKSV et al.
 
 // http://backend-dot-serfr0-1000.appspot.com/backend/monthdump?year=2016&month=4
 
-func generateMonthlyCSV(cdb complaintdb.ComplaintDB, month,year int) (string, int, error) {
+func generateMonthlyCSVOLD(cdb complaintdb.ComplaintDB, month,year int) (string, int, error) {
 	ctx := cdb.Ctx()
 	bucketname := "serfr0-reports"
 	
@@ -149,13 +149,13 @@ func generateMonthlyCSV(cdb complaintdb.ComplaintDB, month,year int) (string, in
 }
 
 // }}}
-// {{{ generateMonthlyCSV2
+// {{{ generateMonthlyCSV
 
 // Dumps the monthly CSV file into Google Cloud Storage, ready to be emailed to BKSV et al.
 
 // http://backend-dot-serfr0-1000.appspot.com/backend/monthdump?year=2016&month=4
 
-func generateMonthlyCSV2(cdb complaintdb.ComplaintDB, month,year int) (string, int, error) {
+func generateMonthlyCSV(cdb complaintdb.ComplaintDB, month,year int) (string, int, error) {
 	ctx := cdb.Ctx()
 	bucketname := "serfr0-reports"
 	

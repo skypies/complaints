@@ -1,1 +1,1 @@
-../../../pi/frontend/templates/overlays.js
+../../../pi/app/frontend/templates/overlays.js

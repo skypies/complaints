@@ -1,1 +1,1 @@
-../../../flightdb/ui/templates/map-ajax.js
+../../../flightdb/app/frontend/templates/map-ajax.js

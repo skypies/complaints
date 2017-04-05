@@ -28,7 +28,8 @@ func (cdb ComplaintDB)WriteCQueryToCSV(cq *CQuery, w io.Writer, headers bool) (i
 
 	tIter := time.Now()
 	iter := cdb.NewComplaintIterator(cq)
-
+	iter.PageSize = 200
+	
 	n := 0
 	for iter.Iterate(cdb.Ctx()) {
 		c := iter.Complaint()

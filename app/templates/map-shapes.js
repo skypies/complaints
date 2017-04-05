@@ -1,1 +1,1 @@
-../../../flightdb/ui/templates/map-shapes.js
+../../../flightdb/app/frontend/templates/map-shapes.js
