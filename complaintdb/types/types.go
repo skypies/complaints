@@ -223,7 +223,7 @@ func (c Complaint) AltitudeHrefString() template.HTML {
 	if id,err := fdb.NewIdSpec(c.AircraftOverhead.Id); err != nil {
 		return template.HTML(txt)
 	} else {
-		url := fmt.Sprintf("http://fdb.serfr1.org/fdb/descent?idspec=%s&dist=from&classb=1&refpt_lat=%.6f&refpt_long=%.6f&refpt_label=You", id, c.Profile.Lat, c.Profile.Long)
+		url := fmt.Sprintf("http://fdb.serfr1.org/fdb/sideview?idspec=%s&dist=from&classb=1&refpt_lat=%.6f&refpt_long=%.6f&refpt_label=You", id, c.Profile.Lat, c.Profile.Long)
 
 		return template.HTML(fmt.Sprintf("<a target=\"_blank\" href=\"%s\">%s</a>", url, txt))
 	}
