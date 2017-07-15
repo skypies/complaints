@@ -44,6 +44,7 @@ func init() {
 	http.HandleFunc("/add-historical-complaint", HandleWithSession(addHistoricalComplaintHandler,"/"))
 	http.HandleFunc("/update-complaint", HandleWithSession(updateComplaintHandler,"/"))
 	http.HandleFunc("/delete-complaints", HandleWithSession(deleteComplaintsHandler,"/"))
+	http.HandleFunc("/view-complaint", HandleWithSession(viewComplaintHandler,"/"))
 	http.HandleFunc("/complaint-updateform", HandleWithSession(complaintUpdateFormHandler,"/"))
 }
 
@@ -260,6 +261,39 @@ func deleteComplaintsHandler(ctx context.Context, w http.ResponseWriter, r *http
 	}
 	http.Redirect(w, r, "/", http.StatusFound)	
 }
+
+// }}}
+// {{{ viewComplaintHandler
+
+// This handler isn't complete; only renders the debug blob for now.
+func viewComplaintHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	cdb := complaintdb.NewDB(ctx)
+	sesh,_ := GetUserSession(ctx)
+
+	key := r.FormValue("k")
+
+	if complaint, err := cdb.LookupKey(key, sesh.Email); err != nil {
+		cdb.Errorf("updateform, getComplaint: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	} else {
+		cdb.Infof("Loaded complaint: %+v", complaint)
+		var params = map[string]interface{}{
+			"HideForm": true,
+			"ActivityList": kActivities,  // lives in add-complaint
+			"DefaultFlightNumber": complaint.AircraftOverhead.FlightNumber,
+			"DefaultTimestamp": complaint.Timestamp,
+			"DefaultActivity": complaint.Activity,
+			"DefaultLoudness": complaint.Loudness,
+			"DefaultSpeedbrakes": complaint.HeardSpeedbreaks,
+			"DefaultDescription": complaint.Description,
+			"C": complaint,
+		}
+	
+		if err := templates.ExecuteTemplate(w, "complaint-updateform", params); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}
+}	
 
 // }}}
 
