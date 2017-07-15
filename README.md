@@ -12,6 +12,10 @@ Download and run the site locally:
 * `goapp serve $GOPATH/github.com/skypies/complaints/app` (build & run locally)
 * Look at <http://localhost:8080/> (appengine admin panel is <http://localhost:8000/>)
 
+Deploy an instance of the site to your google cloud project:
+* `cd $GOPATH/github.com/skypies/complaints/app`
+* `gcloud app deploy --project=your-project --version=1`
+
 The `test-values.go.sample` sample file has no passwords in, so
-Facebook login and flightaware flightpath backfill won't be working.
+Facebook login won't be working.
 
