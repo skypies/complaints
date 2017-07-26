@@ -44,7 +44,7 @@ func init() {
 // http://stop.jetnoise.net/month?year=2015&month=9&day=1&num=10
 // http://stop.jetnoise.net/month?year=2015&month=9  // via /task
 
-// Where is the version of this that does GCS via batch ?
+// The version of this that does GCS via batch is monthlySummaryTaskHandler
 func monthHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
 
@@ -105,6 +105,7 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 	csvWriter.Write(cols)
 	
 	iter := cdb.NewComplaintIterator(cdb.NewComplaintQuery().ByTimespan(s,e))
+	iter.PageSize = 1000
 	// iter := cdb.NewIter(cdb.QueryInSpan(s,e))
 	for iter.Iterate(ctx) {
 		c := iter.Complaint()
@@ -630,6 +631,7 @@ func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (stri
 
 		q := cdb.NewComplaintQuery().ByTimespan(dayWindow[0],dayWindow[1])
 		iter := cdb.NewComplaintIterator(q)
+		iter.PageSize = 1000
 		cdb.Infof("running summary across %s-%s, for %v", dayWindow[0],dayWindow[1],u)
 		
 		for iter.Iterate(ctx) {
