@@ -36,11 +36,20 @@ func GetLoginUrl(r *http.Request, fromScratch bool) string {
 	}
 
 	// This is a 'start from scratch' Google login URL, that involves re-selecting the google acct.
-	url, err := user.LoginURL(ctx, destURL.String())
+	// Google multiple accounts aren't working as they used to; simply redirecting to the loginURL
+	// no longer allows a user to select. Instead force them to entirely log out of all their google
+	// accounts (ouch) and then login again (with desired account), and finally back to the site.
+	loginUrl, err := user.LoginURL(ctx, destURL.String())
 	if err != nil {
 		log.Errorf(ctx, "g.GetLoginUrl, %v", err)
 		return ""
 	}
+	url, err := user.LogoutURL(ctx, loginUrl)
+	if err != nil {
+		log.Errorf(ctx, "g.GetLogoutUrl, %v", err)
+		return ""
+	}
+
 	return url
 }
 
