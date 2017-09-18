@@ -54,11 +54,16 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 	
 	// Contrast with the skypi pathway
 	if cp.CallerCode == "WOR004" || cp.CallerCode == "WOR005" {
-		asFdb,_ := airspace.Fetch(client, "", pos.Box(60,60))
+		asFdb,_ := airspace.Fetch(client, "", "fdb", pos.Box(60,60))
 		oh3,deb3 := flightid.IdentifyOverhead(asFdb,pos,elev,algo)
 		if oh3 == nil { oh3 = &flightid.Aircraft{} }
 		newdebug := c.Debug + "\n*** v2 / fdb testing\n" + deb3 + "\n"
 		headline := ""
+
+		asAex,_ := airspace.Fetch(client, "", "aex", pos.Box(60,60))
+		oh4,deb4 := flightid.IdentifyOverhead(asAex,pos,elev,algo)
+		newdebug += "\n*** v3 / AdsbExchange testing\n" + deb4 + "\n"
+		_=oh4
 		
 		if overhead.FlightNumber != oh3.FlightNumber {
 			headline = fmt.Sprintf("** * * DIFFERS * * **\n")

@@ -24,22 +24,37 @@ func init() {
 // {{{ airspaceHandler
 
 func airspaceHandler(w http.ResponseWriter, r *http.Request) {
-	client := urlfetch.Client(appengine.NewContext(r))
+	ctx := appengine.NewContext(r)
+	client := urlfetch.Client(ctx)
 	pos := geo.Latlong{37.060312,-121.990814}
 	str := ""
+	
+	var as *airspace.Airspace
+	var err error
+		
+	if r.FormValue("aex") != "" {
+		as,err = airspace.Fetch(client, "", "aex", pos.Box(60,60))
 
-	if as,err := fr24.FetchAirspace(client, pos.Box(100,100)); err != nil {
+	} else if r.FormValue("fdb") != "" {
+		as,err = airspace.Fetch(client, "", "fdb", pos.Box(60,60))
+
+	} else {
+		// TODO: also fetch from fdb ? It has the memcache entries for schedule/airframe backfill.
+		as,err = fr24.FetchAirspace(client, pos.Box(60,60))
+	}
+	
+	if err != nil {
 		http.Error(w, fmt.Sprintf("FetchAirspace: %v", err), http.StatusInternalServerError)
 		return
-	} else {		
-		names := SelectorNames
-		names = append([]string{"conservative"}, names...)
-		for _,name := range names {
-			algo := NewSelector(name)
-			oh,debstr := IdentifyOverhead(as, pos, 0.0, algo)
-			str += fmt.Sprintf("--{ IdentifyOverhead, algo: %s }--\n -{ OH: %s }-\n\n%s\n",
-				algo, oh, debstr)
-		}
+	}
+
+	names := SelectorNames
+	//names = append([]string{"conservative"}, names...)
+	for _,name := range names {
+		algo := NewSelector(name)
+		oh,debstr := IdentifyOverhead(as, pos, 0.0, algo)
+		str += fmt.Sprintf("--{ IdentifyOverhead, algo: %s }--\n -{ OH: %s }-\n\n%s\n",
+			algo, oh, debstr)
 	}
 	
 	w.Header().Set("Content-Type", "text/plain")
