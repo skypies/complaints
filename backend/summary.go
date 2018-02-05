@@ -553,7 +553,9 @@ func GetProcedureMap(r *http.Request, s,e time.Time) (map[string]fdb.CondensedFl
 	ret := map[string]fdb.CondensedFlight{}
 
 	// This procedure map stuff is expensive, and brittle; so disable by default.
-	return ret, nil
+	if r.FormValue("getProcedures") == "" {
+		return ret, nil
+	}
 	
 	client := urlfetch.Client(req2ctx(r))
 	
@@ -593,12 +595,23 @@ func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (stri
 	str := ""
 	str += fmt.Sprintf("(t=%s)\n", time.Now())
 	str += fmt.Sprintf("Summary of disturbance reports:\n From [%s]\n To   [%s]\n", start, end)
+
+	zipFilter := map[string]int{}
+	if zips := widget.FormValueCommaSpaceSepStrings(r,"zips"); len(zips)>0 {
+		if zips[0] == "south" {
+			zips = []string{"95003", "95005", "95006", "95010", "95017", "95018", "95033", "95060",
+				"95062", "95064", " 95065", "95066", "95073"}
+		}
+		for _,zip := range zips { zipFilter[zip] = 1 }
+		str += fmt.Sprintf("\nOnly including reports from these ZIP codes: %v\n", zips)
+	}
 	
 	var countsByHour [24]int
 	countsByDate := map[string]int{}
 	countsByAirline := map[string]int{}
 	countsByEquip := map[string]int{}
 	countsByCity := map[string]int{}
+	countsByZip := map[string]int{}
 	countsByAirport := map[string]int{}
 
 	countsByProcedure := map[string]int{}        // complaint counts, per arrival/departure procedure
@@ -609,10 +622,10 @@ func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (stri
 	uniquesPerDay := map[string]int{} // Each entry is a count for one unique user, for one day
 	uniquesByDate := map[string]map[string]int{}
 	uniquesByCity := map[string]map[string]int{}
+	uniquesByZip := map[string]map[string]int{}
 
 	uniquesPerDayByCity := map[string]map[string]int{} // [cityname][user:date] == daily_total
 
-	
 	userHistsByCity := map[string]*histogram.Histogram{}
 	
 	// An iterator expires after 60s, no matter what; so carve up into short-lived iterators
@@ -633,10 +646,18 @@ func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (stri
 		iter := cdb.NewComplaintIterator(q)
 		iter.PageSize = 1000
 		cdb.Infof("running summary across %s-%s, for %v", dayWindow[0],dayWindow[1],u)
+		cdb.Infof("fetched %d flight procedures", len(cfMap))
 		
 		for iter.Iterate(ctx) {
 			c := iter.Complaint()
 
+			// If we're filtering on ZIP codes, do it here (datastore Filters can't handle OR)
+			if len(zipFilter) > 0 {
+				if _,exists := zipFilter[c.Profile.GetStructuredAddress().Zip]; !exists {
+					continue
+				}
+			}
+			
 			n++
 			d := c.Timestamp.Format("2006.01.02")
 
@@ -669,6 +690,12 @@ func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (stri
 			} else {
 				countsByAirport["flight unidentified"]++
 				countsByProcedure["flight unidentified"]++
+			}
+
+			if zip := c.Profile.GetStructuredAddress().Zip; zip != "" {
+				countsByZip[zip]++
+				if uniquesByZip[zip] == nil { uniquesByZip[zip] = map[string]int{} }
+				uniquesByZip[zip][c.Profile.EmailAddress]++
 			}
 
 			if city := c.Profile.GetStructuredAddress().City; city != "" {
@@ -727,7 +754,6 @@ func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (stri
 		len(countsByDate), n, len(uniquesAll))
 
 	str += fmt.Sprintf("\nComplaints per user, histogram (0-200):\n %s\n", histByUser)
-/*
 	str += fmt.Sprintf("\n[BETA: no more than 80%% accurate!] Disturbance reports, "+
 		"counted by procedure type, breaking out vectored flights "+
 		"(e.g. PROCEDURE/LAST-ON-PROCEDURE-WAYPOINT):\n")
@@ -739,7 +765,6 @@ func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (stri
 		str += fmt.Sprintf(" %-20.20s: %6d (%5d such flights with complaints; %3.0f complaints/flight)\n",
 			k, countsByProcedure[k], flightCountsByProcedure[k], avg)	
 	}
-*/
 	
 	str += fmt.Sprintf("\nDisturbance reports, counted by airport:\n")
 	for _,k := range keysByKeyAsc(countsByAirport) {
@@ -750,6 +775,12 @@ func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (stri
 	for _,k := range keysByIntValDesc(countsByCity) {
 		str += fmt.Sprintf(" %-40.40s: %5d (%4d people reporting)\n",
 			k, countsByCity[k], len(uniquesByCity[k]))
+	}
+
+	str += fmt.Sprintf("\nDisturbance reports, counted by Zip (where known):\n")
+	for _,k := range keysByIntValDesc(countsByZip) {
+		str += fmt.Sprintf(" %-40.40s: %5d (%4d people reporting)\n",
+			k, countsByZip[k], len(uniquesByZip[k]))
 	}
 
 	str += fmt.Sprintf("\nDisturbance reports, as per-user-per-day histograms, by City (where known):\n")
