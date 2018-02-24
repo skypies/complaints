@@ -8,6 +8,29 @@ import(
 	fdb "github.com/skypies/flightdb"
 )
 
+/* plan for procs
+
+ 2 add new fields to Aircraft type:
+   arr_procedure, last_arr_wp, dep_procedure, last_dep_wp, tags (flatten ?!)
+
+ ** Now, we have slots we can populate
+
+ ZZ: move the flightdb retag batch jobs; run them earlier (need tags before the job below runs)
+ ZZ: better still, figure out a 'flight finished' hook :/
+
+ 4 new batch job in complaints system, for (say) 3am :
+    - flightdb.FetchCondensedFlights
+    - iterate over complaints ? Or iterate over flights with procedure data ?
+    - either way, update complaints in-place
+    - [write as a complaint iterator - then it can also be a batch job !]
+
+ 5 move overnight job to come safely *after* this
+    - express overnight job as a shim on batch ?! ("batch-for-yesterday")
+
+ 6 run some batch jobs to backfill all of feb 2018, and all of feb 2017.
+
+ */
+
 type Aircraft struct {
 	//`datastore:"-"` // for all these ??
 	Dist                float64  `datastore:",noindex"`// in KM
@@ -37,6 +60,13 @@ type Aircraft struct {
 	VerticalSpeed float64 `datastore:",noindex"`
 	Callsign string `datastore:",noindex"`
 	Unknown2 float64 `datastore:",noindex"`
+
+	// If we get any flightpath data about the flight, it gets written here.
+	ArrivalProcedureName string `datastore:",noindex"`
+	ArrivalProcedureLastWaypoint string `datastore:",noindex"`
+	DepartureProcedureName string `datastore:",noindex"`
+	DepartureProcedureLastWaypoint string `datastore:",noindex"`
+	Tags string `datastore:",noindex"` // comma-sep list
 }
 
 type AircraftByDist3 []Aircraft
