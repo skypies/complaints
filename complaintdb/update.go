@@ -21,13 +21,13 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 	overhead := flightid.Aircraft{}
 
 	// Check we're not over a daily cap for this user
-	cdb.Debugf("cbe_010", "doing rate limit check")
+	cdb.Debugf("cbe_010", "doing rate limit check for %s", cp.EmailAddress)
 	s,e := date.WindowForToday()
 	//if prevKeys,err := cdb.GetComplaintKeysInSpanByEmailAddress(s,e,cp.EmailAddress); err != nil {
 	if prevKeys,err := cdb.LookupAllKeys(cdb.CQByEmail(cp.EmailAddress).ByTimespan(s,e)); err != nil {
 		return err
 	} else if len(prevKeys) >= KMaxComplaintsPerDay {
-		return fmt.Errorf("Too many complaints filed today")
+		return fmt.Errorf("Too many complaints filed today by %s", cp.EmailAddress)
 	} else {
 		cdb.Debugf("cbe_011", "rate limit check passed (%d); calling FindOverhead", len(prevKeys))
 	}

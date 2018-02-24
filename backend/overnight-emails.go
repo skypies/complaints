@@ -106,7 +106,7 @@ func GenerateEmail(c context.Context, cap types.ComplaintsAndProfile) (*mail.Mes
 	if err != nil { return nil,err }
 
 	var bcc = []string{
-		fmt.Sprintf("complainers+bcc@serfr1.org"), //, cap.Profile.CallerCode),
+		// fmt.Sprintf("complainers+bcc@serfr1.org"), //, cap.Profile.CallerCode),
 	}
 	var dests = []string{
 		cap.Profile.EmailAddress,

@@ -15,6 +15,7 @@ Download and run the site locally:
 Deploy an instance of the site to your google cloud project:
 * `cd $GOPATH/github.com/skypies/complaints/app`
 * `gcloud app deploy --project=your-project --version=1`
+* `gcloud app deploy --project=serfr0-1000 --version=1 backend`
 
 The `test-values.go.sample` sample file has no passwords in, so
 Facebook login won't be working.
