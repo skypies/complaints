@@ -189,6 +189,24 @@ func (cdb ComplaintDB)LookupKey(keyerStr string, owner string) (*types.Complaint
 }
 
 // }}}
+// {{{ cdb.RawLookupAll
+
+func (cdb ComplaintDB)RawLookupAll(cq *CQuery) ([]types.Complaint, error) {
+	complaints := []types.Complaint{}
+
+	cdb.Debugf("cdbRLA_201", "calling GetAll() ...")
+	_, err := cdb.Provider.GetAll(cdb.Ctx(), (*dsprovider.Query)(cq), &complaints)
+	cdb.Debugf("cdbRLA_202", "... call done (n=%d)", len(complaints))
+
+	// We tolerate missing fields, because the DB is full of old objects with dead fields
+	if err != nil && err != dsprovider.ErrFieldMismatch {
+		return nil, fmt.Errorf("cdbRLA: %v", err)
+	}
+
+	return complaints,nil
+}
+
+// }}}
 // {{{ cdb.LookupAll
 
 func (cdb ComplaintDB)LookupAll(cq *CQuery) ([]types.Complaint, error) {
@@ -209,7 +227,7 @@ func (cdb ComplaintDB)LookupAll(cq *CQuery) ([]types.Complaint, error) {
 
 	sort.Sort(types.ComplaintsByTimeDesc(complaints))
 
-	return complaints,nil
+	return complaints, nil
 }
 
 // }}}

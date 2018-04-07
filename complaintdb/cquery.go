@@ -5,7 +5,6 @@ package complaintdb
 import(
 	"time"
 	ds "github.com/skypies/util/dsprovider"
-	//"github.com/skypies/complaints/complaintdb/types"
 )
 
 type CQuery ds.Query // Create our own type, so we can hang a fluent API off it
@@ -30,6 +29,9 @@ func (cq *CQuery)Ancestor(rootkey ds.Keyer) *CQuery {
 }
 func (cq *CQuery)Project(fields ...string) *CQuery {
 	return (*CQuery)((*ds.Query)(cq).Project(fields...))
+}
+func (cq *CQuery)Distinct() *CQuery {
+	return (*CQuery)((*ds.Query)(cq).Distinct())
 }
 func (cq *CQuery)KeysOnly() *CQuery {
 	return (*CQuery)((*ds.Query)(cq).KeysOnly())

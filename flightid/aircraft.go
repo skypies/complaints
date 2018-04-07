@@ -10,14 +10,6 @@ import(
 
 /* plan for procs
 
- 2 add new fields to Aircraft type:
-   arr_procedure, last_arr_wp, dep_procedure, last_dep_wp, tags (flatten ?!)
-
- ** Now, we have slots we can populate
-
- ZZ: move the flightdb retag batch jobs; run them earlier (need tags before the job below runs)
- ZZ: better still, figure out a 'flight finished' hook :/
-
  4 new batch job in complaints system, for (say) 3am :
     - flightdb.FetchCondensedFlights
     - iterate over complaints ? Or iterate over flights with procedure data ?
@@ -25,7 +17,7 @@ import(
     - [write as a complaint iterator - then it can also be a batch job !]
 
  5 move overnight job to come safely *after* this
-    - express overnight job as a shim on batch ?! ("batch-for-yesterday")
+    - express overnight job as a shim on batch ?! ("batch-for-yesterday"; see flights cron!)
 
  6 run some batch jobs to backfill all of feb 2018, and all of feb 2017.
 
