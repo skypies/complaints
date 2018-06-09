@@ -52,6 +52,12 @@ func HandleWithSession(ch contextHandler, ifNoSessionRedirectTo string) baseHand
 		session,err := sessions.Get(r)
 		if err != nil {
 			log.Errorf(ctx, "session.Get failed with err: %v", err)
+			log.Errorf(ctx, "cookies found: %d", len(r.Cookies()))
+			for _,c := range r.Cookies() {
+				if c.Name != "serfr0" { continue }
+				log.Errorf(ctx, "serfr0 cookie: expires=%v (remain=%s), maxage=%v, secure=%v, httponly=%v %s",
+					c.Expires, time.Until(c.Expires), c.MaxAge, c.Secure, c.HttpOnly, c)
+			}
 		}
 		
 		if strings.HasPrefix(r.UserAgent(), "Google") {
@@ -59,7 +65,7 @@ func HandleWithSession(ch contextHandler, ifNoSessionRedirectTo string) baseHand
 
 		} else if session.Values["email"] == nil {
 			reqBytes,_ := httputil.DumpRequest(r, true)
-			log.Errorf(ctx, "session was empty")
+			log.Errorf(ctx, "session was empty (sessions.Debug=%v)", sessions.Debug)
 			//for _,c := range r.Cookies() {
 			//	log.Errorf(ctx, "cookie: %s", c)
 			//}

@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	http.HandleFunc("/download-complaints", HandleWithSession(downloadHandler,"/"))
+	http.HandleFunc("/download-complaints", HandleWithSession(DownloadHandler,"/"))
 	http.HandleFunc("/personal-report", HandleWithSession(personalReportHandler,"/"))
 }
 
@@ -61,9 +61,9 @@ func keysByKeyAsc(m map[string]int) []string {
 
 // }}}
 
-// {{{ downloadHandler
+// {{{ DownloadHandler
 
-func downloadHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func DownloadHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	sesh,_ := GetUserSession(ctx)
 
 	filename := date.NowInPdt().Format("complaints-20060102.csv")

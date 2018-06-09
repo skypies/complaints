@@ -25,15 +25,14 @@ func init() {
 
 func profileFormHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	// https, yay
-	if r.URL.Host == "stop.jetnoise.net" {
-		// We're behind cloudflare, so we always see http. This is how we can tell if the user is
+	if r.URL.Scheme == "http" {
+		// If we're behind cloudflare, this is how we can tell if the user is
 		// using https ...
-		if r.Header.Get("Cf-Visitor") != `{"scheme":"https"}` {
-			safeUrl := r.URL
-			safeUrl.Scheme = "https"
-			http.Redirect(w, r, safeUrl.String(), http.StatusFound)
-			return
-		}
+		//	if r.Header.Get("Cf-Visitor") != `{"scheme":"https"}` {
+		safeUrl := r.URL
+		safeUrl.Scheme = "https"
+		http.Redirect(w, r, safeUrl.String(), http.StatusFound)
+		return
 	}
 
 	sesh,_ := GetUserSession(ctx)

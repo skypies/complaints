@@ -74,11 +74,21 @@ func hintComplaints(in []types.Complaint, isSuperHinter bool) []HintedComplaint 
 // {{{ rootHandler
 
 func rootHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	if r.URL.Scheme == "http" {
+		safeUrl := r.URL
+		safeUrl.Scheme = "https"
+		http.Redirect(w, r, safeUrl.String(), http.StatusFound)
+		return
+	}
+
 	cdb := complaintdb.NewDB(ctx)
 	sesh,_ := GetUserSession(ctx)
 
 	cdb.Debugf("root_001", "session obtained")
-	for _,c := range r.Cookies() { cdb.Debugf("root_002", "cookie: %s", c) }
+	for _,c := range r.Cookies() {
+		cdb.Debugf("root_002", "cookie %s: expires=%s (remain=%s), maxage=%v, secure=%v, httponly=%v %s",
+			c.Name, c.Expires.String(), time.Until(c.Expires), c.MaxAge, c.Secure, c.HttpOnly, c)
+	}
 	cdb.Debugf("root_002", "num cookies: %d", len(r.Cookies()))
 	cdb.Debugf("root_002a", "Cf-Connecting-Ip: %s", r.Header.Get("Cf-Connecting-Ip"))
 	
