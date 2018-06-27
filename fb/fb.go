@@ -96,5 +96,6 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		log.Errorf(ctx, "session.Save: %v", err)
 	}
 
+	log.Infof(ctx, "new session saved for %s (FB)", jsonMap["email"])
 	http.Redirect(w, r, "/", http.StatusFound)
 }

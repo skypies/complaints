@@ -78,5 +78,6 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Now head back to the main page
+	log.Infof(ctx, "new session saved for %s (G)", u.Email)
 	http.Redirect(w, r, "/", http.StatusFound)
 }
