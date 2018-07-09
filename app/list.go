@@ -8,10 +8,11 @@ import (
 
 	"github.com/skypies/util/widget"
 	"github.com/skypies/complaints/complaintdb"
+	"github.com/skypies/complaints/ui"
 )
 
 func init() {
-	http.HandleFunc("/cdb/list", HandleWithSession(listHandler, ""))
+	http.HandleFunc("/cdb/list", ui.WithCtxTlsSession(listHandler,fallbackHandler))
 }
 
 func listHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {

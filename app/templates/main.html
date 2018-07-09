@@ -5,6 +5,12 @@
   {{template "header"}}
 
   <body>
+
+    <script type="text/javascript">
+      {{template "sw-include-js" . }}
+    </script>
+
+
     <div class="allstack">
       {{if .Modes.debug}}<h1>DEBUG</h1>{{end}}
 

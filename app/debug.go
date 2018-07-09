@@ -13,12 +13,13 @@ import (
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
+	"github.com/skypies/complaints/ui"
 )
 
 func init() {
 	http.HandleFunc("/deb", debHandler)
-	http.HandleFunc("/deb2", HandleWithSession(debSessionHandler, "/"))
-	http.HandleFunc("/deb3", HandleWithSession(debSessionHandler, ""))
+	http.HandleFunc("/deb2", ui.WithCtxTlsSession(debSessionHandler, fallbackHandler))
+	http.HandleFunc("/deb3", ui.WithCtxTlsSession(debSessionHandler,fallbackHandler))
 	http.HandleFunc("/deb4", countsHandler)
 }
 
@@ -33,7 +34,7 @@ func debHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ debSessionHandler
 
 func debSessionHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	sesh,ok := GetUserSession(ctx)
+	sesh,ok := ui.GetUserSession(ctx)
 	str := fmt.Sprintf("OK\nctx = [%T] %v\nemail=%s, ok=%v\n", ctx, ctx, sesh.Email, ok) 
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(str))

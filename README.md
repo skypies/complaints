@@ -16,9 +16,19 @@ Deploy an instance of the site to your google cloud project:
 * `cd $GOPATH/github.com/skypies/complaints`
 * `export YOURPROJECT=serfr0-1000`
 * `gcloud datastore --project=$YOURPROJECT create-indexes app/index.yaml`
-* `gcloud app deploy --project=$YOURPROJECT --version=one app`
-* `gcloud app deploy --project=$YOURPROJECT --version=one backend`
+* `gcloud app deploy --project=$YOURPROJECT --version=1 app`
+* `gcloud app deploy --project=$YOURPROJECT --version=1 backend`
 
 The `test-values.go.sample` sample file has no passwords in, so
 Facebook login won't be working.
 
+
+---- DELETE ME
+
+new ui/handlerware.go
+ - a 'provides session' handler
+ - if no serfr0 cookie (or no validcontents), invoke landingPageHandler
+ - else read session, push into ctx
+ - in all circumstances, drop a
+
+new ui/session.go (which provides helpers to handlerware)

@@ -61,14 +61,14 @@ func call(t *testing.T, r *http.Request, handler baseHandler) (int,http.Header,s
 
 // }}}
 
-// {{{ handleWithSpoofedSession
+// {{{ withSpoofedSession
 
-// replacement for HandleWithSession, that injects a spoofed usersession instead of
+// replacement for WithSession, that injects a spoofed usersession instead of
 // doing all the cookie crypto stuff.
-func handleWithSpoofedSession(sesh UserSession, ch contextHandler) baseHandler {
+func withSpoofedSession(sesh ui.UserSession, ch contextHandler) baseHandler {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx,_ := context.WithTimeout(appengine.NewContext(r), 55 * time.Second)
-		ctx = context.WithValue(ctx, sessionEmailKey, sesh)
+		ctx = ui.SetUserSession(ctx, sesh)
 
 		ch(ctx, w, r)
 	}
@@ -78,10 +78,10 @@ func handleWithSpoofedSession(sesh UserSession, ch contextHandler) baseHandler {
 // {{{ {with,without}User
 
 // Convenience functions to run contexthandlers with/without a spoofed user session
-func withoutUser(ch contextHandler) baseHandler { return HandleWithSession(ch, "") }
+func withoutUser(ch contextHandler) baseHandler { return ui.WithCtxSession(ch, nil) }
 func withUser(user string, ch contextHandler) baseHandler {
-	sesh := UserSession{Email: user}
-	return handleWithSpoofedSession(sesh, ch)
+	sesh := ui.UserSession{Email: user}
+	return withSpoofedSession(sesh, ch)
 }
 
 // }}}

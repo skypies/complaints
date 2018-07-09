@@ -11,14 +11,15 @@ import (
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
 	"github.com/skypies/complaints/flightid"
+	"github.com/skypies/complaints/ui"
 )
 
 func init() {
-	http.HandleFunc("/profile", HandleWithSession(profileFormHandler,"/"))
-	http.HandleFunc("/profile-update", HandleWithSession(profileUpdateHandler,"/"))
-	http.HandleFunc("/profile-buttons", HandleWithSession(profileButtonsHandler,"/"))
-	http.HandleFunc("/profile-button-add", HandleWithSession(profileButtonAddHandler,"/"))
-	http.HandleFunc("/profile-button-delete", HandleWithSession(profileButtonDeleteHandler,"/"))
+	http.HandleFunc("/profile", ui.WithCtxTlsSession(profileFormHandler,fallbackHandler))
+	http.HandleFunc("/profile-update", ui.WithCtxTlsSession(profileUpdateHandler,fallbackHandler))
+	http.HandleFunc("/profile-buttons", ui.WithCtxTlsSession(profileButtonsHandler,fallbackHandler))
+	http.HandleFunc("/profile-button-add", ui.WithCtxTlsSession(profileButtonAddHandler,fallbackHandler))
+	http.HandleFunc("/profile-button-delete", ui.WithCtxTlsSession(profileButtonDeleteHandler,fallbackHandler))
 }
 
 // {{{ profileFormHandler
@@ -35,7 +36,7 @@ func profileFormHandler(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	sesh,_ := GetUserSession(ctx)
+	sesh,_ := ui.GetUserSession(ctx)
 	cdb := complaintdb.NewDB(ctx)
 	cp,_ := cdb.LookupProfile(sesh.Email)
 	if cp.EmailAddress == "" {
@@ -83,7 +84,7 @@ func profileUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	sesh,_ := GetUserSession(ctx)
+	sesh,_ := ui.GetUserSession(ctx)
 
 	// Maybe make a call to fetch the elevation ??
 	// https://developers.google.com/maps/documentation/elevation/intro
@@ -131,7 +132,7 @@ func profileUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Re
 // {{{ profileButtonsHandler
 
 func profileButtonsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	sesh,_ := GetUserSession(ctx)
+	sesh,_ := ui.GetUserSession(ctx)
 	cdb := complaintdb.NewDB(ctx)
 	cp,_ := cdb.LookupProfile(sesh.Email)
 	
@@ -150,7 +151,7 @@ func sanitizeButtonId(in string) string {
 
 func profileButtonAddHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(ctx)
-	sesh,_ := GetUserSession(ctx)
+	sesh,_ := ui.GetUserSession(ctx)
 	
 	cp, _ := cdb.LookupProfile(sesh.Email)
 
@@ -191,7 +192,7 @@ func profileButtonAddHandler(ctx context.Context, w http.ResponseWriter, r *http
 
 func profileButtonDeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(ctx)
-	sesh,_ := GetUserSession(ctx)
+	sesh,_ := ui.GetUserSession(ctx)
 	cp,_ := cdb.LookupProfile(sesh.Email)
 
 	str := "OK\n--\n"

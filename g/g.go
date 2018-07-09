@@ -2,13 +2,12 @@ package g
 
 import (
 	"net/http"
-	"time"
 
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/user"
 
-	"github.com/skypies/complaints/sessions"
+	"github.com/skypies/complaints/ui"
 )
 
 var (
@@ -64,18 +63,8 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	//c.Infof(" ** Google user logged in ! [%s]", u.Email)
 
-	// Snag their email address forever more
-	session,err := sessions.Get(r)
-	if err != nil {
-		// This isn't usually an important error (the session was most likely expired, which is why
-		// we're logging in) - so log as Info, not Error.
-		log.Debugf(ctx, "sessions.Get [failing is OK for this call] had err: %v", err)
-	}
-	session.Values["email"] = u.Email
-	session.Values["tstamp"] = time.Now().Format(time.RFC3339)
-	if err := session.Save(r,w); err != nil {
-		log.Errorf(ctx, "session.Save: %v", err)
-	}
+	// Snag their email address forever more; writes cookie into w
+	ui.CreateSession(ctx, w, r, ui.UserSession{Email:u.Email})
 
 	// Now head back to the main page
 	log.Infof(ctx, "new session saved for %s (G)", u.Email)

@@ -15,20 +15,27 @@ import (
 	"github.com/skypies/complaints/complaintdb/types"
 	"github.com/skypies/complaints/fb"
 	"github.com/skypies/complaints/g"
-	"github.com/skypies/complaints/sessions"
+	"github.com/skypies/complaints/ui"
+)
+
+var(
+	// Whenever a handler is required to have a session, but doesn't have one, it will
+	// invoke this handler instead.
+	fallbackHandler = landingPageHandler
 )
 
 func init() {
-	http.HandleFunc("/",       HandleWithSession(rootHandler, ""))
-	http.HandleFunc("/masq",   HandleWithSession(masqueradeHandler, "/"))
-	http.HandleFunc("/logout", logoutHandler)
+	http.HandleFunc("/",       ui.WithCtxTlsSession(rootHandler, fallbackHandler))
+	http.HandleFunc("/masq",   ui.WithCtxTlsSession(masqueradeHandler, fallbackHandler))
+	http.HandleFunc("/logout", ui.WithCtx(logoutHandler))
+
 	http.HandleFunc("/faq",    faqHandler)
 	http.HandleFunc("/intro",  gettingStartedHandler)
-
+	
 	http.HandleFunc("/zip",                     makeRedirectHandler("/report/zip"))
 	http.HandleFunc("/personal-report/results", makeRedirectHandler("/personal-report"))
-	
-	sessions.Init(kSessionsKey,kSessionsPrevKey)
+
+	ui.InitSessionStore(kSessionsKey,kSessionsPrevKey)
 }
 
 // {{{ HintedComplaints
@@ -71,7 +78,175 @@ func hintComplaints(in []types.Complaint, isSuperHinter bool) []HintedComplaint 
 
 // }}}
 
+// {{{ landingPageHandler
+
+func landingPageHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {	
+	fb.AppId = kFacebookAppId
+	fb.AppSecret = kFacebookAppSecret
+	loginUrls := map[string]string{
+		"googlefromscratch": g.GetLoginUrl(r, true),
+		"google": g.GetLoginUrl(r, false),
+		"facebook": fb.GetLoginUrl(r),
+	}
+
+	if err := templates.ExecuteTemplate(w, "landing", loginUrls); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// }}}
 // {{{ rootHandler
+
+func rootHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	if r.URL.Scheme == "http" {
+		safeUrl := r.URL
+		safeUrl.Scheme = "https"
+		http.Redirect(w, r, safeUrl.String(), http.StatusFound)
+		return
+	}
+
+	cdb := complaintdb.NewDB(ctx)
+	sesh,_ := ui.GetUserSession(ctx)
+	
+	if sesh.Email == "" {
+		// "this should never happen", 'cos WithSession takes care of it all
+		http.Error(w, "newRoot: invoked, but no sesh.Email", http.StatusInternalServerError)
+		return
+	}
+	
+	cdb.Debugf("root_001", "session obtained: tstamp=%s, age=%s", sesh.CreatedAt, time.Since(sesh.CreatedAt))
+	
+	modes := map[string]bool{}
+
+	// The rootHandler is the URL wildcard. Except Fragments, which are broken.
+	if r.URL.Path == "/full" {
+		modes["expanded"] = true
+	} else if r.URL.Path == "/edit" {
+		modes["edit"] = true
+	} else if r.URL.Path == "/debug" {
+		modes["debug"] = true
+	} else if r.URL.Path != "/" {
+		// This is a request for apple_icon or somesuch junk. Just say no.
+		http.NotFound(w, r)
+		return
+	}
+	
+	cdb.Debugf("root_004", "about get cdb.GetAllByEmailAddress")
+	cap, err := cdb.GetAllByEmailAddress(sesh.Email, modes["expanded"])
+	if cap==nil && err==nil {
+		// No profile exists; daisy-chain into profile page
+		http.Redirect(w, r, "/profile", http.StatusFound)
+		return
+	} else if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	cdb.Debugf("root_005", "cdb.GetAllByEmailAddress done")
+
+	modes["admin"] = user.Current(ctx)!=nil && user.Current(ctx).Admin
+	modes["superuser"] = modes["admin"]
+
+	// Default to "", unless we had a complaint in the past hour.
+	lastActivity := ""
+	if len(cap.Complaints) > 0 && time.Since(cap.Complaints[0].Timestamp) < time.Hour {
+		lastActivity = cap.Complaints[0].Activity
+	}
+
+	var complaintDefaults = map[string]interface{}{
+		"ActivityList": kActivities,  // lives in add-complaint
+		"DefaultActivity": lastActivity,
+		"DefaultLoudness": 1,
+		"NewForm": true,
+	}
+
+	message := ""
+	disableReporting := false
+	if cap.Profile.FullName == "" {
+		message += "<li>We don't have your full name</li>"
+		disableReporting = true
+	}
+	if cap.Profile.StructuredAddress.Zip == "" {
+		message += "<li>We don't have an accurate address</li>"
+		disableReporting = true
+	}
+	if message != "" {
+		message = fmt.Sprintf("<p><b>We've found some problems with your profile:</b></p><ul>%s</ul>"+
+			"<p> Without this data, your complaints won't be counted, so please "+
+			"<a href=\"/profile\"><b>update your profile</b></a> before submitting any more complaints !</p>", message)
+	}
+	
+	var params = map[string]interface{}{
+		//"Message": template.HTML("Hi!"),
+		"Cap": *cap,
+		"Complaints": hintComplaints(cap.Complaints, modes["superuser"]),
+		"Now": date.NowInPdt(),
+		"Modes": modes,
+		"ComplaintDefaults": complaintDefaults,
+		"Message": template.HTML(message),
+		//"Info": template.HTML("Hi!"),
+		"DisableReporting": disableReporting,
+	}
+	
+	if err := templates.ExecuteTemplate(w, "main", params); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// }}}
+// {{{ logoutHandler
+
+func logoutHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	ui.OverwriteSessionToNil(ctx, w, r)
+	http.Redirect(w, r, "/", http.StatusFound)
+}
+
+// }}}
+// {{{ masqueradeHandler
+
+func masqueradeHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	email := r.FormValue("e")
+	if email == "" {
+		http.Error(w, "masq needs 'e'", http.StatusInternalServerError)
+		return
+	}
+
+	log.Infof(ctx, "masq into [%s]", email)
+
+	ui.CreateSession(ctx, w, r, ui.UserSession{Email:email})
+	
+	http.Redirect(w, r, "/", http.StatusFound)
+}
+
+// }}}
+
+// {{{ downHandler
+
+func downHandler (w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/down", http.StatusFound)
+}
+
+// }}}
+// {{{ redirects
+
+func makeRedirectHandler(target string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target, http.StatusFound)
+	}
+}
+
+func faqHandler (w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "https://sites.google.com/a/jetnoise.net/how-to/faq", http.StatusFound)
+}
+
+func gettingStartedHandler (w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "https://sites.google.com/a/jetnoise.net/how-to/", http.StatusFound)
+}
+
+// }}}
+
+// {{{ rootHandler
+
+/*
 
 func rootHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	if r.URL.Scheme == "http" {
@@ -188,63 +363,10 @@ func rootHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// }}}
-
-// {{{ logoutHandler
-
-func logoutHandler (w http.ResponseWriter, r *http.Request) {
-	// Overwrite the session with a nil session
-	session,_ := sessions.Get(r)
-	session.Values["email"] = nil
-	session.Save(r, w)	
-	http.Redirect(w, r, "/", http.StatusFound)
-}
-
-// }}}
-// {{{ masqueradeHandler
-
-func masqueradeHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	email := r.FormValue("e")
-	if email == "" {
-		http.Error(w, "masq needs 'e'", http.StatusInternalServerError)
-		return
-	}
-
-	log.Infof(ctx, "masq into [%s]", email)
-
-	session,_ := sessions.Get(r)
-	session.Values["email"] = email
-	session.Save(r,w)
-	
-	http.Redirect(w, r, "/", http.StatusFound)
-}
-
-// }}}
-// {{{ downHandler
-
-func downHandler (w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "/down", http.StatusFound)
-}
+*/
 
 // }}}
 
-// {{{ redirects
-
-func makeRedirectHandler(target string) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, target, http.StatusFound)
-	}
-}
-
-func faqHandler (w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "https://sites.google.com/a/jetnoise.net/how-to/faq", http.StatusFound)
-}
-
-func gettingStartedHandler (w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "https://sites.google.com/a/jetnoise.net/how-to/", http.StatusFound)
-}
-
-// }}}
 
 // {{{ -------------------------={ E N D }=----------------------------------
 
