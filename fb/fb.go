@@ -81,6 +81,10 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		log.Errorf(ctx, "/fb/login: bad resp parse%v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	} else if jsonMap["email"] == nil {
+		log.Errorf(ctx, "/fb/login: no email field found:\n%#v", jsonMap)
+		http.Error(w, "fb login, no email field", http.StatusInternalServerError)
+		return
 	}
 
 	// Snag their email address forever more; writes cookie into w

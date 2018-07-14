@@ -6,6 +6,7 @@
 
   <body>
 
+    <!-- <div class="message"><button id="btnA2HS">A2HS</button></div> -->
     <script type="text/javascript">
       {{template "sw-include-js" . }}
     </script>
@@ -16,6 +17,7 @@
 
       <!-- .Message is really a warning; Info is informational -->
       {{if .Message}}<div class="message">{{.Message}}</div><br/>
+
       {{else}}
       <p>Hello, <code>{{.Cap.Profile.EmailAddress}}</code>.
         <br/>It is {{.Now.Format "15:04:05 PM on Mon, Jan 2"}}.

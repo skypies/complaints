@@ -1,6 +1,7 @@
 runtime: go
 api_version: go1
 instance_class: F1
+service: default
 
 automatic_scaling:
   # Default is 8; but there are latency issues that I think are
@@ -58,11 +59,11 @@ handlers:
   upload: static/icon.png
 
 - url: /apple-touch-icon-76x76.png
-  static_files: static/icon-176.png
-  upload: static/icon-176.png
+  static_files: static/icon-76.png
+  upload: static/icon-76.png
 - url: /apple-touch-icon-76x76-precomposed.png
-  static_files: static/icon-176.png
-  upload: static/icon-176.png
+  static_files: static/icon-76.png
+  upload: static/icon-76.png
 
 - url: /apple-touch-icon-120x120.png
   static_files: static/icon-120.png
