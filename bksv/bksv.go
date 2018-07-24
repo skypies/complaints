@@ -22,6 +22,7 @@ import (
 	"github.com/skypies/util/date"
 	
 	"github.com/skypies/complaints/complaintdb/types"
+	"github.com/skypies/complaints/config"
 )
 
 const bksvHost = "complaints-staging.bksv.com"
@@ -197,9 +198,8 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 
 	vals := url.Values{
 		"response":         {"json"},
-
 		"contactmethod":    {"App"},
-		"apiKey":           {"399734e01c8cd5c21205599689cc77f2a50467f28e6f5d58a69f2b097d71b839c20e0051175107e74130ae9a3bbaccbe51ec5742e6ca3e51ff40cc1a8f401009"},
+		"apiKey":           {config.Get("bksv.apiKey")},
 		
 		"caller_code":      {c.Profile.CallerCode},
 		"name":             {first},

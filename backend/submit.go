@@ -1,4 +1,4 @@
-package complaints
+package backend
 
 import (
 	"fmt"
@@ -15,8 +15,8 @@ import (
 )
 
 func init() {
-	http.HandleFunc("/bksv/submit-user",    bksvSubmitUserHandler)
-	http.HandleFunc("/bksv/scan-yesterday", bksvScanYesterdayHandler)
+	http.HandleFunc("/backend/bksv/submit-user",    bksvSubmitUserHandler)
+	http.HandleFunc("/backend/bksv/scan-yesterday", bksvScanYesterdayHandler)
 }	
 
 // {{{ bksvScanYesterdayHandler
@@ -27,7 +27,7 @@ func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(ctx)
 	cps, err := cdb.LookupAllProfiles(cdb.NewProfileQuery())
 	if err != nil {
-		cdb.Errorf(" /bksv/scan-yesterday: getprofiles: %v", err)
+		cdb.Errorf(" /backend/bksv/scan-yesterday: getprofiles: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -42,16 +42,16 @@ func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 
 		complaints, err = cdb.LookupAll(cdb.CQByEmail(cp.EmailAddress).ByTimespan(start,end))
 		if err != nil {
-			cdb.Errorf(" /bksv/scan-yesterday: getbyemail(%s): %v", cp.EmailAddress, err)
+			cdb.Errorf(" /backend/bksv/scan-yesterday: getbyemail(%s): %v", cp.EmailAddress, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		} 
 		if len(complaints) > 0 {
-			t := taskqueue.NewPOSTTask("/bksv/submit-user", map[string][]string{
+			t := taskqueue.NewPOSTTask("/backend/bksv/submit-user", map[string][]string{
 				"user": {cp.EmailAddress},
 			})
 			if _,err := taskqueue.Add(cdb.Ctx(), t, "submitreports"); err != nil {
-				cdb.Errorf(" /bksv/scan-yesterday: enqueue: %v", err)
+				cdb.Errorf(" /backend/bksv/scan-yesterday: enqueue: %v", err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}

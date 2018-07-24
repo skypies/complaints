@@ -16,6 +16,7 @@ Deploy an instance of the site to your google cloud project:
 * `cd $GOPATH/github.com/skypies/complaints`
 * `export YOURPROJECT=serfr0-1000`
 * `gcloud datastore --project=$YOURPROJECT create-indexes app/index.yaml`
+* `gcloud app deploy --project=$YOURPROJECT app/queue.yaml`
 * `gcloud app deploy --project=$YOURPROJECT --version=1 app`
 * `gcloud app deploy --project=$YOURPROJECT --version=1 backend`
 

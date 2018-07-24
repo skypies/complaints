@@ -16,9 +16,6 @@ handlers:
 - url: /cdb/.*
   script: _go_app
   login: admin
-- url: /bksv/.*
-  script: _go_app
-  login: admin
 
 - url: /stats-reset
   script: _go_app
