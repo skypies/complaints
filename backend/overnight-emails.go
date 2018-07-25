@@ -156,6 +156,7 @@ func SendComplaintsWithSpan(r *http.Request, start,end time.Time) (err error, st
 	sent_single_ok,sent_single_fail := 0,0
 	
 	for _,cp := range cps {
+		// OH NO - Daily totals will be missing these folk :/
 		if cp.SendDailyEmailOK() == false { continue }
 
 		var complaints = []types.Complaint{}
@@ -197,17 +198,23 @@ func SendComplaintsWithSpan(r *http.Request, start,end time.Time) (err error, st
 		sent_ok++
 	}
 
-	subject := fmt.Sprintf("Daily report stats: users:%d/%d  reports:%d/%d  emails:%d:%d",
+	n_complaints,n_users,err := cdb.CountComplaintsAndUniqueUsersIn(start,end)
+	if err != nil {
+		cdb.Errorf("Overnight counts failed: %v\n", err)
+	}
+	
+	subject := fmt.Sprintf("Daily report stats: users:%d/%d  reports:%d/%d  emails:%d:%d  counts(%d:%d)",
 		sent_ok, (sent_ok+no_data),
 		complaints_submitted, (complaints_submitted+complaints_private),
-		sent_single_ok, sent_single_fail)
+		sent_single_ok, sent_single_fail,
+		n_complaints, n_users)
 
 	SendEmailToAdmin(ctx, subject, "")
 
 	dc := complaintdb.DailyCount{
 		Datestring: date.Time2Datestring(start.Add(time.Hour)),
-		NumComplaints: complaints_submitted+complaints_private,
-		NumComplainers: sent_ok,
+		NumComplaints: n_complaints,
+		NumComplainers: n_users,
 	}
 	cdb.AddDailyCount(dc)
 

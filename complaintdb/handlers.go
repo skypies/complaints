@@ -17,7 +17,9 @@ import(
 
 func init() {
 	http.HandleFunc("/cdb/comp/debug", complaintDebugHandler)
-	http.HandleFunc("/cdb/yesterday/debug", YesterdayDebugHandler)
+
+	// This lives in the backend service now
+	//http.HandleFunc("/cdb/yesterday/debug", YesterdayDebugHandler)
 }
 
 func req2ctx(r *http.Request) context.Context {

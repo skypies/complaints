@@ -192,6 +192,28 @@ func (cdb ComplaintDB) GetAllByEmailAddress(ea string, everything bool) (*types.
 
 // }}}
 
+func (cdb ComplaintDB)CountComplaintsAndUniqueUsersIn(s,e time.Time) (int, int, error) {
+	// What we'd like to do, is to do Project("Profile.EmailAddress").Distinct().ByTimespan().
+	// But we can't, because ...
+	//  1. ByTimespan does Filter("Timestamp") ...
+	//  2. so we need to include "Timestamp" in the Project() args ...
+	//  3. but Distinct() acts on all projected fields, and the timestamps defeat grouping
+	// So we need to count users manually.
+	q := cdb.NewComplaintQuery().Project("Profile.EmailAddress").ByTimespan(s,e)
+
+	complaints,err := cdb.LookupAll(q)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	users := map[string]int{}
+	for _,c := range complaints {
+		users[c.Profile.EmailAddress]++
+	}
+
+	return len(complaints), len(users), nil
+}
+
 // {{{ -------------------------={ E N D }=----------------------------------
 
 // Local variables:

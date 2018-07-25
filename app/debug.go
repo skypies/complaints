@@ -18,9 +18,8 @@ import (
 
 func init() {
 	http.HandleFunc("/deb", debHandler)
-	http.HandleFunc("/deb2", ui.WithCtxTlsSession(debSessionHandler, fallbackHandler))
-	http.HandleFunc("/deb3", ui.WithCtxTlsSession(debSessionHandler,fallbackHandler))
-	http.HandleFunc("/deb4", countsHandler)
+	http.HandleFunc("/deb2", debugHandler3)
+	//http.HandleFunc("/deb4", countsHandler)
 }
 
 // {{{ debHandler
@@ -65,6 +64,9 @@ func countHackHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
 	cdb := complaintdb.NewDB(ctx)
 
+	// Note - all counts <= 2018.07.23 undercount by 5-10%; they omit the user who opted out
+	// of overnight emails.
+	
 	cdb.AddDailyCount(complaintdb.DailyCount{
 		Datestring: "2016.06.22",
 		NumComplaints: 6555,
@@ -149,10 +151,11 @@ func debugHandler3(w http.ResponseWriter, r *http.Request) {
 	tStart := time.Now()
 	
 	start,end := date.WindowForYesterday()
-	keyers,err := cdb.LookupAllKeys(cdb.NewComplaintQuery().ByTimespan(start,end))
 
-	str := fmt.Sprintf("OK\nret: %d\nerr: %v\nElapsed: %s\ns: %s\ne: %s\n",
-		len(keyers), err, time.Since(tStart), start, end)
+	nComp,nUniques,err := cdb.CountComplaintsAndUniqueUsersIn(start,end)
+	
+	str := fmt.Sprintf("OK\nn_complaints: %d\nn_users: %d\nerr: %v\nElapsed: %s\ns: %s\ne: %s\n",
+		nUniques, nComp, err, time.Since(tStart), start, end)
 	
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(str))

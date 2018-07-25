@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"google.golang.org/appengine/taskqueue"
+	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
 
@@ -68,7 +69,7 @@ func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 func bksvSubmitUserHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
 	cdb := complaintdb.NewDB(ctx)
-	client := cdb.HTTPClient()
+
 	start,end := date.WindowForYesterday()
 	bksv_ok,bksv_not_ok := 0,0
 
@@ -86,7 +87,17 @@ func bksvSubmitUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	} else {
 		for i,complaint := range complaints {
+			// Give the remote service a chance to recover before hitting the user again
 			time.Sleep(time.Millisecond * 200)
+
+			// Create a fresh context, with a tight deadline, just for this
+			// one submission. (If we use the context/cdb at the top of the
+			// function, then the timeout has to handle up to 200
+			// submissions for a single user.)
+			shortCtx, cancel := context.WithTimeout(ctx, 10 * time.Second)
+			defer cancel()
+			client := complaintdb.NewDB(shortCtx).HTTPClient()
+
 			if debug,err := bksv.PostComplaint(client, *cp, complaint); err != nil {
 				//cdb.Infof("pro: %v", cp)
 				//cdb.Infof("comp: %#v", complaint)
