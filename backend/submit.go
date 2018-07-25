@@ -75,12 +75,13 @@ func bksvSubmitUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	email := r.FormValue("user")
 
-	if cp,err := cdb.MustLookupProfile(email); err != nil {
+/*	if cp,err := cdb.MustLookupProfile(email); err != nil {
 		cdb.Errorf(" /bksv/submit-user(%s): getprofile: %v", email, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	
-	} else if complaints,err := cdb.LookupAll(cdb.CQByEmail(email).ByTimespan(start,end)); err != nil{
+	} else */
+	if complaints,err := cdb.LookupAll(cdb.CQByEmail(email).ByTimespan(start,end)); err != nil{
 		cdb.Errorf(" /bksv/submit-user(%s): getcomplaints: %v", email, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -98,6 +99,7 @@ func bksvSubmitUserHandler(w http.ResponseWriter, r *http.Request) {
 			defer cancel()
 			client := complaintdb.NewDB(shortCtx).HTTPClient()
 
+/*
 			if debug,err := bksv.PostComplaint(client, *cp, complaint); err != nil {
 				//cdb.Infof("pro: %v", cp)
 				//cdb.Infof("comp: %#v", complaint)
@@ -107,6 +109,22 @@ func bksvSubmitUserHandler(w http.ResponseWriter, r *http.Request) {
 			} else {
 				if (i == 0) { cdb.Infof("BKSV [OK] Debug\n------\n%s\n------\n", debug) }
 				bksv_ok++
+			}
+*/
+			sub,err := bksv.PostComplaintNew(client, complaint)
+			if err != nil {
+				cdb.Errorf("BKSV posting error: %v", err)
+				cdb.Infof("BKSV Debug\n------\n%s\n------\n", sub)
+				bksv_not_ok++
+			} else {
+				if (i == 0) { cdb.Infof("BKSV [OK] Debug\n------\n%s\n------\n", sub.Log) }
+				bksv_ok++
+			}
+
+			// Store the submission outcome
+			complaint.Submission = *sub
+			if err := cdb.PersistComplaint(complaint); err != nil {
+				cdb.Errorf("BKSV, peristing outcome failed: %v", err)
 			}
 		}
 	}

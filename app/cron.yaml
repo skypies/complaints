@@ -1,4 +1,9 @@
 cron:
+- description: Update the daily totals
+  url: /backend/setcounts?date=yesterday
+  schedule: every day 00:05
+  timezone: America/Los_Angeles
+
 - description: Send complaint emails
   url: /backend/emails-for-yesterday
   schedule: every day 00:40

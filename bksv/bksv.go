@@ -338,14 +338,14 @@ func PostComplaint2(client *http.Client, c types.Complaint) (*types.Submission, 
 }
 
 // }}}
-// {{{ PostComplaint3
+// {{{ PostComplaintNew
 
 // https://complaints-staging.bksv.com/sfo2?json=1&resp=json
 // {"result":"1",
 //  "title":"Complaint Received",
 //  "body":"Thank you. We have received your complaint."}
 
-func PostComplaint3(client *http.Client, c types.Complaint) (*types.Submission, error) {
+func PostComplaintNew(client *http.Client, c types.Complaint) (*types.Submission, error) {
 	// Initialize a new submission object, inheriting from previous
 	s := types.Submission{
 		Attempts:  c.Submission.Attempts + 1,
