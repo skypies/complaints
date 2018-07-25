@@ -22,45 +22,44 @@ func init() {
 
 // {{{ bksvScanYesterdayHandler
 
-// Examine all users. If they had any complaints, throw them in the queue.
+// Get a list of the users with complaints, and throw them in the queue for BKSV submission.
 func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
 	cdb := complaintdb.NewDB(ctx)
-	cps, err := cdb.LookupAllProfiles(cdb.NewProfileQuery())
+	start,end := date.WindowForYesterday()
+
+	users,_,err := cdb.GetUniqueUsersAndCountsIn(start,end)
 	if err != nil {
-		cdb.Errorf(" /backend/bksv/scan-yesterday: getprofiles: %v", err)
+		cdb.Errorf(" /backend/bksv/scan-yesterday: GetUniqueUsersAndCountsIn: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	
-	start,end := date.WindowForYesterday()
-	bksv_ok := 0
-	
-	for _,cp := range cps {
-		// if cp.CcSfo == false { continue }  // We do not care about this value.
-
+	for _,email := range users {
 		var complaints = []types.Complaint{}
 
-		complaints, err = cdb.LookupAll(cdb.CQByEmail(cp.EmailAddress).ByTimespan(start,end))
+		complaints, err = cdb.LookupAll(cdb.CQByEmail(email).ByTimespan(start,end))
 		if err != nil {
-			cdb.Errorf(" /backend/bksv/scan-yesterday: getbyemail(%s): %v", cp.EmailAddress, err)
+			cdb.Errorf(" /backend/bksv/scan-yesterday: getbyemail(%s): %v", email, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		} 
-		if len(complaints) > 0 {
-			t := taskqueue.NewPOSTTask("/backend/bksv/submit-user", map[string][]string{
-				"user": {cp.EmailAddress},
-			})
-			if _,err := taskqueue.Add(cdb.Ctx(), t, "submitreports"); err != nil {
-				cdb.Errorf(" /backend/bksv/scan-yesterday: enqueue: %v", err)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			bksv_ok++
+		if len(complaints) == 0 {
+			continue
+		}
+
+		t := taskqueue.NewPOSTTask("/backend/bksv/submit-user", map[string][]string{
+			"user": {email},
+		})
+		if _,err := taskqueue.Add(cdb.Ctx(), t, "submitreports"); err != nil {
+			cdb.Errorf(" /backend/bksv/scan-yesterday: enqueue: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 	}
-	cdb.Infof("enqueued %d bksv", bksv_ok)
-	w.Write([]byte(fmt.Sprintf("OK, enqueued %d", bksv_ok)))
+
+	cdb.Infof("enqueued %d bksv", len(users))
+	w.Write([]byte(fmt.Sprintf("OK, enqueued %d", len(users))))
 }
 
 // }}}
@@ -137,6 +136,53 @@ func bksvSubmitUserHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
+
+/*
+// {{{ bksvScanYesterdayHandler
+
+// Examine all users. If they had any complaints, throw them in the queue.
+func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
+	cps, err := cdb.LookupAllProfiles(cdb.NewProfileQuery())
+	if err != nil {
+		cdb.Errorf(" /backend/bksv/scan-yesterday: getprofiles: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	start,end := date.WindowForYesterday()
+	bksv_ok := 0
+	
+	for _,cp := range cps {
+		// if cp.CcSfo == false { continue }  // We do not care about this value.
+
+		var complaints = []types.Complaint{}
+
+		complaints, err = cdb.LookupAll(cdb.CQByEmail(cp.EmailAddress).ByTimespan(start,end))
+		if err != nil {
+			cdb.Errorf(" /backend/bksv/scan-yesterday: getbyemail(%s): %v", cp.EmailAddress, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		} 
+		if len(complaints) > 0 {
+			t := taskqueue.NewPOSTTask("/backend/bksv/submit-user", map[string][]string{
+				"user": {cp.EmailAddress},
+			})
+			if _,err := taskqueue.Add(cdb.Ctx(), t, "submitreports"); err != nil {
+				cdb.Errorf(" /backend/bksv/scan-yesterday: enqueue: %v", err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			bksv_ok++
+		}
+	}
+	cdb.Infof("enqueued %d bksv", bksv_ok)
+	w.Write([]byte(fmt.Sprintf("OK, enqueued %d", bksv_ok)))
+}
+
+// }}}
+*/
 
 // {{{ -------------------------={ E N D }=----------------------------------
 
