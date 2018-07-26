@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/skypies/util/date"
@@ -360,10 +361,14 @@ func PostComplaintNew(client *http.Client, c types.Complaint) (*types.Submission
 	vals := PopulateForm(c, "")
 	s.Log += "Submitting these vals:-\n"
 	for k,v := range vals { s.Log += fmt.Sprintf(" * %-20.20s: %v\n", k, v) }
-	
+	s.Log += "\n"
+
 	resp,err := client.PostForm("https://"+bksvHost+bksvPath, vals)
 	s.D = time.Since(s.T)
 	if err != nil {
+		if strings.Contains(err.Error(), "DEADLINE_EXCEEDED") {
+			s.Outcome = types.SubmissionTimeout
+		}
 		s.Log += fmt.Sprintf("ComplaintPOST: Posting error (dur=%s): %v\n", s.D, err)
 		return &s,err
 	}
@@ -418,6 +423,7 @@ func PostComplaintNew(client *http.Client, c types.Complaint) (*types.Submission
 
 	result := v.(string)
 	if result != "1" {
+		s.Outcome = types.SubmissionRejected
 		s.Log += fmt.Sprintf("Json result not '1'\n")
 		return &s,fmt.Errorf("ComplaintPOST: result='%s'", result)
 	}

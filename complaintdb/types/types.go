@@ -137,12 +137,16 @@ type SubmissionOutcome int
 const(
 	SubmissionNotAttempted SubmissionOutcome = iota
 	SubmissionAccepted
+	SubmissionTimeout
+	SubmissionRejected
 	SubmissionFailed
 )
 func (so SubmissionOutcome)String() string {
 	switch so {
 	case SubmissionNotAttempted: return "tbd"
 	case SubmissionAccepted: return "OK"
+	case SubmissionTimeout: return "timeout"
+	case SubmissionRejected: return "reject"
 	case SubmissionFailed: return "fail"
 	default: return fmt.Sprintf("?%d?", so)
 	}
@@ -157,6 +161,10 @@ type Submission struct {
 	Key          string    `datastore:",noindex"` // Foreign key, from backend
 	Attempts     int
 	Log          string    `datastore:",noindex"`
+}
+
+func (s Submission)WasFailure() bool {
+	return s.Outcome == SubmissionTimeout || s.Outcome == SubmissionRejected || s.Outcome == SubmissionFailed
 }
 
 func (s Submission)String() string {

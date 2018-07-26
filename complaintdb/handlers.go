@@ -92,6 +92,7 @@ func YesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	max_good,max_problems := 5,200
 	counts := map[string]int{}
 	problems := []types.Complaint{}
 	good := []types.Complaint{}
@@ -105,10 +106,12 @@ func YesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		counts[fmt.Sprintf("[A] Status: %s", c.Submission.Outcome)]++
-		if r.FormValue("all") != "" || c.Submission.Outcome == types.SubmissionFailed {
-			problems = append(problems, *c)
+		if r.FormValue("all") != "" || c.Submission.WasFailure() {
+			if len(problems) < max_problems {
+				problems = append(problems, *c)
+			}
 		}
-		if len(good) < 5 && c.Submission.Outcome == types.SubmissionAccepted {
+		if len(good) < max_good && c.Submission.Outcome == types.SubmissionAccepted {
 			good = append(good, *c)
 		}
 		if c.Submission.Outcome == types.SubmissionAccepted {
