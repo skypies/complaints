@@ -16,10 +16,10 @@ import (
 )
 
 func init() {
-	http.HandleFunc("/backend/bksv/submit-user",    bksvSubmitUserHandler)
-	http.HandleFunc("/backend/bksv/submit",         bksvSubmitComplaintHandler)
-	http.HandleFunc("/backend/bksv/scan-yesterday", bksvScanYesterdayHandler)
-}	
+	http.HandleFunc("/backend/bksv/submit-user",      bksvSubmitUserHandler)
+	http.HandleFunc("/backend/bksv/submit-complaint", bksvSubmitComplaintHandler)
+	http.HandleFunc("/backend/bksv/scan-yesterday",   bksvScanYesterdayHandler)
+}
 
 // {{{ bksvScanYesterdayHandler
 
@@ -37,10 +37,10 @@ func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _,keyer := range keyers {
-
 		t := taskqueue.NewPOSTTask("/backend/bksv/submit-complaint", map[string][]string{
 			"id": {keyer.Encode()},
 		})
+
 		if _,err := taskqueue.Add(cdb.Ctx(), t, "submitreports"); err != nil {
 			cdb.Errorf(" /backend/bksv/scan-yesterday: enqueue: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -79,7 +79,7 @@ func bksvSubmitComplaintHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cdb.Debugf("BKSV [OK] Debug\n------\n%s\n------\n", sub.Log)
+	//cdb.Infof("BKSV [OK] Debug\n------\n%s\n------\n", sub.Log)
 
 	// Store the submission outcome
 	complaint.Submission = *sub
