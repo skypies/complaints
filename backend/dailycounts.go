@@ -3,6 +3,7 @@ package backend
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/skypies/util/date"
 	"github.com/skypies/util/widget"
@@ -25,11 +26,17 @@ func setcountsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
 	cdb := complaintdb.NewDB(ctx)
 
-	if s,e,err := widget.FormValueDateRange(r); err != nil {
+	s,e,err := widget.FormValueDateRange(r)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
 
-	} else if n_complaints, n_users, err := cdb.CountComplaintsAndUniqueUsersIn(s,e); err != nil {
+	// The widget returns a day as [s,e) but the DB lookup expects
+	// to see it as [s,e],so adjust e
+	e = e.Add(time.Second)
+	
+	if n_complaints, n_users, err := cdb.CountComplaintsAndUniqueUsersIn(s,e); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 

@@ -16,7 +16,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 	"time"
 
