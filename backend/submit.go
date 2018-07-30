@@ -69,17 +69,15 @@ func bksvSubmitComplaintHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sub,err := bksv.PostComplaint(client, *complaint)
-	if err != nil {
-		cdb.Errorf("BKSV posting error: %v", err)
+	sub,postErr := bksv.PostComplaint(client, *complaint)
+	if postErr != nil {
+		cdb.Errorf("BKSV posting error: %v", postErr)
 		cdb.Infof("BKSV Debug\n------\n%s\n------\n", sub)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
 	}
 
 	//cdb.Infof("BKSV [OK] Debug\n------\n%s\n------\n", sub.Log)
 
-	// Store the submission outcome
+	// Store the submission outcome, even if the post failed
 	complaint.Submission = *sub
 	if err := cdb.PersistComplaint(*complaint); err != nil {
 		cdb.Errorf("BKSV, peristing outcome failed: %v", err)
@@ -87,6 +85,11 @@ func bksvSubmitComplaintHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if postErr != nil {
+		http.Error(w, postErr.Error(), http.StatusInternalServerError)
+		return
+	}
+	
 	w.Write([]byte("OK"))
 }
 

@@ -106,7 +106,7 @@ func YesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		counts[fmt.Sprintf("[A] Status: %s", c.Submission.Outcome)]++
-		if r.FormValue("all") != "" || c.Submission.WasFailure() {
+		if r.FormValue("all") != "" || c.Submission.WasFailure() || c.Submission.Attempts > 1 {
 			if len(problems) < max_problems {
 				problems = append(problems, *c)
 			}
