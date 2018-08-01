@@ -19,7 +19,7 @@ func init() {
 	http.HandleFunc("/", noopHandler)
 	http.HandleFunc("/_ah/start", noopHandler)
 	http.HandleFunc("/_ah/stop", noopHandler)
-	http.HandleFunc("/backend/yesterday/debug", complaintdb.YesterdayDebugHandler)
+	http.HandleFunc("/backend/submissions/debug", complaintdb.SubmissionsDebugHandler)
 }
 
 func req2ctx(r *http.Request) context.Context {

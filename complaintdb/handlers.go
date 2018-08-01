@@ -70,21 +70,28 @@ func complaintDebugHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
-// {{{ YesterdayDebugHandler
+// {{{ SubmissionsDebugHandler
 
-// ?all=1 (will list thousands !)
-// ?offset=d (how many days to go back from today; default is 1d, i.e. yesterday)
+// View a day's worth of complaint submissions; defaults to yesterday
+//   ?all=1 (will list every single complaint - DO NOT USE)
+//   ?offset=N (how many days to go back from today; 1 == yesterday)
+//   ?datestring=2018.01.20 (this day in particular)
 
-func YesterdayDebugHandler(w http.ResponseWriter, r *http.Request) {
+func SubmissionsDebugHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
 	cdb := NewDB(ctx)
 
-	offset := 1
 	start,end := date.WindowForToday()
+
+	offset := 1
 	if r.FormValue("offset") != "" {
 		offset = int(widget.FormValueInt64(r, "offset"))
 	}
 	start,end = start.AddDate(0,0,-1*offset), end.AddDate(0,0,-1*offset)
+
+	if r.FormValue("datestring") != "" {
+		start,end = date.WindowForTime(date.Datestring2MidnightPdt(r.FormValue("datestring")))
+	}
 
 	keyers,err := cdb.LookupAllKeys(cdb.NewComplaintQuery().ByTimespan(start,end))
 	if err != nil {

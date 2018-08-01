@@ -1,7 +1,7 @@
 queue:
 - name: submitreports
   rate: 500/m
-  max_concurrent_requests: 2
+  max_concurrent_requests: 15
   retry_parameters:
     min_backoff_seconds: 15
     task_retry_limit: 2

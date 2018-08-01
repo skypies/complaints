@@ -1,7 +1,7 @@
 dispatch:
 
 - url: "jetnoise.app/*"
-  module: hello
+  module: debug
 
 - url: "*/backend/*"
   module: backend
