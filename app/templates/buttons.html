@@ -7,14 +7,15 @@
       
     <div class="stack">
 
-      <p>If you have
-      an <a href="https://www.amazon.com/AWS-IoT-Button-Limited-Programmable/dp/B01C7WE5WM/">Amazon
-      IoT Programmable Button</a>, and you've obtained a cert and key
-      for stop.jetnoise, then you can add (or remove) the serial number below.</p>
+      <p>If you have an Amazon IoT Programmable Button</a>, and you've
+      followed all the <a target="_blank"
+      href="https://sites.google.com/a/jetnoise.net/how-to/buttons">instructions
+      to set it up</a> , then you can add (or remove) the serial
+      number below.</p>
 
       <div class="box">
         <table border="0">
-          {{if (len .Buttons) | ne 0}}<tr><td>Buttons on this account</td></tr>{{end}}
+          {{if (len .Buttons) | ne 0}}<tr><td>Buttons on this account<br/></td></tr>{{end}}
 
           <form action="/profile-button-delete" method="post">
             {{range .Buttons}}
@@ -37,6 +38,9 @@
           </form>      
         </table>
       </div>
+
+      <p><center><a id="big_ro_button" class="fakebutton" href="/">RETURN</a><center></p>
+      
     </div>
   </body>
 </html>

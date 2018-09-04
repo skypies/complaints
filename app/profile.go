@@ -17,6 +17,7 @@ import (
 func init() {
 	http.HandleFunc("/profile", ui.WithCtxTlsSession(profileFormHandler,fallbackHandler))
 	http.HandleFunc("/profile-update", ui.WithCtxTlsSession(profileUpdateHandler,fallbackHandler))
+
 	http.HandleFunc("/profile-buttons", ui.WithCtxTlsSession(profileButtonsHandler,fallbackHandler))
 	http.HandleFunc("/profile-button-add", ui.WithCtxTlsSession(profileButtonAddHandler,fallbackHandler))
 	http.HandleFunc("/profile-button-delete", ui.WithCtxTlsSession(profileButtonDeleteHandler,fallbackHandler))
