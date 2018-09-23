@@ -45,6 +45,19 @@ input.button{
     -webkit-appearance: none;
     -webkit-border-radius:3px;
 }
+input.button-clicked{
+    background-color: #e0e0e0;
+    padding:6px 12px;
+    font-size: 1.3em;
+    display:inline-block;
+    text-decoration:none;
+    border-radius:3px;
+    border:0;
+    box-shadow: none;
+    -webkit-appearance: none;
+    -webkit-border-radius:3px;
+}
+
 
 #complain { margin-left:0.8em; margin-top:0.25em; }
 #deletebutton{ font-size: 0.8em; padding: 0.5em; margin:0.1em; margin-bottom:1em}

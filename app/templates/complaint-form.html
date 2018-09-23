@@ -9,11 +9,18 @@
   <input type="hidden" name="browser_platform" value="" id="browser_platform" />
   <script type="text/javascript"> 
     {{template "js-browser-id"}}
+
+    function reportItClicked() {
+      document.getElementsByName('report-button')[0].setAttribute("class", "button-clicked");
+    }
   </script>
   
   <div>
     {{if .NewForm}}
-    Jet noise overhead ? <input id="complain" class="button" type="submit" value="REPORT IT"/><br/><br/>
+    Jet noise overhead ? <input id="complain" name="report-button"
+                                onclick="reportItClicked()"
+                                class="button"
+                                type="submit" value="REPORT IT"/><br/><br/>
     {{end}}
     <div>
       {{if .NewForm}}<hr/>
