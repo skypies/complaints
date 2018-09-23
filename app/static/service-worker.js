@@ -4,7 +4,7 @@
 
 self.addEventListener('install', function(event) {
   // Perform install steps
-  var CACHE_NAME = 'jetnoise-cache-v1';
+  var CACHE_NAME = 'jetnoise-cache-v3';
     var urlsToCache = [
         '/static/serfr.css',
     ];
