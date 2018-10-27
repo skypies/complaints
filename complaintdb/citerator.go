@@ -1,7 +1,7 @@
 package complaintdb
 
 import(
-	"golang.org/x/net/context"
+	"context"
 	"github.com/skypies/util/dsprovider"
 	"github.com/skypies/complaints/complaintdb/types"
 )

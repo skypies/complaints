@@ -7,7 +7,7 @@ import(
 	"sort"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 	"google.golang.org/appengine"
 
 	"github.com/skypies/util/date"

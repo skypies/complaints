@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"

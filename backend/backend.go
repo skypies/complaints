@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"google.golang.org/appengine"
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/skypies/util/date"
 
