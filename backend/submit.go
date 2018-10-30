@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"google.golang.org/appengine/taskqueue"
-	"context"
+	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
 

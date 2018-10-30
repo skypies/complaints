@@ -11,7 +11,7 @@ import (
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/mail"
-	"context"
+	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
 

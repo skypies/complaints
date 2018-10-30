@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"context"
+	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
 	"github.com/skypies/util/dsprovider"

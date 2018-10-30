@@ -7,7 +7,7 @@ import(
 
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/urlfetch"
-	"context"
+	"golang.org/x/net/context"
 )
 
 // Kill this stuff off ?

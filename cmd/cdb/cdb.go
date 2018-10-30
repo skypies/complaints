@@ -1,7 +1,7 @@
 package main
 
 import(
-	"context"
+	"golang.org/x/net/context"
 	"flag"
 	"fmt"
 	"log"

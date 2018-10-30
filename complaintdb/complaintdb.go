@@ -10,7 +10,7 @@ import (
 	"google.golang.org/appengine/user"
 	aelog "google.golang.org/appengine/log"
 	"google.golang.org/appengine/urlfetch"
-	"context"
+	"golang.org/x/net/context"
 
 	"github.com/skypies/util/dsprovider"
 	"github.com/skypies/complaints/complaintdb/types"
