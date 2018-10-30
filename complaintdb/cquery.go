@@ -4,7 +4,7 @@ package complaintdb
 
 import(
 	"time"
-	ds "github.com/skypies/util/dsprovider"
+	ds "github.com/skypies/util/gcp/ds"
 )
 
 type CQuery ds.Query // Create our own type, so we can hang a fluent API off it

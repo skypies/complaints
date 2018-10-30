@@ -1,4 +1,4 @@
-package complaints
+package main
 
 import (
 	"encoding/gob"
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/skypies/geo"
-	"github.com/skypies/util/gaeutil"
+	"github.com/skypies/util/ae"
 	"github.com/skypies/util/widget"
 
 	"github.com/skypies/complaints/complaintdb"
@@ -50,7 +50,7 @@ func heatmapHandler(w http.ResponseWriter, r *http.Request) {
 	positions := geo.LatlongSlice{} // Use explicit type as registered with encoding/gob
 
 	// Now try a range of ways to fill up positions[] ...
-	if err := gaeutil.LoadFromMemcacheShardsTTL(ctx, key, &positions); err == nil {
+	if err := ae.LoadFromMemcacheShardsTTL(ctx, key, &positions); err == nil {
 		// Fresh data from cache; we will use it !
 
 	} else if r.FormValue("allusers") != "" {
@@ -68,7 +68,7 @@ func heatmapHandler(w http.ResponseWriter, r *http.Request) {
     // Datastore reutrned data; save to memcache, ignoring errors
 		ttl := time.Second * 2
 		if uniqueUsers { ttl = time.Hour * 24 }
-		gaeutil.SaveToMemcacheShardsTTL(ctx, key, &positions, ttl)
+		ae.SaveToMemcacheShardsTTL(ctx, key, &positions, ttl)
 	}
 
 	if jsonBytes,err := json.Marshal(positions); err != nil {

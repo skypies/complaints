@@ -1,4 +1,4 @@
-package complaints
+package main
 
 import(
 	"fmt"
@@ -9,6 +9,9 @@ import(
 	"google.golang.org/appengine/urlfetch"
 	"golang.org/x/net/context"
 )
+
+// For go111
+//func main() { appengine.Main() }
 
 // Kill this stuff off ?
 func req2ctx(r *http.Request) context.Context {

@@ -9,7 +9,7 @@ import (
 	"google.golang.org/appengine/log"
 
 	"github.com/skypies/util/date"
-	"github.com/skypies/util/gcs"
+	"github.com/skypies/util/gcp/gcs"
 
 	"github.com/skypies/complaints/complaintdb"
 )

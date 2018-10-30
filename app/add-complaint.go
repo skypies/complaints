@@ -1,4 +1,4 @@
-package complaints
+package main
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
-	"github.com/skypies/util/dsprovider"
+	"github.com/skypies/util/gcp/ds"
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
@@ -240,7 +240,7 @@ func deleteComplaintsHandler(ctx context.Context, w http.ResponseWriter, r *http
 		return
 	}
 	
-	keyers := []dsprovider.Keyer{}
+	keyers := []ds.Keyer{}
 	for keyStr,_ := range r.Form {
 		if len(keyStr) < 50 { continue }
 		keyer,_ := cdb.Provider.DecodeKey(keyStr)

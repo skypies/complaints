@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/skypies/util/date"
-	"github.com/skypies/util/gaeutil"
+	"github.com/skypies/util/ae"
 )
 
 // {{{ DailyCount
@@ -44,7 +44,7 @@ func (a DailyCountDesc) Less(i, j int) bool { return a[i].Datestring > a[j].Date
 
 // 	might return: gaeutil.ErrNoSuchEntityDS
 func  (cdb *ComplaintDB)fetchDailyCountSingleton(key string) ([]DailyCount, error) {
-	if data,err := gaeutil.LoadSingletonFromDatastore(cdb.Ctx(), key); err == nil {
+	if data,err := ae.LoadSingletonFromDatastore(cdb.Ctx(), key); err == nil {
 		buf := bytes.NewBuffer(data)
 		dcs := []DailyCount{}
 		if err := gob.NewDecoder(buf).Decode(&dcs); err != nil {
@@ -64,7 +64,7 @@ func  (cdb *ComplaintDB)putDailyCountSingleton(key string, dcs []DailyCount) err
 	var buf bytes.Buffer
 	if err := gob.NewEncoder(&buf).Encode(dcs); err != nil {
 		return fmt.Errorf("putDailyCountSingleton encode: %v", err)
-	} else if err := gaeutil.SaveSingletonToDatastore(cdb.Ctx(), key, buf.Bytes()); err != nil {
+	} else if err := ae.SaveSingletonToDatastore(cdb.Ctx(), key, buf.Bytes()); err != nil {
 		return fmt.Errorf("putDailyCountSingleton save: %v", err)
 	}
 	return nil
@@ -81,7 +81,7 @@ func (cdb *ComplaintDB) GetDailyCounts(email string) ([]DailyCount, error) {
 	cdb.Debugf("GDC_001", "GetDailyCounts() starting")
 
 	// 	might return: datastore.ErrNoSuchEntity
-	if dcs,err := cdb.fetchDailyCountSingleton(k); err == gaeutil.ErrNoSuchEntityDS {
+	if dcs,err := cdb.fetchDailyCountSingleton(k); err == ae.ErrNoSuchEntityDS {
 		// Singleton not found; we don't care; treat same as empty singleton.
 	} else if err != nil {
 		err = fmt.Errorf("GetDailyCounts/fetchDailyCountSingleton: %v", err)

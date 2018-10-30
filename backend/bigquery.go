@@ -13,7 +13,7 @@ import (
 	"google.golang.org/appengine/taskqueue"
 
 	"github.com/skypies/util/date"
-	"github.com/skypies/util/gcs"
+	"github.com/skypies/util/gcp/gcs"
 	"github.com/skypies/util/widget"
 
 	"github.com/skypies/complaints/complaintdb"

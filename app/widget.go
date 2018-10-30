@@ -1,5 +1,5 @@
 // This file contains a few routines for parsing form values
-package complaints
+package main
 
 import (
 	"net/http"

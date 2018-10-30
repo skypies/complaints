@@ -5,7 +5,7 @@ import (
 
 	"github.com/skypies/geo"
 	"github.com/skypies/util/date"
-	"github.com/skypies/util/dsprovider"
+	"github.com/skypies/util/gcp/ds"
 
 	"github.com/skypies/complaints/complaintdb/types"
 )
@@ -152,7 +152,7 @@ func (cdb ComplaintDB) GetAllByEmailAddress(ea string, everything bool) (*types.
 
 	cdb.Debugf("GABEA_001", "cdb.GetAllByEmailAddress starting (everything=%v)", everything)
 	
-	if cp,err := cdb.MustLookupProfile(ea); err == dsprovider.ErrNoSuchEntity {
+	if cp,err := cdb.MustLookupProfile(ea); err == ds.ErrNoSuchEntity {
 		return nil,nil  // No such profile exists
 	} else if err != nil {
 		return nil,err  // A real problem occurred

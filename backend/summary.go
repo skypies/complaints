@@ -18,7 +18,7 @@ import (
 	"google.golang.org/appengine/urlfetch"
 	"google.golang.org/appengine/user"
 	
-	"github.com/skypies/util/gcs"
+	"github.com/skypies/util/gcp/gcs"
 	"github.com/skypies/util/date"
 	"github.com/skypies/util/histogram"
 	"github.com/skypies/util/widget"

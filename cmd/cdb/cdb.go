@@ -10,7 +10,7 @@ import(
 	"time"
 
 	"github.com/skypies/util/date"
-	"github.com/skypies/util/dsprovider"
+	"github.com/skypies/util/gcp/ds"
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
@@ -38,8 +38,12 @@ func init() {
 
 	flag.Parse()
 	cdb = complaintdb.NewDB(ctx)
-	cdb.Provider = dsprovider.CloudDSProvider{"serfr0-1000"}
 	cdb.Logger = log.New(os.Stdout,"", log.Ldate|log.Ltime)//|log.Lshortfile)	
+	if p,err := ds.NewCloudDSProvider(ctx,"serfr0-1000"); err != nil {
+		log.Fatalf("coud not get a clouddsprovider: %v\n", err)
+	} else {
+		cdb.Provider = p
+	}
 }
 
 // timeType is a time that implements flag.Value
@@ -86,7 +90,11 @@ func runQuery(cq *complaintdb.CQuery) {
 	for iter.Iterate(ctx) {
 		n++
 		c := iter.Complaint()
-		
+
+		if fVerbosity>1 {
+			fmt.Printf("%s\n", c)
+		}
+
 		if ! regexp.MustCompile("(outcome: random)").MatchString(c.Debug) {
 			continue
 		}

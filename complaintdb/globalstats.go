@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/skypies/util/date"
-	"github.com/skypies/util/dsprovider"
+	"github.com/skypies/util/gcp/ds"
 )
 
 const (
@@ -31,7 +31,7 @@ func (cdb ComplaintDB)DeletAllGlobalStats() error {
 	//q := datastore.NewQuery(kGlobalStatsKind).KeysOnly()
 	//if keys,err := q.GetAll(cdb.Ctx(), &fgs); err != nil {
 	q := cdb.NewQuery(kGlobalStatsKind).KeysOnly()
-	dsq := (*dsprovider.Query)(q)
+	dsq := (*ds.Query)(q)
 	if keyers,err := cdb.Provider.GetAll(cdb.Ctx(), dsq, &fgs); err != nil {
 		return err
 	} else {
@@ -67,7 +67,7 @@ func (cdb ComplaintDB)LoadGlobalStats() (*GlobalStats, error) {
 	//if keys, err := q.GetAll(cdb.Ctx(), &fgs); err != nil {
 
 	q := cdb.NewQuery(kGlobalStatsKind).Limit(10)
-	dsq := (*dsprovider.Query)(q)
+	dsq := (*ds.Query)(q)
 	if keyers,err := cdb.Provider.GetAll(cdb.Ctx(), dsq, &fgs); err != nil {
 		return nil, err
 	} else if len(fgs) != 1 {

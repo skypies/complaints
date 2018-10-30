@@ -1,4 +1,4 @@
-package complaints
+package main
 
 import "github.com/skypies/complaints/config"
 

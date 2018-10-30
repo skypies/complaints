@@ -12,7 +12,8 @@ import (
 	"google.golang.org/appengine/urlfetch"
 	"golang.org/x/net/context"
 
-	"github.com/skypies/util/dsprovider"
+	appengineds "github.com/skypies/util/ae/ds"
+	"github.com/skypies/util/gcp/ds"
 	"github.com/skypies/complaints/complaintdb/types"
 )
 
@@ -29,7 +30,7 @@ type ComplaintDB struct {
 	ctx       context.Context
 	StartTime time.Time
 	admin     bool
-	Provider  dsprovider.DatastoreProvider
+	Provider  ds.DatastoreProvider
 	Logger   *pkglog.Logger
 }
 func (cdb ComplaintDB)Ctx() context.Context { return cdb.ctx }
@@ -40,7 +41,7 @@ func NewDB(ctx context.Context) ComplaintDB {
 		ctx: ctx,
 		StartTime: time.Now(),
 		admin: (user.Current(ctx) != nil && user.Current(ctx).Admin),
-		Provider: dsprovider.AppengineDSProvider{},
+		Provider: appengineds.AppengineDSProvider{},
 	}
 }
 
@@ -79,14 +80,14 @@ func (cdb ComplaintDB)Errorf(fmtstr string, varargs ...interface{}) {
 
 // {{{ cdb.emailToRootKeyer
 
-func (cdb ComplaintDB)emailToRootKeyer(email string) dsprovider.Keyer {
+func (cdb ComplaintDB)emailToRootKeyer(email string) ds.Keyer {
 	return cdb.Provider.NewNameKey(cdb.Ctx(), kComplainerKind, email, nil)
 }
 
 // }}}
 // {{{ cdb.findOrGenerateComplaintKeyer
 
-func (cdb ComplaintDB)findOrGenerateComplaintKeyer(c types.Complaint) (dsprovider.Keyer, error) {
+func (cdb ComplaintDB)findOrGenerateComplaintKeyer(c types.Complaint) (ds.Keyer, error) {
 	if c.DatastoreKey != "" {
 		return cdb.Provider.DecodeKey(c.DatastoreKey)
 	}
@@ -102,7 +103,7 @@ func (cdb ComplaintDB)findOrGenerateComplaintKeyer(c types.Complaint) (dsprovide
 // {{{ cdb.ComplaintKeyOwnedBy
 
 // We need to assert this in a few places
-func (cdb ComplaintDB)ComplaintKeyOwnedBy(keyer dsprovider.Keyer, owner string) (bool,error) {
+func (cdb ComplaintDB)ComplaintKeyOwnedBy(keyer ds.Keyer, owner string) (bool,error) {
 	parentKeyer := cdb.Provider.KeyParent(keyer)
 	if parentKeyer == nil {
 		// Insist on a parent, else we can't do owner checks
@@ -146,7 +147,7 @@ func (cdb ComplaintDB)PersistComplaint(c types.Complaint) error {
 // {{{ cdb.PersistComplaints
 
 func (cdb ComplaintDB)PersistComplaints(complaints []types.Complaint) error {
-	keyers := make([]dsprovider.Keyer, len(complaints))
+	keyers := make([]ds.Keyer, len(complaints))
 	for i,c := range complaints {
 		keyer,err := cdb.findOrGenerateComplaintKeyer(c)
 		if err != nil {
@@ -195,11 +196,11 @@ func (cdb ComplaintDB)RawLookupAll(cq *CQuery) ([]types.Complaint, error) {
 	complaints := []types.Complaint{}
 
 	cdb.Debugf("cdbRLA_201", "calling GetAll() ...")
-	_, err := cdb.Provider.GetAll(cdb.Ctx(), (*dsprovider.Query)(cq), &complaints)
+	_, err := cdb.Provider.GetAll(cdb.Ctx(), (*ds.Query)(cq), &complaints)
 	cdb.Debugf("cdbRLA_202", "... call done (n=%d)", len(complaints))
 
 	// We tolerate missing fields, because the DB is full of old objects with dead fields
-	if err != nil && err != dsprovider.ErrFieldMismatch {
+	if err != nil && err != ds.ErrFieldMismatch {
 		return nil, fmt.Errorf("cdbRLA: %v", err)
 	}
 
@@ -213,11 +214,11 @@ func (cdb ComplaintDB)LookupAll(cq *CQuery) ([]types.Complaint, error) {
 	complaints := []types.Complaint{}
 
 	cdb.Debugf("cdbLA_201", "calling GetAll() ...")
-	keyers, err := cdb.Provider.GetAll(cdb.Ctx(), (*dsprovider.Query)(cq), &complaints)
+	keyers, err := cdb.Provider.GetAll(cdb.Ctx(), (*ds.Query)(cq), &complaints)
 	cdb.Debugf("cdbLA_202", "... call done (n=%d)", len(keyers))
 
 	// We tolerate missing fields, because the DB is full of old objects with dead fields
-	if err != nil && err != dsprovider.ErrFieldMismatch {
+	if err != nil && err != ds.ErrFieldMismatch {
 		return nil, fmt.Errorf("cdbLA: %v", err)
 	}
 	
@@ -246,22 +247,22 @@ func (cdb ComplaintDB)LookupFirst(cq *CQuery) (*types.Complaint, error) {
 // }}}
 // {{{ cdb.LookupAllKeys
 
-func (cdb ComplaintDB)LookupAllKeys(cq *CQuery) ([]dsprovider.Keyer, error) {
-	q := (*dsprovider.Query)(cq)
+func (cdb ComplaintDB)LookupAllKeys(cq *CQuery) ([]ds.Keyer, error) {
+	q := (*ds.Query)(cq)
 	return cdb.Provider.GetAll(cdb.Ctx(), q.KeysOnly(), nil)
 }
 
 // }}}
 // {{{ cdb.DeleteByKey
 
-func (cdb ComplaintDB)DeleteByKey(keyer dsprovider.Keyer) error {
+func (cdb ComplaintDB)DeleteByKey(keyer ds.Keyer) error {
 	return cdb.Provider.Delete(cdb.Ctx(), keyer)
 }
 
 // }}}
 // {{{ cdb.DeleteAllKeys
 
-func (cdb ComplaintDB)DeleteAllKeys(keyers []dsprovider.Keyer) error {
+func (cdb ComplaintDB)DeleteAllKeys(keyers []ds.Keyer) error {
 	return cdb.Provider.DeleteMulti(cdb.Ctx(), keyers)
 }
 
@@ -294,7 +295,7 @@ func (cdb ComplaintDB)MustLookupProfile(email string) (*types.ComplainerProfile,
 
 // LookupProfile swallows the not-found error; and returns an empty profile on all errors.
 func (cdb ComplaintDB)LookupProfile(email string) (*types.ComplainerProfile, error) {
-	if p,err := cdb.MustLookupProfile(email); err == dsprovider.ErrNoSuchEntity {
+	if p,err := cdb.MustLookupProfile(email); err == ds.ErrNoSuchEntity {
 		return &types.ComplainerProfile{}, nil
 	} else if err != nil {
 		return &types.ComplainerProfile{}, fmt.Errorf("LookupProfile: %v", err)
@@ -310,7 +311,7 @@ func (cdb ComplaintDB)LookupAllProfiles(cq *CQuery) ([]types.ComplainerProfile, 
 	profiles := []types.ComplainerProfile{}
 
 	cdb.Debugf("cdbLAP_201", "calling GetAll() ...")
-	keyers, err := cdb.Provider.GetAll(cdb.Ctx(), (*dsprovider.Query)(cq), &profiles)
+	keyers, err := cdb.Provider.GetAll(cdb.Ctx(), (*ds.Query)(cq), &profiles)
 	cdb.Debugf("cdbLAP_202", "... call done (n=%d)", len(keyers))
 
 	return profiles,err

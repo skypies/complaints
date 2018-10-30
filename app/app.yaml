@@ -1,3 +1,6 @@
+# Breaks with "cannot use -o with multiple packages", sigh
+#runtime: go111
+
 runtime: go
 api_version: go1
 instance_class: F1
