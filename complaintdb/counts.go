@@ -1,14 +1,13 @@
 package complaintdb
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
 	"sort"
 	"time"
 
 	"github.com/skypies/util/date"
-	"github.com/skypies/util/ae"
+	"github.com/skypies/util/singleton"
+	sprovider "github.com/skypies/util/gcp/singleton" // util/singleton impl based on DatastoreProvider
 )
 
 // {{{ DailyCount
@@ -42,32 +41,22 @@ func (a DailyCountDesc) Less(i, j int) bool { return a[i].Datestring > a[j].Date
 
 // {{{ cdb.fetchDailyCountSingleton
 
-// 	might return: gaeutil.ErrNoSuchEntityDS
-func  (cdb *ComplaintDB)fetchDailyCountSingleton(key string) ([]DailyCount, error) {
-	if data,err := ae.LoadSingletonFromDatastore(cdb.Ctx(), key); err == nil {
-		buf := bytes.NewBuffer(data)
-		dcs := []DailyCount{}
-		if err := gob.NewDecoder(buf).Decode(&dcs); err != nil {
-			// Log, but swallow this error
-			cdb.Errorf("fetchDailyCountSingleton: could not decode: %v", err)
-		}
-		return dcs,nil
-	} else {
-		return []DailyCount{}, err
-	}
+func  (cdb *ComplaintDB)fetchDailyCountSingleton(name string) ([]DailyCount, error) {
+	sp := sprovider.NewProvider(cdb.Provider)
+
+	dcs := []DailyCount{}
+
+	err := sp.ReadSingleton(cdb.Ctx(), name, dcs)
+	return dcs, err
 }
 
 // }}}
 // {{{ cdb.putDailyCountSingleton
 
-func  (cdb *ComplaintDB)putDailyCountSingleton(key string, dcs []DailyCount) error {
-	var buf bytes.Buffer
-	if err := gob.NewEncoder(&buf).Encode(dcs); err != nil {
-		return fmt.Errorf("putDailyCountSingleton encode: %v", err)
-	} else if err := ae.SaveSingletonToDatastore(cdb.Ctx(), key, buf.Bytes()); err != nil {
-		return fmt.Errorf("putDailyCountSingleton save: %v", err)
-	}
-	return nil
+func  (cdb *ComplaintDB)putDailyCountSingleton(name string, dcs []DailyCount) error {
+	sp := sprovider.NewProvider(cdb.Provider)
+
+	return sp.WriteSingleton(cdb.Ctx(), name, dcs)
 }
 
 // }}}
@@ -81,7 +70,7 @@ func (cdb *ComplaintDB) GetDailyCounts(email string) ([]DailyCount, error) {
 	cdb.Debugf("GDC_001", "GetDailyCounts() starting")
 
 	// 	might return: datastore.ErrNoSuchEntity
-	if dcs,err := cdb.fetchDailyCountSingleton(k); err == ae.ErrNoSuchEntityDS {
+	if dcs,err := cdb.fetchDailyCountSingleton(k); err == singleton.ErrNoSuchEntity {
 		// Singleton not found; we don't care; treat same as empty singleton.
 	} else if err != nil {
 		err = fmt.Errorf("GetDailyCounts/fetchDailyCountSingleton: %v", err)
