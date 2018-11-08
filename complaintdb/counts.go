@@ -46,7 +46,7 @@ func  (cdb *ComplaintDB)fetchDailyCountSingleton(name string) ([]DailyCount, err
 
 	dcs := []DailyCount{}
 
-	err := sp.ReadSingleton(cdb.Ctx(), name, &dcs)
+	err := sp.ReadSingleton(cdb.Ctx(), name, nil, &dcs)
 	return dcs, err
 }
 
@@ -56,7 +56,7 @@ func  (cdb *ComplaintDB)fetchDailyCountSingleton(name string) ([]DailyCount, err
 func  (cdb *ComplaintDB)putDailyCountSingleton(name string, dcs []DailyCount) error {
 	sp := sprovider.NewProvider(cdb.Provider)
 
-	return sp.WriteSingleton(cdb.Ctx(), name, &dcs)
+	return sp.WriteSingleton(cdb.Ctx(), name, nil, &dcs)
 }
 
 // }}}
