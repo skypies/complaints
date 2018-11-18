@@ -11,7 +11,14 @@ import (
 	"github.com/skypies/util/ae"
 	"github.com/skypies/util/widget"
 
+	//"github.com/skypies/util/singleton/memcache"
+	//"github.com/skypies/util/singleton/ttl"
+	//"github.com/skypies/complaints/config"
 	"github.com/skypies/complaints/complaintdb"
+)
+
+var (
+	ttl := time.Second * 2
 )
 
 func init() {
@@ -50,6 +57,10 @@ func heatmapHandler(w http.ResponseWriter, r *http.Request) {
 	positions := geo.LatlongSlice{} // Use explicit type as registered with encoding/gob
 
 	// Now try a range of ways to fill up positions[] ...
+	//memcached := config.Get("memcached.server")
+	//sp := ttl.NewProvider(ttl, memcache.NewProvider(memcached))
+	//sp.SingletonProvider.NumShards = 32
+	//if err := sp.ReadSingleton(ctx, key, nil, &positions); err != nil {
 	if err := ae.LoadFromMemcacheShardsTTL(ctx, key, &positions); err == nil {
 		// Fresh data from cache; we will use it !
 
@@ -66,8 +77,9 @@ func heatmapHandler(w http.ResponseWriter, r *http.Request) {
 
 	} else {
     // Datastore reutrned data; save to memcache, ignoring errors
-		ttl := time.Second * 2
 		if uniqueUsers { ttl = time.Hour * 24 }
+
+		// sp.WriteMemcache(ctx, key, nil, &positions)
 		ae.SaveToMemcacheShardsTTL(ctx, key, &positions, ttl)
 	}
 
