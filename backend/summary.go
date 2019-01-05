@@ -558,6 +558,9 @@ func GetProcedureMap(r *http.Request, s,e time.Time) (map[string]fdb.CondensedFl
 // }}}
 // {{{ SummaryReport
 
+// NOTE - most of this is now cloned inside complaintdb/, so we can call it from
+// cdb command line tool. If you need to touch this code, consider ripping it out entirely.
+
 func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (string,error) {
 	ctx := req2ctx(r)
 	cdb := complaintdb.NewDB(ctx)

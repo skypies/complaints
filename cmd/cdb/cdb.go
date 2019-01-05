@@ -18,27 +18,34 @@ import(
 
 var(
 	ctx = context.Background()
-	cdb complaintdb.ComplaintDB
-	fVerbosity int
-	fLimit int
-	fTStart, fTEnd timeType
-	fUser string
-	fDesc bool
-	fPurgeFlights bool
+	cdb             complaintdb.ComplaintDB
+	fVerbosity      int
+	fLimit          int
+	fTStart, fTEnd  time.Time
+	fUser           string
+	fDesc           bool
+	fPurgeFlights   bool
+	fSummary        bool
 )
 	
 func init() {
 	flag.IntVar(&fVerbosity, "v", 0, "verbosity level")
 	flag.IntVar(&fLimit, "n", 40, "how many matches to retrieve")
 	flag.StringVar(&fUser, "user", "", "email address of user")
-	flag.Var(&fTStart, "s", "start time (2006-01-02T15:04:05Z07:00)")
-	flag.Var(&fTEnd, "e", "end time (2006-01-02T15:04:05Z07:00)")
 	flag.BoolVar(&fDesc, "desc", false, "descending order of timestamp")
+	flag.BoolVar(&fSummary, "summary", false, "generate a summary report over the time period")
 	//flag.BoolVar(&fPurgeFlights, "purge", false, "remove flightnumber from random() complaints")
 
+	var s,e timeType
+	flag.Var(&s, "s", "start time (2006-01-02T15:04:05)")
+	flag.Var(&e, "e", "end time (2006-01-02T15:04:05)")	
 	flag.Parse()
+
+	fTStart = time.Time(s)
+	fTEnd = time.Time(e)
+
 	cdb = complaintdb.NewDB(ctx)
-	cdb.Logger = log.New(os.Stdout,"", log.Ldate|log.Ltime)//|log.Lshortfile)	
+	cdb.Logger = log.New(os.Stderr,"", log.Ldate|log.Ltime)//|log.Lshortfile)	
 	if p,err := ds.NewCloudDSProvider(ctx,"serfr0-1000"); err != nil {
 		log.Fatalf("coud not get a clouddsprovider: %v\n", err)
 	} else {
@@ -64,8 +71,8 @@ func queryFromArgs() *complaintdb.CQuery {
 
 	if fUser != "" { cq = cdb.CQByEmail(fUser) }
 
-	if ! time.Time(fTStart).IsZero() { cq = cq.Filter("Timestamp >= ", time.Time(fTStart)) }
-	if ! time.Time(fTEnd).IsZero() { cq = cq.Filter("Timestamp < ", time.Time(fTEnd)) }
+	if ! fTStart.IsZero() { cq = cq.Filter("Timestamp >= ", fTStart) }
+	if ! fTEnd.IsZero() { cq = cq.Filter("Timestamp < ", fTEnd) }
 
 	cq.Limit(fLimit)
 
@@ -135,7 +142,28 @@ func runQuery(cq *complaintdb.CQuery) {
 	fmt.Printf("\n")
 }
 
+func runSummaryReport() {
+	s,e := time.Time(fTStart), time.Time(fTEnd)
+	if s.IsZero() || e.IsZero() {
+		s,e = date.WindowForYesterday()
+	}
+
+	fmt.Printf("(running summary report, from %s to %s)\n", s,e)
+	tStart := time.Now()
+	if str,err := cdb.SummaryReport(s,e,false,map[string]int{}); err != nil {
+		Log.Fatal(err)
+	} else {
+		fmt.Printf("\n%s\n", str)
+		fmt.Printf("(report took %s to run)\n", time.Since(tStart))
+	}
+}
+
 func main() {
+	if fSummary == true {
+		runSummaryReport()
+		return
+	}
+	
 	if len(flag.Args()) == 0 {
 		runQuery(queryFromArgs())
 	}
