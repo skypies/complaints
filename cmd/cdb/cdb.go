@@ -151,7 +151,7 @@ func runSummaryReport() {
 	fmt.Printf("(running summary report, from %s to %s)\n", s,e)
 	tStart := time.Now()
 	if str,err := cdb.SummaryReport(s,e,false,map[string]int{}); err != nil {
-		Log.Fatal(err)
+		log.Fatal(err)
 	} else {
 		fmt.Printf("\n%s\n", str)
 		fmt.Printf("(report took %s to run)\n", time.Since(tStart))
