@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	ttl := time.Second * 2
+	ttl = time.Second * 2
 )
 
 func init() {

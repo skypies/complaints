@@ -4,6 +4,7 @@ require (
 	cloud.google.com/go v0.34.0 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/googleapis/gax-go v2.0.2+incompatible // indirect
+	github.com/gorilla/sessions v1.1.3 // indirect
 	github.com/paulmach/go.geo v0.0.0-20180829195134-22b514266d33 // indirect
 	github.com/paulmach/go.geojson v1.4.0 // indirect
 	github.com/skypies/adsb v0.0.0-20170701162657-223af14f06df // indirect
