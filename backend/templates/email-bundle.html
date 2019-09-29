@@ -3,9 +3,15 @@
   <body>
     <p>Hello, {{.Profile.FullName}} !</p>
 
-    <p>All of these complaints have already been auto-submitted to
-    SFO, so please do not forward this email to sfo.noise - they
-    already have them all !</p>
+    <p><b>These Emails Will Soon Stop !</b></p>
+    <p>Due to changes by the cloud services this site depends on, we
+    will soon not be able to send out emails - they will stop sometime
+    after 2-3 weeks.</p>
+    <p>If you depend on these emails for some particular purpose,
+    please contact me to talk about it - we can probably figure out a
+    different way to meet your needs. (In particular, take a
+    look at the 'PersonalReport' link at the bottom of the reports
+    page).</p>
      
     <p>This is a {{if len .Complaints | ge 1}}single
     report{{else}}list of {{ len .Complaints }} reports{{end}}
