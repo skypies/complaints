@@ -3,12 +3,13 @@ package main
 import (
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"time"
 
 	"golang.org/x/net/context"
-	"google.golang.org/appengine/log"
-	"google.golang.org/appengine/user"
+	// "google.golang.org/ appengine/log"
+	// "google.golang.org/ appengine/user"
 
 	"github.com/skypies/util/date"
 	"github.com/skypies/complaints/complaintdb"
@@ -143,8 +144,9 @@ func rootHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	}
 	cdb.Debugf("root_005", "cdb.GetAllByEmailAddress done")
 
-	modes["admin"] = user.Current(ctx)!=nil && user.Current(ctx).Admin
-	modes["superuser"] = modes["admin"]
+	// FIXME: how to check if complaints user is admin user / 
+	//modes["admin"] = user.Current(ctx)!=nil && user.Current(ctx).Admin
+	//modes["superuser"] = modes["admin"]
 
 	// Default to "", unless we had a complaint in the past hour.
 	lastActivity := ""
@@ -210,7 +212,7 @@ func masqueradeHandler (ctx context.Context, w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	log.Infof(ctx, "masq into [%s]", email)
+	log.Printf("masq into [%s]", email)
 
 	ui.CreateSession(ctx, w, r, ui.UserSession{Email:email})
 	

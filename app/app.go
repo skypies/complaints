@@ -2,25 +2,31 @@ package main
 
 import(
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"time"
 
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/urlfetch"
 	"golang.org/x/net/context"
 )
 
-// For go111
-//func main() { appengine.Main() }
+func main() {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-// Kill this stuff off ?
+	log.Printf("Listening on port %s", port)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), nil))
+}
+
 func req2ctx(r *http.Request) context.Context {
-	ctx,_ := context.WithTimeout(appengine.NewContext(r), 55 * time.Second)
+	ctx,_ := context.WithTimeout(r.Context(), 55 * time.Second)
 	return ctx
 }
 
 func req2client(r *http.Request) *http.Client {
-	return urlfetch.Client(req2ctx(r))
+	return &http.Client{}
 }
 
 func dumpForm(r *http.Request) string {

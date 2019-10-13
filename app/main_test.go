@@ -12,13 +12,13 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/aetest"
+	// "google.golang.org/ appengine"
+	// "google.golang.org/ appengine/aetest"
 )
 
-var inst aetest.Instance
+//var inst aetest.Instance
 func init() {
-	inst,_ = aetest.NewInstance(&aetest.Options{StronglyConsistentDatastore: true})
+	//	inst,_ = aetest.NewInstance(&aetest.Options{StronglyConsistentDatastore: true})
 } // should call inst.Close, but eh
 
 // {{{ vals

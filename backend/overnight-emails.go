@@ -46,6 +46,46 @@ func SendEmailToAdmin(c context.Context, subject, htmlbody string) {
 
 // }}}
 
+// {{{ // SendEmailToAllUsers
+
+/* Storing here, in case we need to wake this up somehow
+func SendEmailToAllUsers(r *http.Request, subject string) int {
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
+
+	if cps,err := cdb.LookupAllProfiles(cdb.NewProfileQuery()); err != nil {
+		cdb.Errorf("SendEmailToAllUsers/GetProfiles: %v", err)
+		return 0
+
+	} else {
+		buf := new(bytes.Buffer)	
+		params := map[string]interface{}{}
+		if err := templates.ExecuteTemplate(buf, "email-update", params); err != nil {
+			return 0
+		}
+
+		n := 0
+		for _,cp := range cps {
+			msg := &mail.Message{
+				Sender:   kSenderEmail,
+				ReplyTo:  kSenderEmail,
+				To:       []string{cp.EmailAddress},
+				Subject:  subject,
+				HTMLBody: buf.String(),
+			}
+			if err := mail.Send(cdb.Ctx(), msg); err != nil {
+				cdb.Errorf("Could not send useremail to <%s>: %v", cp.EmailAddress, err)
+			}
+			n++
+		}
+		return n
+	}
+}
+
+*/
+
+// }}}
+
 // {{{ GenerateSingleComplaintEmail
 
 func GenerateSingleComplaintEmail(c context.Context, profile types.ComplainerProfile, complaint types.Complaint) (*mail.Message, error) {

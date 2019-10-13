@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 	
 	"golang.org/x/net/context"
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/log"
+
+	// "google.golang.org/ appengine"
+	// "google.golang.org/ appengine/log"
 
 	"github.com/skypies/util/date"
 
@@ -17,8 +19,8 @@ import (
 )
 
 func init() {
-	http.HandleFunc("/deb", debHandler)
-	http.HandleFunc("/deb2", debugHandler3)
+	//http.HandleFunc("/deb", debHandler)
+	//http.HandleFunc("/deb2", debugHandler3)
 	//http.HandleFunc("/deb4", countsHandler)
 }
 
@@ -81,13 +83,12 @@ func countHackHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ perftesterHandler
 
 func perftesterHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.NewContext(r)
 	tStart := time.Now()
 	str := ""
 	debugf := func(step string, fmtstr string, varargs ...interface{}) {
 		payload := fmt.Sprintf(fmtstr, varargs...)
 		outStr := fmt.Sprintf("[%s] %9.6f %s", step, time.Since(tStart).Seconds(), payload)
-		log.Debugf(ctx, outStr)
+		log.Printf(outStr)
 		str += "* " + outStr + "\n"
 	}
 

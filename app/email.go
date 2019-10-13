@@ -1,13 +1,16 @@
 package main
 
+// FIXME: remove app/email.go
+/*
+
 import (
 	"bytes"
 	"fmt"
 	"net/http"
 
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/mail"
-	"google.golang.org/appengine/log"
+	// "google.golang.org/ appengine"
+	// "google.golang.org/ appengine/mail"
+	// "google.golang.org/ appengine/log"
 	"golang.org/x/net/context"
 
 	"github.com/skypies/complaints/complaintdb"
@@ -96,6 +99,8 @@ func emailUpdateHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
+
+*/
 
 // {{{ -------------------------={ E N D }=----------------------------------
 
