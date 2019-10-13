@@ -8,8 +8,8 @@ import(
 	"strings"
 	"time"
 
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/urlfetch"
+	// "google.golang.org/ appengine"
+	// "google.golang.org/ appengine/urlfetch"
 
 	fdb "github.com/skypies/flightdb"
 	"github.com/skypies/flightdb/fr24"
@@ -24,8 +24,7 @@ func init() {
 // {{{ airspaceHandler
 
 func airspaceHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.NewContext(r)
-	client := urlfetch.Client(ctx)
+	client := &http.Client{}
 	pos := geo.Latlong{37.060312,-121.990814}
 	str := ""
 	

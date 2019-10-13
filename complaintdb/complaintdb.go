@@ -7,9 +7,9 @@ import (
 	"sort"
 	"time"
 
-	"google.golang.org/appengine/user"
-	aelog "google.golang.org/appengine/log"
-	"google.golang.org/appengine/urlfetch"
+	// "google.golang.org/ appengine/user"
+	// aelog "google.golang.org/ appengine/log"
+	// "google.golang.org/ appengine/urlfetch"
 	"golang.org/x/net/context"
 
 	appengineds "github.com/skypies/util/ae/ds"
@@ -34,13 +34,14 @@ type ComplaintDB struct {
 	Logger   *pkglog.Logger
 }
 func (cdb ComplaintDB)Ctx() context.Context { return cdb.ctx }
-func (cdb ComplaintDB)HTTPClient() *http.Client { return urlfetch.Client(cdb.Ctx()) }
+func (cdb ComplaintDB)HTTPClient() *http.Client { return &http.Client{} }
 
 func NewDB(ctx context.Context) ComplaintDB {
 	return ComplaintDB{
 		ctx: ctx,
 		StartTime: time.Now(),
-		admin: (user.Current(ctx) != nil && user.Current(ctx).Admin),
+		// FIXME: find a way to figure out admin users during cdb.NewDB()
+		admin: false, // (user.Current(ctx) != nil && user.Current(ctx).Admin),
 		Provider: appengineds.AppengineDSProvider{},
 	}
 }
@@ -56,7 +57,7 @@ func (cdb ComplaintDB)Debugf(step string, fmtstr string, varargs ...interface{})
 	if cdb.Logger != nil {
 		cdb.Logger.Print(str)
 	} else {
-		aelog.Debugf(cdb.Ctx(), str)
+		// aelog.Debugf(cdb.Ctx(), str)
 	}
 }
 
@@ -64,7 +65,7 @@ func (cdb ComplaintDB)Infof(fmtstr string, varargs ...interface{}) {
 	if cdb.Logger != nil {
 		cdb.Logger.Printf(fmtstr, varargs...)
 	} else {
-		aelog.Infof(cdb.Ctx(), fmtstr, varargs...)
+		// aelog.Infof(cdb.Ctx(), fmtstr, varargs...)
 	}
 }
 
@@ -72,7 +73,7 @@ func (cdb ComplaintDB)Errorf(fmtstr string, varargs ...interface{}) {
 	if cdb.Logger != nil {
 		cdb.Logger.Printf("ERROR: "+fmtstr, varargs...)
 	} else {
-		aelog.Errorf(cdb.Ctx(), fmtstr, varargs...)
+		// aelog.Errorf(cdb.Ctx(), fmtstr, varargs...)
 	}
 }
 

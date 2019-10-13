@@ -8,8 +8,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/aetest" // Also used for testing Cloud API, in theory
+	// "google.golang.org/ appengine"
+	// "google.golang.org/ appengine/aetest" // Also used for testing Cloud API, in theory
 
 	"github.com/skypies/util/gcp/ds"
 	"github.com/skypies/complaints/complaintdb/types"
@@ -20,6 +20,9 @@ const appid = "mytestapp"
 
 // A version of aetest.NewContext() that has a consistent datastore - so we can read our writes.
 func newConsistentContext() (context.Context, func(), error) {
+	// FIXME: figure out how to test cloud datastore apps
+	return context.NewContext(), nil, nil
+	/*
 	inst, err := aetest.NewInstance(&aetest.Options{
 		StronglyConsistentDatastore: true,
 		AppID: appid,
@@ -36,6 +39,7 @@ func newConsistentContext() (context.Context, func(), error) {
 	return ctx, func() {
 		inst.Close()
 	}, nil
+*/
 }
 
 // }}}
