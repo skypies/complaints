@@ -1,13 +1,14 @@
 package g
 
 import (
+	"log"
 	"net/http"
 
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/log"
-	"google.golang.org/appengine/user"
+	// "google.golang.org/ appengine"
+	// "google.golang.org/ appengine/log"
+	// "google.golang.org/ appengine/user"
 
-	"github.com/skypies/complaints/ui"
+	_ "github.com/skypies/complaints/ui"
 )
 
 var (
@@ -21,7 +22,8 @@ func init() {
 
 // If the user wants to login via Google, we will redirect them to this URL
 func GetLoginUrl(r *http.Request, fromScratch bool) string {
-	ctx := appengine.NewContext(r)
+	/*
+	ctx := r.Context()
 
 	destURL := r.URL
 	destURL.Path = callbackUrlPath
@@ -40,33 +42,37 @@ func GetLoginUrl(r *http.Request, fromScratch bool) string {
 	// accounts (ouch) and then login again (with desired account), and finally back to the site.
 	loginUrl, err := user.LoginURL(ctx, destURL.String())
 	if err != nil {
-		log.Errorf(ctx, "g.GetLoginUrl, %v", err)
+		log.Printf("g.GetLoginUrl, %v", err)
 		return ""
 	}
 	url, err := user.LogoutURL(ctx, loginUrl)
 	if err != nil {
-		log.Errorf(ctx, "g.GetLogoutUrl, %v", err)
+		log.Printf("g.GetLogoutUrl, %v", err)
 		return ""
 	}
 
 	return url
+*/
+	// FIXME: rewrite Google login handling
+	return "https://google.com/"
 }
 
 // If the user logs in (and grants permission), they will be redirected here
 func loginHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.NewContext(r)
-	u := user.Current(ctx)
-	if u == nil {
-		log.Errorf(ctx, "No identifiable Google user; is this browser in privacy mode ?")
+	// FIXME: rewrite Google login handling
+	// ctx := r.Context()
+	// u := user.Current(ctx)
+	if true { // u == nil {
+		log.Printf("No identifiable Google user; is this browser in privacy mode ?")
 		http.Error(w, "No identifiable Google user; is this browser in privacy mode ?", http.StatusInternalServerError)
 		return
 	}
 	//c.Infof(" ** Google user logged in ! [%s]", u.Email)
 
 	// Snag their email address forever more; writes cookie into w
-	ui.CreateSession(ctx, w, r, ui.UserSession{Email:u.Email})
+	//	ui.CreateSession(ctx, w, r, ui.UserSession{Email:u.Email})
 
 	// Now head back to the main page
-	log.Infof(ctx, "new session saved for %s (G)", u.Email)
+	// log.Printf("new session saved for %s (G)", u.Email)
 	http.Redirect(w, r, "/", http.StatusFound)
 }

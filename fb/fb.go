@@ -3,11 +3,12 @@ package fb
 import (	
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/log"
-	"google.golang.org/appengine/urlfetch"
+	// "google.golang.org/ appengine"
+	// "google.golang.org/ appengine/log"
+	// "google.golang.org/ appengine/urlfetch"
 
 	"golang.org/x/oauth2"
 	fboauth2 "golang.org/x/oauth2/facebook"	
@@ -49,40 +50,40 @@ func GetLoginUrl(r *http.Request) string {
 
 // If the user logs in (and grants permission), they will be redirected here
 func loginHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.NewContext(r)
+	ctx := r.Context()
 	code := r.FormValue("code")
 
 	// Unpack the token
 	token, err := getConfig(r).Exchange(ctx, code)
 	if err != nil {
-		log.Errorf(ctx, "/fb/login: %v", err)
+		log.Printf("/fb/login: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	
 	// Use the token to access the FB API on the user's behalf; simply get their email address
-	client := urlfetch.Client(ctx)
+	client := &http.Client{}
 	var resp *http.Response
 	url := "https://graph.facebook.com/me?fields=email&access_token=" + token.AccessToken
 	if resp,err = client.Get(url); err != nil {
-		log.Errorf(ctx, "/fb/login: client.Get: %v", err)		
+		log.Printf("/fb/login: client.Get: %v", err)		
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		err = fmt.Errorf ("Bad FB fetch status: %v", resp.Status)
-		log.Errorf(ctx, "/fb/login: %v", err)
+		log.Printf("/fb/login: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}	
 	var jsonMap map[string]interface{}
 	if err = json.NewDecoder(resp.Body).Decode(&jsonMap); err != nil {
-		log.Errorf(ctx, "/fb/login: bad resp parse%v", err)
+		log.Printf("/fb/login: bad resp parse%v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	} else if jsonMap["email"] == nil {
-		log.Errorf(ctx, "/fb/login: no email field found:\n%#v", jsonMap)
+		log.Printf("/fb/login: no email field found:\n%#v", jsonMap)
 		http.Error(w, "fb login, no email field", http.StatusInternalServerError)
 		return
 	}
@@ -90,6 +91,6 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	// Snag their email address forever more; writes cookie into w
 	ui.CreateSession(ctx, w, r, ui.UserSession{Email: jsonMap["email"].(string)})
 
-	log.Infof(ctx, "new session saved for %s (FB)", jsonMap["email"])
+	log.Printf("new session saved for %s (FB)", jsonMap["email"])
 	http.Redirect(w, r, "/", http.StatusFound)
 }

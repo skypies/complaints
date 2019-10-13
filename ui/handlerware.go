@@ -2,12 +2,13 @@ package ui
 
 import(
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 	
 	"golang.org/x/net/context"
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/log"
+	// "google.golang.org/ appengine"
+	// "google.golang.org/ appengine/log"
 )
 
 /* Common code for pulling out a user session cookie, populating a Context, etc. */
@@ -46,7 +47,7 @@ func WithCtxTlsSession(ch,fallback contextHandler) baseHandler {
 // Outermost wrapper; all other wrappers take (and return) contexthandlers
 func WithCtx(ch contextHandler) baseHandler {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx,_ := context.WithTimeout(appengine.NewContext(r), 550 * time.Second)
+		ctx,_ := context.WithTimeout(r.Context(), 550 * time.Second)
 		ch(ctx,w,r)
 	}
 }
@@ -94,7 +95,7 @@ func WithSession(ch contextHandler, fallback contextHandler) contextHandler {
 			cookies[c.Name] = c.Value
 		}
 		if val,exists := cookies["serfr0crumbs"]; exists {
-			log.Debugf(ctx, "serfr0crumbs in : %s", val)
+			log.Printf("serfr0crumbs in : %s", val)
 		} 
 
 		handler := fallback
@@ -107,8 +108,8 @@ func WithSession(ch contextHandler, fallback contextHandler) contextHandler {
 				handler = ch
 
 			} else {
-				if err != nil { log.Errorf(ctx, "req2session err: " + err.Error()) }
-				log.Errorf(ctx, "crumbs: " + crumbs.String())
+				if err != nil { log.Printf("req2session err: " + err.Error()) }
+				log.Printf("crumbs: " + crumbs.String())
 			}
 
 		} else {
@@ -116,7 +117,7 @@ func WithSession(ch contextHandler, fallback contextHandler) contextHandler {
 		}
 		
 		// Before invoking final handler, log breadcrumb trail, and stash in cookie
-		log.Debugf(ctx, "serfr0crumbs out: %s", crumbs)
+		log.Printf("serfr0crumbs out: %s", crumbs)
 		cookie := http.Cookie{
 			Name: "serfr0crumbs",
 			Value: crumbs.String(),
@@ -125,7 +126,7 @@ func WithSession(ch contextHandler, fallback contextHandler) contextHandler {
 		http.SetCookie(w, &cookie)
 
 		if handler == nil {
-			log.Errorf(ctx, "WithSession had no session, no fallbackHandler")
+			log.Printf("WithSession had no session, no fallbackHandler")
 			http.Error(w, fmt.Sprintf("no session, no fallbackHandler (%s)", r.URL), http.StatusInternalServerError)
 			return
 		}

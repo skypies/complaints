@@ -1,13 +1,14 @@
 package ui
 
 import(
-	"net/http"
 	"fmt"
+	"log"
+	"net/http"
 	"time"
 
 	"golang.org/x/net/context"
 
-	"google.golang.org/appengine/log"
+	// "google.golang.org/ appengine/log"
 
 	gsessions "github.com/gorilla/sessions"
 )
@@ -76,15 +77,15 @@ func CreateSession(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 	if err != nil {
 		// This isn't usually an important error (the session was most likely expired, which is why
 		// we're logging in) - so log as Info, not Error.
-		log.Debugf(ctx, "CreateSession: sessionStore.Get [failing is OK for this call] had err: %v", err)
+		log.Printf("CreateSession: sessionStore.Get [failing is OK for this call] had err: %v", err)
 	}
 
 	session.Values["email"] = sesh.Email
 	session.Values["tstamp"] = time.Now().Format(time.RFC3339)
 	if err := session.Save(r,w); err != nil {
-		log.Errorf(ctx, "CreateSession: session.Save: %v", err)
+		log.Printf("CreateSession: session.Save: %v", err)
 	}
-	log.Debugf(ctx, "CreateSession OK for %s", sesh.Email)
+	log.Printf("CreateSession OK for %s", sesh.Email)
 }
 
 func OverwriteSessionToNil(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -95,5 +96,5 @@ func OverwriteSessionToNil(ctx context.Context, w http.ResponseWriter, r *http.R
 	session.Values["tstamp"] = nil
 
 	session.Save(r, w)	
-	log.Debugf(ctx, "OverwriteSessionToNil done")
+	log.Printf("OverwriteSessionToNil done")
 }
