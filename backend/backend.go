@@ -1,35 +1,25 @@
 package backend
 
-import (
+import(
 	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
 	"time"
 
-	"google.golang.org/appengine"
 	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
-
-	"github.com/skypies/complaints/complaintdb"
 )
 
-func init() {
-	http.HandleFunc("/", noopHandler)
-	http.HandleFunc("/_ah/start", noopHandler)
-	http.HandleFunc("/_ah/stop", noopHandler)
-	http.HandleFunc("/backend/submissions/debug", complaintdb.SubmissionsDebugHandler)
-}
 
 func req2ctx(r *http.Request) context.Context {
-	ctx,_ := context.WithTimeout(appengine.NewContext(r), 9 * time.Minute)
+	ctx,_ := context.WithTimeout(r.Context(), 9 * time.Minute)
 	return ctx
 }
 
-func noopHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte("OK, backend noop\n"))
+func req2client(r *http.Request) *http.Client {
+	return &http.Client{}
 }
 
 // Yay, sorting things is so easy in go

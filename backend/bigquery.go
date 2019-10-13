@@ -3,13 +3,14 @@ package backend
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
 	"cloud.google.com/go/bigquery"
 
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/log"
+	// "google.golang.org/ appengine"
+	// "google.golang.org/ appengine/log"
 	"google.golang.org/appengine/taskqueue"
 
 	"github.com/skypies/util/date"
@@ -37,7 +38,7 @@ var(
 
 // Writes them all into a batch queue
 func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.NewContext(r)
+	ctx := req2ctx(r)
 	str := ""
 
 	s,e,_ := widget.FormValueDateRange(r)
@@ -57,7 +58,7 @@ func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 		t.Delay = time.Minute + time.Duration(i)*15*time.Second
 		
 		if _,err := taskqueue.Add(ctx, t, "batch"); err != nil {
-			log.Errorf(ctx, "publishAllComplaintsHandler: enqueue: %v", err)
+			log.Printf("publishAllComplaintsHandler: enqueue: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -83,8 +84,6 @@ func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 func publishComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 	tStart := time.Now()
 
-	ctx := appengine.NewContext(r)
-
 	foldername := "serfr0-bigquery"
 
 	datestring := r.FormValue("datestring")
@@ -93,16 +92,16 @@ func publishComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filename := "anon-"+datestring+".json"
-	log.Infof(ctx, "Starting /backend/publish-complaints: %s", filename)
+	log.Printf("Starting /backend/publish-complaints: %s", filename)
 	
 	n,err := writeAnonymizedGCSFile(r, datestring, foldername,filename)
 	if err != nil {
-		log.Errorf(ctx, "/backend/publish-complaints: %s, err: %v", filename, err)
+		log.Printf("/backend/publish-complaints: %s, err: %v", filename, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	log.Infof(ctx, "%d entries written to gs://%s/%s\n", n, foldername, filename)
+	log.Printf("%d entries written to gs://%s/%s\n", n, foldername, filename)
 	str := fmt.Sprintf("%d entries written to gs://%s/%s\n", n, foldername, filename)
 
 	if r.FormValue("skipload") == "" {
@@ -187,7 +186,7 @@ func writeAnonymizedGCSFile(r *http.Request, datestring, foldername,filename str
 		return 0, err
 	}
 
-	log.Infof(ctx, "GCS bigquery file '%s' successfully written", filename)
+	log.Printf("GCS bigquery file '%s' successfully written", filename)
 
 	return n,nil
 }
@@ -197,7 +196,7 @@ func writeAnonymizedGCSFile(r *http.Request, datestring, foldername,filename str
 
 // https://sourcegraph.com/github.com/GoogleCloudPlatform/gcloud-golang/-/blob/examples/bigquery/load/main.go
 func submitLoadJob(r *http.Request, gcsfolder, gcsfile string) error {
-	ctx := appengine.NewContext(r)
+	ctx := req2ctx(r)
 
 	client,err := bigquery.NewClient(ctx, bigqueryProject)
 	if err != nil {
@@ -238,10 +237,10 @@ func submitLoadJob(r *http.Request, gcsfolder, gcsfile string) error {
 		for i,innerErr := range status.Errors {
 			detailedErrStr += fmt.Sprintf(" [%2d] %v\n", i, innerErr)
 		}
-		log.Errorf(ctx, "BiqQuery LoadJob error: %v\n--\n%s", err, detailedErrStr)
+		log.Printf("BiqQuery LoadJob error: %v\n--\n%s", err, detailedErrStr)
 		return fmt.Errorf("Job error: %v\n--\n%s", err, detailedErrStr)
 	} else {
-		log.Infof(ctx, "BiqQuery LoadJob status: done=%v, state=%s, %s",
+		log.Printf("BiqQuery LoadJob status: done=%v, state=%s, %s",
 			status.Done(), status.State, status)
 	}
 	

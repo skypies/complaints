@@ -1,5 +1,5 @@
 runtime: go
-api_version: go1
+main: ./web
 instance_class: B1
 service: backend
 basic_scaling:
@@ -9,16 +9,16 @@ basic_scaling:
 handlers:
 - url: /backend/.*
   script: _go_app
-  login: admin
+#  login: admin
 
 - url: /backend/bksv/.*
   script: _go_app
-  login: admin
+#  login: admin
 
 - url: "/report/summary"
-  login: required
+#  login: required
 #  auth_fail_action: unauthorized
-  auth_fail_action: redirect
+#  auth_fail_action: redirect
   script: _go_app
 
 - url: "/report/.*"

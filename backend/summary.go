@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http/httputil"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"regexp"
@@ -13,10 +14,10 @@ import (
 	"strings"
 	"time"
 	
-	"google.golang.org/appengine/log"
+	// "google.golang.org/ appengine/log"
 	"google.golang.org/appengine/taskqueue"
-	"google.golang.org/appengine/urlfetch"
-	"google.golang.org/appengine/user"
+	// "google.golang.org/ appengine/urlfetch"
+	// "google.golang.org/ appengine/user"
 	
 	"github.com/skypies/util/gcp/gcs"
 	"github.com/skypies/util/date"
@@ -68,7 +69,7 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 			"month": {r.FormValue("month")},
 		})
 		if _,err := taskqueue.Add(ctx, t, "batch"); err != nil {
-			log.Errorf(ctx, "monthHandler: enqueue: %v", err)
+			log.Printf("monthHandler: enqueue: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -87,8 +88,8 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 	s := firstOfMonth.AddDate(0,0,int(day-1))
 	e := s.AddDate(0,0,int(num)).Add(-1 * time.Second)
 
-	log.Infof(ctx, "Yow: START : %s", s)
-	log.Infof(ctx, "Yow: END   : %s", e)
+	log.Printf("Yow: START : %s", s)
+	log.Printf("Yow: END   : %s", e)
 
 	cdb := complaintdb.NewDB(ctx)
 
@@ -196,7 +197,7 @@ func getIP(r *http.Request) string {
 func isBanned(r *http.Request) bool {
 	ctx := req2ctx(r)
 	cdb := complaintdb.NewDB(ctx)
-	u := user.Current(cdb.Ctx())
+	// u := user.Current(cdb.Ctx())
 	userWhitelist := map[string]int{
 		"adam@worrall.cc":1,
 		"don.gardner@me.com":1,
@@ -207,7 +208,7 @@ func isBanned(r *http.Request) bool {
 	reqBytes,_ := httputil.DumpRequest(r, true)
 
 	cdb.Infof("remoteAddr: '%v'", r.RemoteAddr)
-	cdb.Infof("user: '%v' (%s)", u, u.Email)
+	// cdb.Infof("user: '%v' (%s)", u, u.Email)
 	cdb.Infof("inbound IP determined as: '%v'", getIP(r))
 	cdb.Infof("HTTP req:-\n%s", string(reqBytes))
 
@@ -215,10 +216,13 @@ func isBanned(r *http.Request) bool {
 		cdb.Infof("User-Agent rejected")
 		return true
 	}
-	if _,exists := userWhitelist[u.Email]; !exists {
-		cdb.Infof("user not found in whitelist")
-		return true
-	}
+
+	// FIXME: find a way to check is user is blacklisted (bury in context ?)
+	_ = userWhitelist
+	// if _,exists := userWhitelist[u.Email]; !exists {
+	// 	cdb.Infof("user not found in whitelist")
+	//	return true
+	// }
 	return false
 }
 
@@ -528,7 +532,7 @@ func GetProcedureMap(r *http.Request, s,e time.Time) (map[string]fdb.CondensedFl
 		return ret, nil
 	}
 	
-	client := urlfetch.Client(req2ctx(r))
+	client := req2client(r)
 	
 	encoding := "gob"	
 	url := fmt.Sprintf("http://fdb.serfr1.org/api/procedures?encoding=%s&tags=:NORCAL:&s=%d&e=%d",
@@ -564,7 +568,9 @@ func GetProcedureMap(r *http.Request, s,e time.Time) (map[string]fdb.CondensedFl
 func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (string,error) {
 	ctx := req2ctx(r)
 	cdb := complaintdb.NewDB(ctx)
-	u := user.Current(cdb.Ctx())
+
+	// FIXME: find a way to figure out current user (bury in context ?)
+	// u := user.Current(cdb.Ctx())
 
 	str := ""
 	str += fmt.Sprintf("(t=%s)\n", time.Now())
@@ -614,7 +620,9 @@ func SummaryReport(r *http.Request, start,end time.Time, countByUser bool) (stri
 		q := cdb.NewComplaintQuery().ByTimespan(dayWindow[0],dayWindow[1])
 		iter := cdb.NewComplaintIterator(q)
 		iter.PageSize = 1000
-		cdb.Infof("running summary across %s-%s, for %v", dayWindow[0],dayWindow[1],u)
+
+		// FIXME: do we need to know the user here ?
+		// cdb.Infof("running summary across %s-%s, for %v", dayWindow[0],dayWindow[1],u)
 		cdb.Infof("fetched %d flight procedures", len(cfMap))
 		
 		for iter.Iterate(ctx) {

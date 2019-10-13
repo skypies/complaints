@@ -3,10 +3,11 @@ package backend
 import (
 	"encoding/csv"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
-	"google.golang.org/appengine/log"
+	// "google.golang.org/ appengine/log"
 
 	"github.com/skypies/util/date"
 	"github.com/skypies/util/gcp/gcs"
@@ -62,7 +63,7 @@ func generateMonthlyCSVOLD(cdb complaintdb.ComplaintDB, month,year int) (string,
 	now := date.NowInPdt()
 	s := time.Date(int(year), time.Month(month), 1, 0,0,0,0, now.Location())
 	e := s.AddDate(0,1,0).Add(-1 * time.Second)
-	log.Infof(ctx, "Starting /be/month: %s", s)
+	log.Printf("Starting /be/month: %s", s)
 
 	// One time, at 00:00, for each day of the given month
 	days := date.IntermediateMidnights(s.Add(-1 * time.Second),e)
@@ -100,7 +101,7 @@ func generateMonthlyCSVOLD(cdb complaintdb.ComplaintDB, month,year int) (string,
 	n := 0
 	for _,dayStart := range days {
 		dayEnd := dayStart.AddDate(0,0,1).Add(-1 * time.Second)
-		log.Infof(ctx, " /be/month: %s - %s", dayStart, dayEnd)
+		log.Printf(" /be/month: %s - %s", dayStart, dayEnd)
 
 		tIter := time.Now()
 		iter := cdb.NewComplaintIterator(cdb.NewComplaintQuery().ByTimespan(dayStart, dayEnd))
@@ -143,7 +144,7 @@ func generateMonthlyCSVOLD(cdb complaintdb.ComplaintDB, month,year int) (string,
 		return gcsName,0,err
 	}
 
-	log.Infof(ctx, "monthly CSV successfully written to %s, %d rows", gcsName, n)
+	log.Printf("monthly CSV successfully written to %s, %d rows", gcsName, n)
 
 	return gcsName,n,nil
 }
@@ -162,7 +163,7 @@ func generateMonthlyCSV(cdb complaintdb.ComplaintDB, month,year int) (string, in
 	now := date.NowInPdt()
 	s := time.Date(int(year), time.Month(month), 1, 0,0,0,0, now.Location())
 	e := s.AddDate(0,1,0).Add(-1 * time.Second)
-	log.Infof(ctx, "Starting /be/month: %s", s)
+	log.Printf("Starting /be/month: %s", s)
 
 	// One time, at 00:00, for each day of the given month
 	days := date.IntermediateMidnights(s.Add(-1 * time.Second),e)
@@ -188,7 +189,7 @@ func generateMonthlyCSV(cdb complaintdb.ComplaintDB, month,year int) (string, in
 	for _,dayStart := range days {
 		dayEnd := dayStart.AddDate(0,0,1).Add(-1 * time.Second)
 		q := cdb.NewComplaintQuery().ByTimespan(dayStart, dayEnd)
-		log.Infof(ctx, " /be/month: %s - %s", dayStart, dayEnd)
+		log.Printf(" /be/month: %s - %s", dayStart, dayEnd)
 
 		if num,err := cdb.WriteCQueryToCSV(q, gcsHandle.IOWriter(), (n==0)); err != nil {
 			return gcsName,0,fmt.Errorf("failed; time since start: %s. Err: %v", time.Since(tStart), err)
@@ -201,7 +202,7 @@ func generateMonthlyCSV(cdb complaintdb.ComplaintDB, month,year int) (string, in
 		return gcsName,0,err
 	}
 
-	log.Infof(ctx, "monthly CSV successfully written to %s, %d rows", gcsName, n)
+	log.Printf("monthly CSV successfully written to %s, %d rows", gcsName, n)
 
 	return gcsName,n,nil
 }
