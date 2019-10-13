@@ -11,12 +11,11 @@ import (
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/aetest" // Also used for testing Cloud API, in theory
 
-	"github.com/skypies/util/dsprovider"
+	"github.com/skypies/util/gcp/ds"
 	"github.com/skypies/complaints/complaintdb/types"
 )
 
 const appid = "mytestapp"
-
 // {{{ newConsistentContext
 
 // A version of aetest.NewContext() that has a consistent datastore - so we can read our writes.
@@ -70,8 +69,8 @@ func makeComplaints(n int, p types.ComplainerProfile) []types.Complaint {
 // {{{ TestCoreAPI
 
 func TestCoreAPI(t *testing.T) {
-	p := dsprovider.AppengineDSProvider{} // can't make CloudDSProvider{} work with aetest
 	ctx, done, err := newConsistentContext()
+	p := ds.NewCloudDSProvider(ctx, "myproj")
 	if err != nil { t.Fatal(err) }
 	defer done()
 
@@ -84,7 +83,7 @@ func TestCoreAPI(t *testing.T) {
 	if err := cdb.PersistProfile(profile); err != nil {
 		t.Errorf("Persist profile err: %v\n", err)
 	}
-	if p,err := cdb.MustLookupProfile("no@such.address.com"); err != dsprovider.ErrNoSuchEntity {
+	if p,err := cdb.MustLookupProfile("no@such.address.com"); err != ds.ErrNoSuchEntity {
 		t.Errorf("Lookup on missing returned wrong err: %v\n", err)
 	} else if p != nil {
 		t.Errorf("Lookup on missing found something: %v\n", p)
@@ -202,8 +201,8 @@ func TestCoreAPI(t *testing.T) {
 // {{{ TestCSVOutput
 
 func TestCSVOutput(t *testing.T) {
-	p := dsprovider.AppengineDSProvider{} // can't make CloudDSProvider{} work with aetest
 	ctx, done, err := newConsistentContext()
+	p := ds.NewCloudDSProvider(ctx, "myproj")
 	if err != nil { t.Fatal(err) }
 	defer done()
 	cdb := NewDB(ctx)
