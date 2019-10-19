@@ -23,7 +23,7 @@ func init() {
 }
 
 func req2ctx(r *http.Request) context.Context {
-	ctx,_ := context.WithTimeout(r.Context, 9 * time.Minute)
+	ctx,_ := context.WithTimeout(r.Context(), 9 * time.Minute)
 	return ctx
 }
 
