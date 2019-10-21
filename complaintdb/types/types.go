@@ -6,14 +6,18 @@ import (
 	"encoding/gob"
 	"fmt"
 	"html/template"
-	"regexp"
+	// "regexp"
 	"strings"
 	"time"
 	
 	"github.com/skypies/geo"
 	fdb "github.com/skypies/flightdb"
-
+	"github.com/skypies/complaints/config"
 	"github.com/skypies/complaints/flightid"
+
+	"golang.org/x/net/context"
+
+	"googlemaps.github.io/maps"
 )
 
 // The various types used in the complaint db
@@ -78,30 +82,6 @@ var towns = []string{
 	"glenwood", "los gatos", "palo alto",
 }
 
-func (p ComplainerProfile)GetStructuredAddress() PostalAddress {
-	addr := p.StructuredAddress
-
-	if addr.Zip == "" {
-		// Bodge it up
-		addr.Street = p.Address
-		addr.State  = "CA"
-		addr.Zip    = regexp.MustCompile("(?i:(\\d{5}(-\\d{4})?))").FindString(p.Address)
-		addr.City   = regexp.MustCompile("(?i:"+strings.Join(towns,"|")+")").FindString(p.Address)
-		if addr.City == "" { addr.City  = "Unknown" }
-		if addr.Zip  == "" { addr.Zip   = "99999" }
-
-		addr.City = strings.Title(addr.City)
-
-	} else {
-		if addr.Number != "" {
-			addr.Street = addr.Number + " " + addr.Street
-		}
-	}
-
-	
-	return addr
-}
-
 func (p ComplainerProfile)Base64Encode() (string, error) {
 	var buf bytes.Buffer
 	if err := gob.NewEncoder(&buf).Encode(p); err != nil {
@@ -131,6 +111,85 @@ func (p ComplainerProfile)ThirdPartyCommsOK() bool {
 }
 
 // }}}
+
+// {{{ p.GetStructuredAddress
+
+func (p ComplainerProfile)GetStructuredAddress() PostalAddress {	
+	if p.StructuredAddress.Street == "" && p.Address != "" {
+		p.UpdateStructuredAddress()
+	}
+	return p.StructuredAddress
+
+/*
+	addr := p.StructuredAddress
+
+	if p.StructuredAddress.Zip == "" {
+		// Bodge it up
+		addr.Street = p.Address
+		addr.State  = "CA"
+		addr.Zip    = regexp.MustCompile("(?i:(\\d{5}(-\\d{4})?))").FindString(p.Address)
+		addr.City   = regexp.MustCompile("(?i:"+strings.Join(towns,"|")+")").FindString(p.Address)
+		if addr.City == "" { addr.City  = "Unknown" }
+		if addr.Zip  == "" { addr.Zip   = "99999" }
+
+		addr.City = strings.Title(addr.City)
+
+	} else {
+		if addr.Number != "" {
+			addr.Street = addr.Number + " " + addr.Street
+		}
+	}
+	
+	return addr
+*/
+}
+
+// }}}
+// {{{ p.UpdateStructuredAddress
+
+func components2structured (r maps.GeocodingResult) PostalAddress {
+	new := PostalAddress{}
+	for _,c := range r.AddressComponents {
+		switch c.Types[0] {
+		case "street_number": new.Number = c.LongName
+		case "route": new.Street = c.LongName
+		case "locality": new.City = c.LongName
+		case "administrative_area_level_1": new.State = c.LongName
+		case "postal_code":  new.Zip = c.LongName
+		case "country":  new.Country = c.LongName
+		}
+	}
+	return new
+}
+
+func (p *ComplainerProfile)UpdateStructuredAddress() error {
+	ctx := context.Background()
+
+	apiKey := config.Get("googlemaps.apiKey.serverside")
+
+	if mapsClient, err := maps.NewClient(maps.WithAPIKey(apiKey)); err != nil {
+		return fmt.Errorf("NewClient err: %v\n", err)
+	} else {
+		// https://godoc.org/googlemaps.github.io/maps#GeocodingRequest
+		req := &maps.GeocodingRequest{Address: p.Address}
+		if results,err := mapsClient.Geocode(ctx, req); err != nil {
+			return fmt.Errorf("maps.Geocode err: %v", err)
+		} else {
+			if len(results) != 1 {
+				return fmt.Errorf("maps.Geocode: %d results (%s)", len(results), p.Address)
+			}
+			if results[0].PartialMatch {
+				return fmt.Errorf("maps.Geocode: partial match (%s)", p.Address)
+			}
+			p.StructuredAddress = components2structured(results[0])
+		}
+	}
+
+	return nil
+}
+
+// }}}
+
 // {{{ Submission{}
 
 type SubmissionOutcome int

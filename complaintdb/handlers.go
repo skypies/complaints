@@ -16,10 +16,7 @@ import(
 )
 
 func init() {
-	http.HandleFunc("/cdb/comp/debug", complaintDebugHandler)
-
-	// This lives in the backend service now
-	//http.HandleFunc("/cdb/yesterday/debug", YesterdayDebugHandler)
+	http.HandleFunc("/cdb/comp/debug", ComplaintDebugHandler)
 }
 
 func req2ctx(r *http.Request) context.Context {
@@ -27,10 +24,10 @@ func req2ctx(r *http.Request) context.Context {
 	return ctx
 }
 
-// {{{ complaintDebugHandler
+// {{{ ComplaintDebugHandler
 
 // /cdb/comp/debug?key=asdadasdasdasdasdasdsadasdsadasdasdasdasdasdas
-func complaintDebugHandler(w http.ResponseWriter, r *http.Request) {
+func ComplaintDebugHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
 	cdb := NewDB(ctx)
 
@@ -48,7 +45,9 @@ func complaintDebugHandler(w http.ResponseWriter, r *http.Request) {
 	c.Debug = "..."
 	jsonText,_ := json.MarshalIndent(c, "", "  ")
 
-	str := "======/// Complaint lookup ///=====\n\n"
+	str := ""
+
+	str += "\n\n======/// Complaint lookup ///=====\n\n"
 	str += fmt.Sprintf("* %s\n* %s\n\n", r.FormValue("key"), c)
 
 	if len(c.Submission.Response) > 0 {
@@ -61,6 +60,7 @@ func complaintDebugHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str += "\n======/// Complaint object ///======\n\n"+string(jsonText)+"\n"
+
 	str += "\n======/// Aircraft ID debug ///======\n\n"+idDebug
 	str += "\n======/// Submission Log ///======\n\n"+subLog
 
@@ -72,11 +72,11 @@ func complaintDebugHandler(w http.ResponseWriter, r *http.Request) {
 // }}}
 // {{{ SubmissionsDebugHandler
 
+// This handler runs in the backend app
 // View a day's worth of complaint submissions; defaults to yesterday
 //   ?all=1 (will list every single complaint - DO NOT USE)
 //   ?offset=N (how many days to go back from today; 1 == yesterday)
 //   ?datestring=2018.01.20 (this day in particular)
-
 func SubmissionsDebugHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
 	cdb := NewDB(ctx)

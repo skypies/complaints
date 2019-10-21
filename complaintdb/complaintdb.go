@@ -12,7 +12,6 @@ import (
 	// "google.golang.org/ appengine/urlfetch"
 	"golang.org/x/net/context"
 
-	appengineds "github.com/skypies/util/ae/ds"
 	"github.com/skypies/util/gcp/ds"
 	"github.com/skypies/complaints/complaintdb/types"
 )
@@ -37,12 +36,18 @@ func (cdb ComplaintDB)Ctx() context.Context { return cdb.ctx }
 func (cdb ComplaintDB)HTTPClient() *http.Client { return &http.Client{} }
 
 func NewDB(ctx context.Context) ComplaintDB {
-	return ComplaintDB{
-		ctx: ctx,
-		StartTime: time.Now(),
-		// FIXME: find a way to figure out admin users during cdb.NewDB()
-		admin: false, // (user.Current(ctx) != nil && user.Current(ctx).Admin),
-		Provider: appengineds.AppengineDSProvider{},
+	// FIXME: un-hardcode the project ID
+	if p,err := ds.NewCloudDSProvider(ctx, "serfr0-1000"); err != nil {
+		panic(fmt.Errorf("NewDB: could not get a clouddsprovider: %v\n", err))
+
+	} else {
+		return ComplaintDB{
+			ctx: ctx,
+			StartTime: time.Now(),
+			// FIXME: find a way to figure out admin users during cdb.NewDB()
+			admin: false, // (user.Current(ctx) != nil && user.Current(ctx).Admin),
+			Provider: p, //appengineds.AppengineDSProvider{},
+		}
 	}
 }
 
@@ -173,7 +178,7 @@ func (cdb ComplaintDB)PersistComplaints(complaints []types.Complaint) error {
 func (cdb ComplaintDB)LookupKey(keyerStr string, owner string) (*types.Complaint, error) {
 	keyer,err := cdb.Provider.DecodeKey(keyerStr)
 	if err != nil {
-		return nil, fmt.Errorf("LookupKey: %v", err)
+		return nil, fmt.Errorf("LookupKey/DecodeKey: %v", err)
 	}
 
 	if _,err := cdb.ComplaintKeyOwnedBy(keyer, owner); err != nil {
@@ -182,7 +187,7 @@ func (cdb ComplaintDB)LookupKey(keyerStr string, owner string) (*types.Complaint
 
 	c := types.Complaint{}
 	if err := cdb.Provider.Get(cdb.Ctx(), keyer, &c); err != nil {
-		return nil, fmt.Errorf("LookupKey: %v", err)
+		return nil, fmt.Errorf("LookupKey/Get: %v", err)
 	}
 	
 	FixupComplaint(&c, keyer.Encode())
