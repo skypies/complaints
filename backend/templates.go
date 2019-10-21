@@ -13,7 +13,13 @@ import(
 var templates *template.Template
 
 func init() {
-	templates = widget.ParseRecursive(template.New("").Funcs(GetFuncMap()), "templates")
+	// Templates are kinda messy.
+	// The functions to parse them live in the UI library.
+	// The "templates" dir lives under the appengine app's main dir; to reuse templates
+	// from other places, we symlink them underneath this.
+	// For go111, appengine uses the module root, which is the root of the git repo; so
+	// the relative dirname for templates is relative to the root of the git repo.
+	templates = widget.ParseRecursive(template.New("").Funcs(GetFuncMap()), "backend/web/templates")
 }
 
 func GetFuncMap() template.FuncMap {
