@@ -10,7 +10,6 @@ import(
 	"time"
 
 	"github.com/skypies/util/date"
-	"github.com/skypies/util/gcp/ds"
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
@@ -46,11 +45,13 @@ func init() {
 
 	cdb = complaintdb.NewDB(ctx)
 	cdb.Logger = log.New(os.Stderr,"", log.Ldate|log.Ltime)//|log.Lshortfile)	
+	/*
 	if p,err := ds.NewCloudDSProvider(ctx,"serfr0-1000"); err != nil {
 		log.Fatalf("coud not get a clouddsprovider: %v\n", err)
 	} else {
 		cdb.Provider = p
 	}
+*/
 }
 
 // timeType is a time that implements flag.Value
