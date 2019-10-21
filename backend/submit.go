@@ -5,19 +5,59 @@ import (
 	"net/http"
 	"time"
 
-	"google.golang.org/appengine/taskqueue"
+	// "google.golang.org/ appengine/taskqueue"
 	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
+	"github.com/skypies/util/gcp/tasks"
 
 	"github.com/skypies/complaints/bksv"
 	"github.com/skypies/complaints/complaintdb"
+)
+
+var(
+	LocationID = "us-central1" // This is "us-central" in appengine-land, needs a 1 for cloud tasks
+	ProjectID = "serfr0-1000"
+	QueueName = "batch"
 )
 
 func init() {
 	http.HandleFunc("/backend/bksv/scan-yesterday",   bksvScanYesterdayHandler)
 	http.HandleFunc("/backend/bksv/submit-complaint", bksvSubmitComplaintHandler)
 }
+
+// {{{ bksvScanYesterdayHandler
+
+// Get all the keys for yesterday's complaints, and queue them for submission
+func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
+	start,end := date.WindowForYesterday()
+
+	keyers,err := cdb.LookupAllKeys(cdb.NewComplaintQuery().ByTimespan(start,end))
+	if err != nil {
+		cdb.Errorf(" /bksv/scan-yesterday: LookupAllKeys: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	for _,keyer := range keyers {
+		uri := "/bksv/submit-complaint"
+		params := url.Values{}
+		params.Set("id", keyer.Encode())
+	
+		if _,err := tasks.SubmitAETask(ctx, ProjectID, LocationID, QueueName, uri, params); err != nil {
+			cdb.Errorf(" /backend/bksv/scan-yesterday: enqueue: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	cdb.Infof("enqueued %d bksv", len(keyers))
+	w.Write([]byte(fmt.Sprintf("OK, enqueued %d", len(keyers))))
+}
+
+// }}}
 
 // {{{ bksvScanYesterdayHandler
 
