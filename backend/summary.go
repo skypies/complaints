@@ -6,16 +6,14 @@ import (
 	"encoding/json"
 	"net/http/httputil"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 	
 	// "google.golang.org/ appengine/log"
-	"google.golang.org/appengine/taskqueue"
+	// "google.golang.org/ appengine/taskqueue"
 	// "google.golang.org/ appengine/urlfetch"
 	// "google.golang.org/ appengine/user"
 	
@@ -40,6 +38,7 @@ func init() {
 	http.HandleFunc("/report/summary-dump", monthlySummaryTaskHandler) // Writes to GCS
 }
 
+/*
 // {{{ monthHandler
 
 // http://stop.jetnoise.net/month?year=2015&month=9&day=1&num=10
@@ -137,6 +136,7 @@ func monthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
+*/
 // {{{ outputCSV
 
 func outputCSV(w *csv.Writer, p types.ComplainerProfile, c types.Complaint) {

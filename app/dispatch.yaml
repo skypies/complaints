@@ -9,3 +9,6 @@ dispatch:
 - url: "*/report/*"
   module: backend
 
+- url: "*/tmp/*"
+  module: tmpapp
+

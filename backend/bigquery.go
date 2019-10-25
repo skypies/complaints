@@ -5,16 +5,18 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"time"
 
 	"cloud.google.com/go/bigquery"
 
 	// "google.golang.org/ appengine"
 	// "google.golang.org/ appengine/log"
-	"google.golang.org/appengine/taskqueue"
+	// "google.golang.org/ appengine/taskqueue"
 
 	"github.com/skypies/util/date"
 	"github.com/skypies/util/gcp/gcs"
+	"github.com/skypies/util/gcp/tasks"
 	"github.com/skypies/util/widget"
 
 	"github.com/skypies/complaints/complaintdb"
@@ -29,6 +31,8 @@ var(
 	bigqueryProject = "serfr0-1000" // Should figure this out from current context, somehow
 	bigqueryDataset = "public"
 	bigqueryTableName = "comp"
+
+	cloudtasksLocation = "us-central1" // This is "us-central" in appengine-land, needs a 1 for cloud tasks
 )
 
 // {{{ publishAllComplaintsHandler
@@ -43,16 +47,24 @@ func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 
 	s,e,_ := widget.FormValueDateRange(r)
 	days := date.IntermediateMidnights(s.Add(-1 * time.Second),e) // decrement start, to include it
-	url := "/backend/publish-complaints"
+	taskurl := "/backend/publish-complaints"
 	
-	for i,day := range days {
+	for _,day := range days {
 		dayStr := day.Format("2006.01.02")
 
-		thisUrl := fmt.Sprintf("%s?datestring=%s", url, dayStr)
+		uri := fmt.Sprintf("%s?datestring=%s", taskurl, dayStr)
 		if r.FormValue("skipload") != "" {
-			thisUrl += "&skipload=" + r.FormValue("skipload")
+			uri += "&skipload=" + r.FormValue("skipload")
 		}
-		
+
+		// FIXME: worry about the lack of a delay here ...
+		if _,err := tasks.SubmitAETask(ctx, bigqueryProject, cloudtasksLocation, "batch", uri, url.Values{}); err != nil {
+			log.Printf("publishAllComplaintsHandler: enqueue: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+/*
 		t := taskqueue.NewPOSTTask(thisUrl, map[string][]string{})
 		// Give ourselves time to get all these tasks posted, and stagger them out a bit
 		t.Delay = time.Minute + time.Duration(i)*15*time.Second
@@ -62,8 +74,9 @@ func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+*/
 
-		str += " * posting for " + thisUrl + "\n"
+		str += " * posting for " + uri + "\n"
 	}
 
 	w.Header().Set("Content-Type", "text/plain")

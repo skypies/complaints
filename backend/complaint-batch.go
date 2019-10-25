@@ -40,7 +40,7 @@ func upgradeHandler(w http.ResponseWriter, r *http.Request) {
 		//	"email": {cp.EmailAddress},
 		//})
 		//if _,err := taskqueue.Add(cdb.Ctx(), t, "batch"); err != nil {
-		if _,err := tasks.SubmitAETask(ctx, ProjectID, LocationID, QueueName, uri, params); err != nil {
+		if _,err := tasks.SubmitAETask(ctx, ProjectID, LocationID, "batch", uri, params); err != nil {
 			cdb.Errorf("upgradeHandler: enqueue: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
