@@ -3,6 +3,7 @@ package backend
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	// "google.golang.org/ appengine/taskqueue"
@@ -58,39 +59,6 @@ func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
-
-// {{{ bksvScanYesterdayHandler
-
-// Get all the keys for yesterday's complaints, and queue them for submission
-func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := req2ctx(r)
-	cdb := complaintdb.NewDB(ctx)
-	start,end := date.WindowForYesterday()
-
-	keyers,err := cdb.LookupAllKeys(cdb.NewComplaintQuery().ByTimespan(start,end))
-	if err != nil {
-		cdb.Errorf(" /backend/bksv/scan-yesterday: LookupAllKeys: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	for _,keyer := range keyers {
-		t := taskqueue.NewPOSTTask("/backend/bksv/submit-complaint", map[string][]string{
-			"id": {keyer.Encode()},
-		})
-
-		if _,err := taskqueue.Add(cdb.Ctx(), t, "submitreports"); err != nil {
-			cdb.Errorf(" /backend/bksv/scan-yesterday: enqueue: %v", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	cdb.Infof("enqueued %d bksv", len(keyers))
-	w.Write([]byte(fmt.Sprintf("OK, enqueued %d", len(keyers))))
-}
-
-// }}}
 // {{{ bksvSubmitComplaintHandler
 
 // ? id=<datastorekey>
@@ -135,6 +103,40 @@ func bksvSubmitComplaintHandler(w http.ResponseWriter, r *http.Request) {
 
 // }}}
 
+/*
+// {{{ bksvScanYesterdayHandler
+
+// Get all the keys for yesterday's complaints, and queue them for submission
+func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
+	start,end := date.WindowForYesterday()
+
+	keyers,err := cdb.LookupAllKeys(cdb.NewComplaintQuery().ByTimespan(start,end))
+	if err != nil {
+		cdb.Errorf(" /backend/bksv/scan-yesterday: LookupAllKeys: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	for _,keyer := range keyers {
+		t := taskqueue.NewPOSTTask("/backend/bksv/submit-complaint", map[string][]string{
+			"id": {keyer.Encode()},
+		})
+
+		if _,err := taskqueue.Add(cdb.Ctx(), t, "submitreports"); err != nil {
+			cdb.Errorf(" /backend/bksv/scan-yesterday: enqueue: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	cdb.Infof("enqueued %d bksv", len(keyers))
+	w.Write([]byte(fmt.Sprintf("OK, enqueued %d", len(keyers))))
+}
+
+// }}}
+*/
 
 // {{{ -------------------------={ E N D }=----------------------------------
 

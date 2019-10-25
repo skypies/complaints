@@ -3,10 +3,10 @@ package backend
 import (
 	"fmt"
 	"net/http"
-	
-	"google.golang.org/appengine/taskqueue"
+	"net/url"
 
 	"github.com/skypies/util/date"
+	"github.com/skypies/util/gcp/tasks"
 
 	"github.com/skypies/complaints/complaintdb"
 )
@@ -32,10 +32,15 @@ func upgradeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _,cp := range cps {
-		t := taskqueue.NewPOSTTask("/backend/cdb-batch-user", map[string][]string{
-			"email": {cp.EmailAddress},
-		})
-		if _,err := taskqueue.Add(cdb.Ctx(), t, "batch"); err != nil {
+		uri := "/backend/cdb-batch-user"
+		params := url.Values{}
+		params.Set("email", cp.EmailAddress)
+
+		//t := taskqueue.NewPOSTTask("/backend/cdb-batch-user", map[string][]string{
+		//	"email": {cp.EmailAddress},
+		//})
+		//if _,err := taskqueue.Add(cdb.Ctx(), t, "batch"); err != nil {
+		if _,err := tasks.SubmitAETask(ctx, ProjectID, LocationID, QueueName, uri, params); err != nil {
 			cdb.Errorf("upgradeHandler: enqueue: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
