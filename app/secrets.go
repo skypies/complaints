@@ -6,8 +6,8 @@ import "github.com/skypies/complaints/config"
 // config lookup.
 var (
 	kGoogleMapsAPIKey = config.Get("googlemaps.apikey")
-	kFacebookAppId = config.Get("facebook.appid")
-	kFacebookAppSecret = config.Get("facebook.appsecret")
+	kFacebookAppId = config.Get("facebook.oauth2.appid")
+	kFacebookAppSecret = config.Get("facebook.oauth2.secret")
 
 	kFlightawareAPIUsername = config.Get("flightaware.username")
 	kFlightawareAPIKey = config.Get("flightaware.key")
