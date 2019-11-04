@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 	"time"
@@ -27,7 +28,7 @@ import (
 
 //https://viewpoint.emsbk.com/<sitename>?response=json
 const bksvHost = "viewpoint.emsbk.com"
-const bksvPath = "/sfo5"
+const bksvPath = "/sfo5" + "?response=json" // response *must* be a GET param, not POST
 
 // {{{ PopulateForm
 
@@ -37,7 +38,7 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 	if c.Activity == "" { c.Activity = "Loud noise" }
 
 	vals := url.Values{
-		"response":         {"json"},
+		"response":         {"json"}, // Must always set this as a GET param
 		"contactmethod":    {"App"},
 		"apiKey":           {config.Get("bksv.apiKey")},
 		
@@ -86,8 +87,8 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 		vals.Add("acid", c.AircraftOverhead.Callsign)
 		vals.Add("aacode", c.AircraftOverhead.Id2)
 		vals.Add("tailnumber", c.AircraftOverhead.Registration)
-		vals.Add("aircrafttype", c.AircraftOverhead.EquipType)
-			
+		//vals.Add("aircrafttype", c.AircraftOverhead.EquipType) // This was confusing the server
+
 		//vals.Add("adflag", "??") // Operation type (A, D or O for Arr, Dept or Overflight)
 		//vals.Add("beacon", "??") // Squawk SSR code (eg 2100)
 	}
@@ -125,7 +126,11 @@ func PostComplaint(client *http.Client, c types.Complaint) (*types.Submission, e
 	for k,v := range vals { s.Log += fmt.Sprintf(" * %-20.20s: %v\n", k, v) }
 	s.Log += "\n"
 
-	resp,err := client.PostForm("https://"+bksvHost+bksvPath, vals)
+	//	resp,err := client.PostForm("https://"+bksvHost+bksvPath, vals)
+	req,_ := http.NewRequest("POST", "https://"+bksvHost+bksvPath, strings.NewReader(vals.Encode()))
+	reqBytes,_ := httputil.DumpRequestOut(req,true)
+	s.Log += "Full req:-\n--\n"+string(reqBytes)+"\n--\n\n"
+	resp,err := client.Do(req)
 	s.D = time.Since(s.T)
 	if err != nil {
 		if strings.Contains(err.Error(), "DEADLINE_EXCEEDED") {
@@ -162,20 +167,14 @@ func PostComplaint(client *http.Client, c types.Complaint) (*types.Submission, e
 	indentedBytes,_ := json.MarshalIndent(jsonMap, "", "  ")
 	s.Log += "\n-- JsonMap:-\n"+string(indentedBytes)+"\n--\n"
 
-/*
+/* on success ...
 -- JsonMap:-
 {
-  "body": "Thank you. We have received your complaint.",
-  "details": {
-    "address_id": 1967,
-    "complaint_id": 1.120211e+06,
-    "device_id": 1,
-    "person_id": 2083
-  },
+  "body": "Thank you, your submission has been received. Would you like to save these details for next time?",
+  "receipt_key": "adasdsdadsdasds786dsa87d6as87d6as",
   "result": "1",
-  "title": "Complaint Received"
+  "title": "Submission Received"
 }
---
 */
 	
 	v := jsonMap["result"];
@@ -191,12 +190,16 @@ func PostComplaint(client *http.Client, c types.Complaint) (*types.Submission, e
 		return &s,fmt.Errorf("ComplaintPOST: result='%s'", result)
 	}
 
-	s.Log += "Json Success !\n"
-	s.Outcome = types.SubmissionAccepted
+	v = jsonMap["receipt_key"]
+	if v == nil {
+		s.Log += fmt.Sprintf("ComplaintPOST: json no 'receipt_key'\n")
+		return &s,fmt.Errorf("ComplaintPOST: jsonmap had no 'receipt_key'")
+	}
 
 	// Extract the foreign key for this complaint
-	detailsMap := jsonMap["details"].(map[string]interface{})
-	s.Key = fmt.Sprintf("%.0f", detailsMap["complaint_id"].(float64))
+	s.Key = fmt.Sprintf("%.0f", jsonMap["receipt_key"].(string))	
+	s.Log += "Json Success !\n"
+	s.Outcome = types.SubmissionAccepted
 
 	return &s,nil
 }
