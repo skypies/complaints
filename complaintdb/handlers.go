@@ -47,6 +47,9 @@ func ComplaintDebugHandler(w http.ResponseWriter, r *http.Request) {
 
 	str := ""
 
+	addr,err := c.Profile.FetchStructuredAddress()
+	str += fmt.Sprintf("======// Weird address nonsense //======\n\nErr: %v\nAddr: %#v", err, addr)
+
 	str += "\n\n======/// Complaint lookup ///=====\n\n"
 	str += fmt.Sprintf("* %s\n* %s\n\n", r.FormValue("key"), c)
 

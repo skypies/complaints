@@ -162,27 +162,36 @@ func components2structured (r maps.GeocodingResult) PostalAddress {
 	return new
 }
 
-func (p *ComplainerProfile)UpdateStructuredAddress() error {
+func (p *ComplainerProfile)FetchStructuredAddress() (PostalAddress, error) {
 	ctx := context.Background()
 
-	apiKey := config.Get("googlemaps.apiKey.serverside")
+	apiKey := config.Get("googlemaps.apikey.serverside")
 
 	if mapsClient, err := maps.NewClient(maps.WithAPIKey(apiKey)); err != nil {
-		return fmt.Errorf("NewClient err: %v\n", err)
+		return PostalAddress{}, fmt.Errorf("NewClient err: %v\n", err)
 	} else {
 		// https://godoc.org/googlemaps.github.io/maps#GeocodingRequest
 		req := &maps.GeocodingRequest{Address: p.Address}
 		if results,err := mapsClient.Geocode(ctx, req); err != nil {
-			return fmt.Errorf("maps.Geocode err: %v", err)
+			return PostalAddress{}, fmt.Errorf("maps.Geocode err: %v", err)
 		} else {
 			if len(results) != 1 {
-				return fmt.Errorf("maps.Geocode: %d results (%s)", len(results), p.Address)
+				return PostalAddress{}, fmt.Errorf("maps.Geocode: %d results (%s)", len(results), p.Address)
 			}
 			if results[0].PartialMatch {
-				return fmt.Errorf("maps.Geocode: partial match (%s)", p.Address)
+				return PostalAddress{}, fmt.Errorf("maps.Geocode: partial match (%s)", p.Address)
 			}
-			p.StructuredAddress = components2structured(results[0])
+			return components2structured(results[0]), nil
 		}
+	}
+}
+
+
+func (p *ComplainerProfile)UpdateStructuredAddress() error {
+	if newAddr,err := p.FetchStructuredAddress(); err != nil {
+		return err
+	} else {
+		p.StructuredAddress = newAddr
 	}
 
 	return nil
