@@ -47,7 +47,7 @@ func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 		params := url.Values{}
 		params.Set("id", keyer.Encode())
 	
-		if _,err := tasks.SubmitAETask(ctx, ProjectID, LocationID, QueueName, uri, params); err != nil {
+		if _,err := tasks.SubmitAETask(ctx, ProjectID, LocationID, QueueName, 0, uri, params); err != nil {
 			cdb.Errorf(" /backend/bksv/scan-yesterday: enqueue: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

@@ -49,7 +49,7 @@ func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 	days := date.IntermediateMidnights(s.Add(-1 * time.Second),e) // decrement start, to include it
 	taskurl := "/backend/publish-complaints"
 	
-	for _,day := range days {
+	for i,day := range days {
 		dayStr := day.Format("2006.01.02")
 
 		uri := fmt.Sprintf("%s?datestring=%s", taskurl, dayStr)
@@ -57,8 +57,10 @@ func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 			uri += "&skipload=" + r.FormValue("skipload")
 		}
 
-		// FIXME: worry about the lack of a delay here ...
-		if _,err := tasks.SubmitAETask(ctx, bigqueryProject, cloudtasksLocation, "batch", uri, url.Values{}); err != nil {
+		// Give ourselves time to get all these tasks posted, and stagger them out a bit
+		delay := time.Minute + time.Duration(i)*15*time.Second
+
+		if _,err := tasks.SubmitAETask(ctx, bigqueryProject, cloudtasksLocation, "batch", delay, uri, url.Values{}); err != nil {
 			log.Printf("publishAllComplaintsHandler: enqueue: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
