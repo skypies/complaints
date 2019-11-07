@@ -10,7 +10,7 @@ require (
 	github.com/skypies/flightdb v0.1.0
 	github.com/skypies/geo v0.0.0-20180901233721-9d4f211f3066
 	github.com/skypies/pi v0.0.0-20181231003623-22e413099279
-	github.com/skypies/util v0.1.3
+	github.com/skypies/util v0.1.5
 	golang.org/x/net v0.0.0-20191011234655-491137f69257
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	google.golang.org/appengine v1.6.5
