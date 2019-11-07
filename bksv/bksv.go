@@ -126,11 +126,13 @@ func PostComplaint(client *http.Client, c types.Complaint) (*types.Submission, e
 	for k,v := range vals { s.Log += fmt.Sprintf(" * %-20.20s: %v\n", k, v) }
 	s.Log += "\n"
 
-	//	resp,err := client.PostForm("https://"+bksvHost+bksvPath, vals)
+	// resp,err := client.PostForm("https://"+bksvHost+bksvPath, vals)
 	req,_ := http.NewRequest("POST", "https://"+bksvHost+bksvPath, strings.NewReader(vals.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	reqBytes,_ := httputil.DumpRequestOut(req,true)
 	s.Log += "Full req:-\n--\n"+string(reqBytes)+"\n--\n\n"
 	resp,err := client.Do(req)
+
 	s.D = time.Since(s.T)
 	if err != nil {
 		if strings.Contains(err.Error(), "DEADLINE_EXCEEDED") {
