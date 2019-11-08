@@ -10,6 +10,7 @@ import (
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
+	"github.com/skypies/complaints/config"
 	"github.com/skypies/complaints/flightid"
 	"github.com/skypies/complaints/ui"
 )
@@ -49,7 +50,7 @@ func profileFormHandler(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	var params = map[string]interface{}{
 		"Profile": cp,
 		"Selectors": flightid.ListSelectors(),
-		"MapsAPIKey": kGoogleMapsAPIKey, // For autocomplete & latlong goodness
+		"MapsAPIKey": config.Get("googlemaps.apikey"), // For autocomplete & latlong goodness
 	}
 	params["Message"] = r.FormValue("msg")
 	

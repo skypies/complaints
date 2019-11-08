@@ -28,19 +28,24 @@ const(
 type GoogleOauth2 struct {
 	oauth2.Config
 }
+func (g GoogleOauth2)Name() string { return "google" }
 
 // {{{ NewGoogleOauth2
 
-func NewGoogleOauth2(callbackUrl string) GoogleOauth2 {
-	return GoogleOauth2{
+func NewGoogleOauth2() GoogleOauth2 {
+	g := GoogleOauth2{
 		Config: oauth2.Config{
-			RedirectURL:  callbackUrl,
 			ClientID:     config.Get("google.oauth2.appid"),
 			ClientSecret: config.Get("google.oauth2.secret"),
 			Endpoint:     google.Endpoint,
 			Scopes:       []string{GoogleOAuthEmailScope},
 		},
 	}
+
+	// Build this from some package variables
+	g.Config.RedirectURL = Host + getCallbackRelativeUrl(g)
+
+	return g
 }
 
 // }}}
@@ -76,10 +81,10 @@ func (goauth2 GoogleOauth2)GetLogoutUrl(w http.ResponseWriter, r *http.Request) 
 
 func (goauth2 GoogleOauth2)CallbackToEmail(r *http.Request) (string, error) {
 	// Read oauthState from Cookie
-	oauthState, _ := r.Cookie("oauthstate")
-
-	if r.FormValue("state") != oauthState.Value {
-		return "", fmt.Errorf("nvalid oauth google state")
+	if oauthState,err := r.Cookie("oauthstate"); err != nil {
+		return "", fmt.Errorf("no oauth google cookie: %v", err)
+	} else if r.FormValue("state") != oauthState.Value {
+		return "", fmt.Errorf("invalid oauth google state")
 	}
 
 	email,err := goauth2.getEmailFromGoogle(r.FormValue("code"))

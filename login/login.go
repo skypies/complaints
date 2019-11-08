@@ -7,29 +7,41 @@ import(
 )
 
 type Oauth2er interface {
+	Name() string
 	GetLoginUrl(w http.ResponseWriter, r *http.Request) string
 	GetLogoutUrl(w http.ResponseWriter, r *http.Request) string
 	CallbackToEmail(r *http.Request) (string, error)
 }
 
-var(
-	Host                        = "https://stop.jetnoise.net"
-	//host                        = "http://localhost:8080"
-	GoogleCallbackRelativeUrl   = "/tmp/login/google"
-	FacebookCallbackRelativeUrl = "/tmp/login/facebook"
+func getCallbackRelativeUrl(o Oauth2er) string {
+	return RedirectUrlStem + "/" +	o.Name()
+}
 
+type Oauth2SucessCallback func(w http.ResponseWriter, r *http.Request, email string) error
+
+var(
+	// The caller shoudl configure these values
+	Host                        = "https://stop.jetnoise.net"
+	RedirectUrlStem             = "/tmp/login" // oauth2 callbacks will register  under here
+	AfterLoginRelativeUrl       = "/" // where the user finally ends up, after being logged in
+	OnSuccessCallback           Oauth2SucessCallback
+	
+	// Individual oauth2 systems
 	Goauth2 Oauth2er
 	Fboauth2 Oauth2er
 )
 
 func init() {
-	Goauth2  = NewGoogleOauth2  (Host + GoogleCallbackRelativeUrl)
-	Fboauth2 = NewFacebookOauth2(Host + FacebookCallbackRelativeUrl)
+	Goauth2  = NewGoogleOauth2()
+	Fboauth2 = NewFacebookOauth2()
 
-	http.HandleFunc(GoogleCallbackRelativeUrl,    NewOauth2Handler(Goauth2))
-	http.HandleFunc(FacebookCallbackRelativeUrl,  NewOauth2Handler(Fboauth2))
+	http.HandleFunc(getCallbackRelativeUrl(Goauth2), NewOauth2Handler(Goauth2))
+	http.HandleFunc(getCallbackRelativeUrl(Fboauth2), NewOauth2Handler(Fboauth2))
 }
 
+// Returns a standard requesthandler. When run, it handles the redirect from the oauth2
+// provider, and if it gets an email address from the provider, will invoke the
+// callback function with it, before redirecting to the provided URL.
 func NewOauth2Handler(oauth2 Oauth2er) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if email,err := oauth2.CallbackToEmail(r); err != nil {
@@ -37,11 +49,14 @@ func NewOauth2Handler(oauth2 Oauth2er) func(w http.ResponseWriter, r *http.Reque
 			return
 
 		} else {
-			//ui.CreateSession(ctx, w, r, ui.UserSession{Email:u.Email})
+			if OnSuccessCallback != nil {
+				if err := OnSuccessCallback(w,r,email); err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+			}
 
-			// Now head back to the main page
-			// log.Printf("new session saved for %s (G)", u.Email)
-			http.Redirect(w, r, "/#"+email, http.StatusFound)
+			http.Redirect(w, r, AfterLoginRelativeUrl +"#email:"+email, http.StatusFound)
 		}
 	}
 }

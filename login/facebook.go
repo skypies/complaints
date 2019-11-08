@@ -14,19 +14,24 @@ import (
 type FacebookOauth2 struct {
 	oauth2.Config
 }
+func (fb FacebookOauth2)Name() string { return "facebook" }
 
 // {{{ NewFacebookOauth2
 
-func NewFacebookOauth2(callbackUrl string) FacebookOauth2 {
-	return FacebookOauth2{
+func NewFacebookOauth2() FacebookOauth2 {
+	fb := FacebookOauth2{
 		Config: oauth2.Config{
-			RedirectURL:  callbackUrl,
 			ClientID:     config.Get("facebook.oauth2.appid"),
 			ClientSecret: config.Get("facebook.oauth2.secret"),
 			Endpoint:     facebook.Endpoint,
 			Scopes:       []string{"email"},
 		},
 	}
+
+	// Build this from some package variables
+	fb.Config.RedirectURL = Host + getCallbackRelativeUrl(fb)
+
+	return fb
 }
 
 // }}}

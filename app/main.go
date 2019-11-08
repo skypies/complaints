@@ -14,8 +14,10 @@ import (
 	"github.com/skypies/util/date"
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
-	"github.com/skypies/complaints/fb"
-	"github.com/skypies/complaints/g"
+	"github.com/skypies/complaints/config"
+	"github.com/skypies/complaints/login"
+	// "github.com/skypies/complaints/fb"
+	// "github.com/skypies/complaints/g"
 	"github.com/skypies/complaints/ui"
 )
 
@@ -36,7 +38,15 @@ func init() {
 	http.HandleFunc("/zip",                     makeRedirectHandler("/report/zip"))
 	http.HandleFunc("/personal-report/results", makeRedirectHandler("/personal-report"))
 
-	ui.InitSessionStore(kSessionsKey,kSessionsPrevKey)
+	ui.InitSessionStore(config.Get("sessions.key"), config.Get("sessions.prevkey"))
+
+	login.OnSuccessCallback = func(w http.ResponseWriter, r *http.Request, email string) error {
+		ui.CreateSession(r.Context(), w, r, ui.UserSession{Email:email})
+		return nil
+	}
+	login.Host                  = "https://stop.jetnoise.net"
+	login.RedirectUrlStem       = "/login" // oauth2 callbacks will register  under here
+	login.AfterLoginRelativeUrl = "/" // where the user finally ends up, after being logged in
 }
 
 // {{{ HintedComplaints
@@ -82,15 +92,13 @@ func hintComplaints(in []types.Complaint, isSuperHinter bool) []HintedComplaint 
 // {{{ landingPageHandler
 
 func landingPageHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {	
-	fb.AppId = kFacebookAppId
-	fb.AppSecret = kFacebookAppSecret
-	loginUrls := map[string]string{
-		"googlefromscratch": g.GetLoginUrl(r, true),
-		"google": g.GetLoginUrl(r, false),
-		"facebook": fb.GetLoginUrl(r),
+	var params = map[string]interface{}{
+		"google": login.Goauth2.GetLoginUrl(w,r),
+		"googlefromscratch": login.Goauth2.GetLogoutUrl(w,r),
+		"facebook": login.Fboauth2.GetLoginUrl(w,r),
 	}
 
-	if err := templates.ExecuteTemplate(w, "landing", loginUrls); err != nil {
+	if err := templates.ExecuteTemplate(w, "landing", params); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -245,130 +253,6 @@ func gettingStartedHandler (w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
-
-// {{{ rootHandler
-
-/*
-
-func rootHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	if r.URL.Scheme == "http" {
-		safeUrl := r.URL
-		safeUrl.Scheme = "https"
-		http.Redirect(w, r, safeUrl.String(), http.StatusFound)
-		return
-	}
-
-	cdb := complaintdb.NewDB(ctx)
-	sesh,_ := GetUserSession(ctx)
-
-	cdb.Debugf("root_001", "session obtained")
-	for _,c := range r.Cookies() {
-		cdb.Debugf("root_002", "cookie %s: expires=%s (remain=%s), maxage=%v, secure=%v, httponly=%v %s",
-			c.Name, c.Expires.String(), time.Until(c.Expires), c.MaxAge, c.Secure, c.HttpOnly, c)
-	}
-	cdb.Debugf("root_002", "num cookies: %d", len(r.Cookies()))
-	cdb.Debugf("root_002a", "Cf-Connecting-Ip: %s", r.Header.Get("Cf-Connecting-Ip"))
-	
-	// No session ? Get them to login
-	if sesh.Email == "" {
-		fb.AppId = kFacebookAppId
-		fb.AppSecret = kFacebookAppSecret
-		loginUrls := map[string]string{
-			"googlefromscratch": g.GetLoginUrl(r, true),
-			"google": g.GetLoginUrl(r, false),
-			"facebook": fb.GetLoginUrl(r),
-		}
-
-		if err := templates.ExecuteTemplate(w, "landing", loginUrls); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-		return
-	}
-
-	if sesh.HasCreatedAt() {
-		cdb.Debugf("root_003", "tstamp=%s, age=%s", sesh.CreatedAt, time.Since(sesh.CreatedAt))
-	}
-	
-	modes := map[string]bool{}
-
-	// The rootHandler is the URL wildcard. Except Fragments, which are broken.
-	if r.URL.Path == "/full" {
-		modes["expanded"] = true
-	} else if r.URL.Path == "/edit" {
-		modes["edit"] = true
-	} else if r.URL.Path == "/debug" {
-		modes["debug"] = true
-	} else if r.URL.Path != "/" {
-		// This is a request for apple_icon or somesuch junk. Just say no.
-		http.NotFound(w, r)
-		return
-	}
-	
-	cdb.Debugf("root_004", "about get cdb.GetAllByEmailAddress")
-	cap, err := cdb.GetAllByEmailAddress(sesh.Email, modes["expanded"])
-	if cap==nil && err==nil {
-		// No profile exists; daisy-chain into profile page
-		http.Redirect(w, r, "/profile", http.StatusFound)
-		return
-	} else if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	cdb.Debugf("root_005", "cdb.GetAllByEmailAddress done")
-
-	modes["admin"] = user.Current(ctx)!=nil && user.Current(ctx).Admin
-	modes["superuser"] = modes["admin"]
-
-	// Default to "", unless we had a complaint in the past hour.
-	lastActivity := ""
-	if len(cap.Complaints) > 0 && time.Since(cap.Complaints[0].Timestamp) < time.Hour {
-		lastActivity = cap.Complaints[0].Activity
-	}
-
-	var complaintDefaults = map[string]interface{}{
-		"ActivityList": kActivities,  // lives in add-complaint
-		"DefaultActivity": lastActivity,
-		"DefaultLoudness": 1,
-		"NewForm": true,
-	}
-
-	message := ""
-	disableReporting := false
-	if cap.Profile.FullName == "" {
-		message += "<li>We don't have your full name</li>"
-		disableReporting = true
-	}
-	if cap.Profile.StructuredAddress.Zip == "" {
-		message += "<li>We don't have an accurate address</li>"
-		disableReporting = true
-	}
-	if message != "" {
-		message = fmt.Sprintf("<p><b>We've found some problems with your profile:</b></p><ul>%s</ul>"+
-			"<p> Without this data, your complaints won't be counted, so please "+
-			"<a href=\"/profile\"><b>update your profile</b></a> before submitting any more complaints !</p>", message)
-	}
-	
-	var params = map[string]interface{}{
-		//"Message": template.HTML("Hi!"),
-		"Cap": *cap,
-		"Complaints": hintComplaints(cap.Complaints, modes["superuser"]),
-		"Now": date.NowInPdt(),
-		"Modes": modes,
-		"ComplaintDefaults": complaintDefaults,
-		"Message": template.HTML(message),
-		//"Info": template.HTML("Hi!"),
-		"DisableReporting": disableReporting,
-	}
-	
-	if err := templates.ExecuteTemplate(w, "main", params); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-*/
-
-// }}}
-
 
 // {{{ -------------------------={ E N D }=----------------------------------
 
