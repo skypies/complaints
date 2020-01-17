@@ -48,7 +48,7 @@ func ComplaintDebugHandler(w http.ResponseWriter, r *http.Request) {
 	str := ""
 
 	addr,err := c.Profile.FetchStructuredAddress()
-	str += fmt.Sprintf("======// Weird address nonsense //======\n\nErr: %v\nAddr: %#v", err, addr)
+	str += fmt.Sprintf("======// Weird address nonsense //======\n\nErr: %v\nStored addr: %#v\n\nString addr: %q\n\nFetched addr: %#v", err, c.Profile.StructuredAddress, c.Profile.Address, addr)
 
 	str += "\n\n======/// Complaint lookup ///=====\n\n"
 	str += fmt.Sprintf("* %s\n* %s\n\n", r.FormValue("key"), c)
@@ -116,7 +116,8 @@ func SubmissionsDebugHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		counts[fmt.Sprintf("[A] Status: %s", c.Submission.Outcome)]++
-		if r.FormValue("all") != "" || c.Submission.WasFailure() || c.Submission.Attempts > 1 {
+		// if r.FormValue("all") != "" || c.Submission.WasFailure() || c.Submission.Attempts > 1 {
+		if r.FormValue("all") != "" || c.Submission.WasFailure() {
 			if len(problems) < max_problems {
 				problems = append(problems, *c)
 			}
@@ -138,6 +139,10 @@ func SubmissionsDebugHandler(w http.ResponseWriter, r *http.Request) {
 	str += fmt.Sprintf("<pre>Start: %s\nEnd  : %s\n</pre>\n", start, end)
 	str += "<table border=0>\n"
 
+	sort.Slice(problems, func (i,j int) bool {
+		return problems[i].Profile.EmailAddress < problems[j].Profile.EmailAddress
+	})
+	
 	countkeys := []string{}
 	for k,_ := range counts { countkeys = append(countkeys, k) }
 	sort.Strings(countkeys)
