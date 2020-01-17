@@ -1,14 +1,8 @@
 package bksv
 
-// Better regex for caller code
-// Better language for promoting caller code
-// Flag for 'first ever' complaint ?
-// device.UUIDs ... use Guy's lib, and submit.
-// IDs for complainants, and complaints
-// Cutover: 1st May.
-// Share the published report URLs with bert et al.
-
 // Package for posting a {ComplainerProfile,Complaint} to BKSV's web form
+
+// Bug 1: Edits to profile should call to maps to reparse the address; ignore what's in the form fields.
 
 import (
 	"encoding/json"
@@ -27,8 +21,8 @@ import (
 )
 
 //https://viewpoint.emsbk.com/<sitename>?response=json
-const bksvHost = "viewpoint.emsbk.com"
-const bksvPath = "/sfo5" + "?response=json" // response *must* be a GET param, not POST
+const bksvHost = "complaints-us.emsbk.com"
+const bksvPath = "/sfo2" + "?response=json" // response *must* be a GET param, not POST
 
 // {{{ PopulateForm
 
@@ -41,7 +35,8 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 		"response":         {"json"}, // Must always set this as a GET param
 		"contactmethod":    {"App"},
 		"apiKey":           {config.Get("bksv.apiKey")},
-		
+
+		"accept_privacy":   {"Y"},
 		"caller_code":      {c.Profile.CallerCode},
 		"name":             {first},
 		"surname":          {last},
@@ -58,9 +53,12 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 		"year":             {date.InPdt(c.Timestamp).Format("2006")},
 		"hour":             {date.InPdt(c.Timestamp).Format("15")},
 		"min":              {date.InPdt(c.Timestamp).Format("4")},
-		
+
+		"aircrafttype":     {"J"},
 		"aircraftcategory": {"J"},
-		"eventtype":        {"Loud noise"}, // perhaps map c.Activity to something ?
+		"activity_type":    {"Other"}, // perhaps map c.Activity to something ?
+		"event_type":       {"Loud"}, // perhaps map c.Activity to something ?
+		"adflag":           {"Unknown"},
 		"comments":         {c.Description},
 		"responserequired": {"N"},
 		"enquirytype":      {"C"},
@@ -87,7 +85,7 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 		vals.Add("acid", c.AircraftOverhead.Callsign)
 		vals.Add("aacode", c.AircraftOverhead.Id2)
 		vals.Add("tailnumber", c.AircraftOverhead.Registration)
-		//vals.Add("aircrafttype", c.AircraftOverhead.EquipType) // This was confusing the server
+
 
 		//vals.Add("adflag", "??") // Operation type (A, D or O for Arr, Dept or Overflight)
 		//vals.Add("beacon", "??") // Squawk SSR code (eg 2100)
@@ -105,6 +103,12 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 //  "body":"Thank you. We have received your complaint."}
 
 func PostComplaint(client *http.Client, c types.Complaint) (*types.Submission, error) {
+
+	// Don't POST if this complaint has already been accepted.
+	if c.Submission.Outcome == types.SubmissionAccepted {
+		return &c.Submission, nil
+	}
+
 	// Initialize a new submission object, inheriting from previous
 	s := types.Submission{
 		Attempts:  c.Submission.Attempts + 1,
@@ -128,7 +132,7 @@ func PostComplaint(client *http.Client, c types.Complaint) (*types.Submission, e
 
 	// resp,err := client.PostForm("https://"+bksvHost+bksvPath, vals)
 	req,_ := http.NewRequest("POST", "https://"+bksvHost+bksvPath, strings.NewReader(vals.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded") // This is important
 	reqBytes,_ := httputil.DumpRequestOut(req,true)
 	s.Log += "Full req:-\n--\n"+string(reqBytes)+"\n--\n\n"
 	resp,err := client.Do(req)

@@ -14,7 +14,7 @@ import(
 
 
 func req2ctx(r *http.Request) context.Context {
-	ctx,_ := context.WithTimeout(r.Context(), 9 * time.Minute)
+	ctx,_ := context.WithTimeout(r.Context(), 599 * time.Second)
 	return ctx
 }
 

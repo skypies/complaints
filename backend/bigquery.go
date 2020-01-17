@@ -48,6 +48,13 @@ func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 	s,e,_ := widget.FormValueDateRange(r)
 	days := date.IntermediateMidnights(s.Add(-1 * time.Second),e) // decrement start, to include it
 	taskurl := "/backend/publish-complaints"
+
+	taskClient,err := tasks.GetClient(ctx)
+	if err != nil {
+		log.Printf("publishAllComplaintsHandler: GetClient: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	
 	for i,day := range days {
 		dayStr := day.Format("2006.01.02")
@@ -60,7 +67,7 @@ func publishAllComplaintsHandler(w http.ResponseWriter, r *http.Request) {
 		// Give ourselves time to get all these tasks posted, and stagger them out a bit
 		delay := time.Minute + time.Duration(i)*15*time.Second
 
-		if _,err := tasks.SubmitAETask(ctx, bigqueryProject, cloudtasksLocation, "batch", delay, uri, url.Values{}); err != nil {
+		if _,err := tasks.SubmitAETask(ctx, taskClient, bigqueryProject, cloudtasksLocation, "batch", delay, uri, url.Values{}); err != nil {
 			log.Printf("publishAllComplaintsHandler: enqueue: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

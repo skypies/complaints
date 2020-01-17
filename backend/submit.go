@@ -29,6 +29,8 @@ func init() {
 
 // {{{ bksvScanYesterdayHandler
 
+// THIS CODE IS OBSOLETE
+
 // Get all the keys for yesterday's complaints, and queue them for submission
 func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
@@ -42,12 +44,19 @@ func bksvScanYesterdayHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	taskClient,err := tasks.GetClient(ctx)
+	if err != nil {
+		cdb.Errorf("backend/bksv/scan-yesterday: GetClient: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	for _,keyer := range keyers {
 		uri := "/bksv/submit-complaint"
 		params := url.Values{}
 		params.Set("id", keyer.Encode())
 	
-		if _,err := tasks.SubmitAETask(ctx, ProjectID, LocationID, QueueName, 0, uri, params); err != nil {
+		if _,err := tasks.SubmitAETask(ctx, taskClient, ProjectID, LocationID, QueueName, 0, uri, params); err != nil {
 			cdb.Errorf(" /backend/bksv/scan-yesterday: enqueue: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

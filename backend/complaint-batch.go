@@ -15,6 +15,10 @@ func init() {
 	//http.HandleFunc("/backend/cdb-batch", upgradeHandler)
 	//http.HandleFunc("/backend/cdb-batch-user", fixupthing)
 	//http.HandleFunc("/backend/purge", purgeuserHandler)
+
+	http.HandleFunc("/tmp/backend/cdb-reparse", reparseAllAddressesHandler)
+	http.HandleFunc("/tmp/backend/cdb-reparse-user", reparseUserHandler)
+
 }
 
 // {{{ upgradeHandler
@@ -31,6 +35,13 @@ func upgradeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	taskClient,err := tasks.GetClient(ctx)
+	if err != nil {
+		cdb.Errorf("upgrtadeHandler: GetClient: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
 	for _,cp := range cps {
 		uri := "/backend/cdb-batch-user"
 		params := url.Values{}
@@ -40,7 +51,7 @@ func upgradeHandler(w http.ResponseWriter, r *http.Request) {
 		//	"email": {cp.EmailAddress},
 		//})
 		//if _,err := taskqueue.Add(cdb.Ctx(), t, "batch"); err != nil {
-		if _,err := tasks.SubmitAETask(ctx, ProjectID, LocationID, "batch", 0, uri, params); err != nil {
+		if _,err := tasks.SubmitAETask(ctx, taskClient, ProjectID, LocationID, "batch", 0, uri, params); err != nil {
 			cdb.Errorf("upgradeHandler: enqueue: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -135,6 +146,65 @@ func purgeuserHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
+
+// {{{ reparseAllAddressesHandler
+
+// Grab all users, and enqueue them for batch processing
+func reparseAllAddressesHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
+
+	cps,err := cdb.LookupAllProfiles(cdb.NewProfileQuery())
+	if err != nil {
+		cdb.Errorf("reparseAllAddressesHandler: getprofiles: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	taskClient,err := tasks.GetClient(ctx)
+	if err != nil {
+		cdb.Errorf("reparseAllAddressesHandler: GetClient: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	for _,cp := range cps {
+		uri := "/tmp/backend/cdb-reparse-user"
+		params := url.Values{}
+		params.Set("email", cp.EmailAddress)
+
+		if _,err := tasks.SubmitAETask(ctx, taskClient, ProjectID, LocationID, "batch", 0, uri, params); err != nil {
+			cdb.Errorf("reparseAllAddressesHandler: enqueue: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	cdb.Infof("enqueued %d batch", len(cps))
+	w.Write([]byte(fmt.Sprintf("OK, enqueued %d", len(cps))))
+}
+
+// }}}
+// {{{ reparseUserHandler
+
+func reparseUserHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := req2ctx(r)
+	cdb := complaintdb.NewDB(ctx)
+
+	email := r.FormValue("email")
+	str := fmt.Sprintf("(lookup for %s)\n\n", email)
+
+	cp,_ := cdb.LookupProfile(email)
+
+	str += fmt.Sprintf("p.Address: %q\n\n", cp.Address)
+	str += fmt.Sprintf("p.StructuredAddress: %#v\n\n", cp.StructuredAddress)
+	str += fmt.Sprintf("p.GetStructuredAddress(): %#v\n\n", cp.GetStructuredAddress())
+	
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(fmt.Sprintf("OK, reparseUserHandler\n%s", str)))
+}
+
+// }}}
+
 
 // {{{ -------------------------={ E N D }=----------------------------------
 
