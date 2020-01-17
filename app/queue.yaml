@@ -16,4 +16,4 @@ queue:
   target: backend
   retry_parameters:
     min_backoff_seconds: 1
-    task_retry_limit: 2
+    task_retry_limit: 6
