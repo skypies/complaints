@@ -11,6 +11,7 @@ import(
 )
 
 var templates *template.Template
+var HackTemplates *template.Template  // FIXME: remove this
 
 func init() {
 	// Templates are kinda messy.
@@ -20,6 +21,7 @@ func init() {
 	// For go111, appengine uses the module root, which is the root of the git repo; so
 	// the relative dirname for templates is relative to the root of the git repo.
 	templates = widget.ParseRecursive(template.New("").Funcs(GetFuncMap()), "backend/web/templates")
+	HackTemplates = templates
 }
 
 func GetFuncMap() template.FuncMap {

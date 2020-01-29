@@ -1,0 +1,15 @@
+{{define "glogin-1"}}
+
+<html>
+  {{template "header"}}
+  <body>
+    <h1>Login</h1><p/>
+    <p><code>{{.GoogleLogin}}</code></p>
+    <p><a href="{{.GoogleLogin}}">Google Login</a> !</p>
+    <p><a href="{{.GoogleLogout}}">Google Logout</a> !</p>
+    <p><a href="{{.FacebookLogin}}">Facebook Login</a> !</p>
+    <p>Str: {{.Str}}</p>
+  </body>
+</html>
+
+{{end}}
