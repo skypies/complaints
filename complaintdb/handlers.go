@@ -86,6 +86,8 @@ func SubmissionsDebugHandler(w http.ResponseWriter, r *http.Request) {
 
 	start,end := date.WindowForToday()
 
+	hack := int(widget.FormValueInt64(r, "hack"))
+	
 	offset := 1
 	if r.FormValue("offset") != "" {
 		offset = int(widget.FormValueInt64(r, "offset"))
@@ -102,17 +104,38 @@ func SubmissionsDebugHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	max_good,max_problems := 5,200
+	// Why do these never show up ? fscking stackdriver
+	//fmt.Fprintf(os.Stderr, "Here is a fmt.Fprintf(stderr) ffs")
+	//log.Printf("Here is a log.Printf ffs")
+	//cdb.Infof("Here is an info string ffs")
+	/*
+	str2 := fmt.Sprintf("Pah00\n\ns: %s\ne: %s\n%d keyers\n\n", start, end, len(keyers))
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(str2))
+	return
+*/
+
+	max_good,max_problems,max_retries := 5,200,200
 	counts := map[string]int{}
 	problems := []types.Complaint{}
 	good := []types.Complaint{}
 	retries := []types.Complaint{}
 
+	n := 0
 	for _,keyer := range keyers {
+		if hack > 0 && n > hack {
+			continue
+		}
+
 		c,err := cdb.LookupKey(keyer.Encode(), "")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
+		}
+
+		n++
+		if n % 100 == 0 {
+			fmt.Printf("submissions debug: read %d/%d\n", n, len(keyers))
 		}
 
 		counts[fmt.Sprintf("[A] Status: %s", c.Submission.Outcome)]++
@@ -129,7 +152,7 @@ func SubmissionsDebugHandler(w http.ResponseWriter, r *http.Request) {
 			counts[fmt.Sprintf("[B] AttemptsToSucceed: %02d", c.Submission.Attempts)]++
 			counts[fmt.Sprintf("[C] SecondsForSuccess: %02d", int(c.D.Seconds()))]++
 			
-			if c.Submission.Attempts > 1 {
+			if c.Submission.Attempts > 1 && len(retries) < max_retries {
 				retries = append(retries, *c)
 			}
 		}
@@ -177,7 +200,79 @@ func SubmissionsDebugHandler(w http.ResponseWriter, r *http.Request) {
 	str += "</body></html>\n"
 	w.Header().Set("Content-Type", "text/html")
 	w.Write([]byte(str))
+}
 
+// }}}
+// {{{ SubmissionsDebugHandler2
+
+// This handler runs in the backend app
+// View a day's worth of complaint submissions; defaults to yesterday.
+//   ?date=range&range_from=2016/01/21&range_to=2016/01/26
+func SubmissionsDebugHandler2(w http.ResponseWriter, r *http.Request) {
+	ctx := req2ctx(r)
+	cdb := NewDB(ctx)
+
+	start,end,_ := widget.FormValueDateRange(r)
+
+	q := cdb.NewComplaintQuery().
+		BySubmissionOutcome(int(types.SubmissionRejected)).
+		ByTimespan(start,end)
+	
+	keyers,err := cdb.LookupAllKeys(q)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	max_problems := 4000
+	counts := map[string]int{}
+	problems := []types.Complaint{}
+
+	for _,keyer := range keyers {
+
+		c,err := cdb.LookupKey(keyer.Encode(), "")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		counts[fmt.Sprintf("[A] Status: %s", c.Submission.Outcome)]++
+		// if r.FormValue("all") != "" || c.Submission.WasFailure() || c.Submission.Attempts > 1 {
+		if r.FormValue("all") != "" || c.Submission.WasFailure() {
+			if len(problems) < max_problems {
+				problems = append(problems, *c)
+			}
+		}
+	}
+
+	str := "<html><body>\n"
+	str += fmt.Sprintf("<pre>Start: %s\nEnd  : %s\n</pre>\n", start, end)
+	str += "<table border=0>\n"
+
+	sort.Slice(problems, func (i,j int) bool {
+		return problems[i].Profile.EmailAddress < problems[j].Profile.EmailAddress
+	})
+	
+	countkeys := []string{}
+	for k,_ := range counts { countkeys = append(countkeys, k) }
+	sort.Strings(countkeys)
+	for _,k := range countkeys {
+		str += fmt.Sprintf("<tr><td><b>%s</b></td><td>%d</td></tr>\n", k, counts[k])
+	}
+	str += "</table>\n"
+
+	url := "https://stop.jetnoise.net/tmp/cdb/comp/debug"
+	
+	str += "<p>\n"
+	for _,c := range problems {
+		str += fmt.Sprintf(" <a href=\"%s?key=%s\" target=\"_blank\">Prob</a>: %s",url,c.DatastoreKey,c)
+		str += "<br/>\n"
+	}
+	str += "</p>\n"
+
+	str += "</body></html>\n"
+	w.Header().Set("Content-Type", "text/html")
+	w.Write([]byte(str))
 }
 
 // }}}

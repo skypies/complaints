@@ -4,6 +4,7 @@ package complaintdb
 
 import(
 	"time"
+
 	ds "github.com/skypies/util/gcp/ds"
 )
 
@@ -66,6 +67,11 @@ func (cq *CQuery)OrderTimeDesc() *CQuery { return cq.Order("-Timestamp") }
 //
 func (cq *CQuery)ByButton(id string) *CQuery { return cq.Filter("ButtonId = ", id) }
 func (cq *CQuery)ByCallerCode(cc string) *CQuery { return cq.Filter("CallerCode = ", cc) }
+
+func (cq *CQuery)BySubmissionOutcome(outcome int) *CQuery {
+	return cq.Filter("Outcome = ", outcome)
+}
+
 
 
 // Canned queries

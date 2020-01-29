@@ -72,6 +72,11 @@ indexes:
   - name: Timestamp
     direction: desc
 
+- kind: ComplaintKind
+  properties:
+  - name: Outcome
+  - name: Timestamp
+
 - kind: Flight
   properties:
   - name: EnterUTC
