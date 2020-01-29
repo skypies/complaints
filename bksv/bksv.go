@@ -21,8 +21,9 @@ import (
 )
 
 //https://viewpoint.emsbk.com/<sitename>?response=json
-const bksvHost = "complaints-us.emsbk.com"
-const bksvPath = "/sfo2" + "?response=json" // response *must* be a GET param, not POST
+//const bksvHost = "complaints-us.emsbk.com"
+const bksvHost = "viewpoint.emsbk.com"
+const bksvPath = "/sfo5" + "?response=json" // response *must* be a GET param, not POST
 
 // {{{ PopulateForm
 
@@ -58,7 +59,7 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 		"aircraftcategory": {"J"},
 		"activity_type":    {"Other"}, // perhaps map c.Activity to something ?
 		"event_type":       {"Loud"}, // perhaps map c.Activity to something ?
-		"adflag":           {"Unknown"},
+		"adflag":           {"U"},
 		"comments":         {c.Description},
 		"responserequired": {"N"},
 		"enquirytype":      {"C"},
@@ -103,11 +104,6 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 //  "body":"Thank you. We have received your complaint."}
 
 func PostComplaint(client *http.Client, c types.Complaint) (*types.Submission, error) {
-
-	// Don't POST if this complaint has already been accepted.
-	if c.Submission.Outcome == types.SubmissionAccepted {
-		return &c.Submission, nil
-	}
 
 	// Initialize a new submission object, inheriting from previous
 	s := types.Submission{
