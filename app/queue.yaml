@@ -4,7 +4,7 @@ queue:
   max_concurrent_requests: 15
   retry_parameters:
     min_backoff_seconds: 15
-    task_retry_limit: 2
+    task_retry_limit: 6
 
 # This queue is for arbitrary / oneoff batch jobs
 # Set to 1200/40/40 for per-complaint processing, or 10/4/4 for
