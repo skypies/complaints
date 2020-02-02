@@ -46,10 +46,10 @@ func ComplaintDebugHandler(w http.ResponseWriter, r *http.Request) {
 	jsonText,_ := json.MarshalIndent(c, "", "  ")
 
 	str := ""
-
+	/*
 	addr,err := c.Profile.FetchStructuredAddress()
 	str += fmt.Sprintf("======// Weird address nonsense //======\n\nErr: %v\nStored addr: %#v\n\nString addr: %q\n\nFetched addr: %#v", err, c.Profile.StructuredAddress, c.Profile.Address, addr)
-
+*/
 	str += "\n\n======/// Complaint lookup ///=====\n\n"
 	str += fmt.Sprintf("* %s\n* %s\n\n", r.FormValue("key"), c)
 
@@ -59,7 +59,10 @@ func ComplaintDebugHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		indentedBytes,_ := json.MarshalIndent(jsonMap, "", "  ")
-		str += "\n======/// Submission response ///======\n\n"+string(indentedBytes)+"\n--\n"
+		str += "\n======/// Submission response ///======\n\n"
+		srr,txt := c.Submission.ClassifyRejection()
+		str += fmt.Sprintf("\n\n== rejection: %s\n\n%s\n\n", srr, txt)
+		str += string(indentedBytes)
 	}
 
 	str += "\n======/// Complaint object ///======\n\n"+string(jsonText)+"\n"
@@ -205,9 +208,9 @@ func SubmissionsDebugHandler(w http.ResponseWriter, r *http.Request) {
 // }}}
 // {{{ SubmissionsDebugHandler2
 
-// This handler runs in the backend app
-// View a day's worth of complaint submissions; defaults to yesterday.
+// View submission errors over a date range.
 //   ?date=range&range_from=2016/01/21&range_to=2016/01/26
+//  [?csv=1]
 func SubmissionsDebugHandler2(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
 	cdb := NewDB(ctx)
@@ -217,6 +220,11 @@ func SubmissionsDebugHandler2(w http.ResponseWriter, r *http.Request) {
 	q := cdb.NewComplaintQuery().
 		BySubmissionOutcome(int(types.SubmissionRejected)).
 		ByTimespan(start,end)
+
+	if r.FormValue("csv") == "1" {
+		submissionDebugCSV(cdb,w,q,start,end)
+		return
+	}
 	
 	keyers,err := cdb.LookupAllKeys(q)
 	if err != nil {
@@ -236,7 +244,10 @@ func SubmissionsDebugHandler2(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		srr,_ := c.Submission.ClassifyRejection()
 		counts[fmt.Sprintf("[A] Status: %s", c.Submission.Outcome)]++
+		counts[fmt.Sprintf("[B] rejection: %s", srr)]++
+
 		// if r.FormValue("all") != "" || c.Submission.WasFailure() || c.Submission.Attempts > 1 {
 		if r.FormValue("all") != "" || c.Submission.WasFailure() {
 			if len(problems) < max_problems {
@@ -299,6 +310,53 @@ func touchAllProfilesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(fmt.Sprintf("OK backend! (%d profiles touched, tool %s)\n\n",
 		len(profiles), time.Since(tStart))))
+}
+
+// }}}
+
+// {{{ submissionDebugCSV
+
+func submissionDebugCSV(cdb ComplaintDB, w http.ResponseWriter, q *CQuery, s,e time.Time) {
+	cols := []string{
+		// Column names above are incorrect, but BKSV are used to them.
+		"CallerCode", "Name", "Address", "Zip", "Email",
+		"HomeLat", "HomeLong", "UnixEpoch", "Date", "Time(PDT)",
+		"Notes", "ActivityDisturbed", "Flightnumber", "Notes",
+		"RejectionReason", "ErrorText",
+		// These are additional columns, for the error report
+	}
+
+	f := func(c *types.Complaint) []string {
+		srr,errtxt := c.Submission.ClassifyRejection()
+
+		r := []string{
+			c.Profile.CallerCode,
+			c.Profile.FullName,
+			c.Profile.Address,
+			c.Profile.StructuredAddress.Zip,
+			c.Profile.EmailAddress,
+
+			fmt.Sprintf("%.4f",c.Profile.Lat),
+			fmt.Sprintf("%.4f",c.Profile.Long),
+			fmt.Sprintf("%d", c.Timestamp.UTC().Unix()),
+			c.Timestamp.Format("2006/01/02"),
+			c.Timestamp.Format("15:04:05"),
+
+			c.Description,
+			c.AircraftOverhead.FlightNumber,
+			c.Activity,
+			fmt.Sprintf("%v",c.Profile.CcSfo),
+
+			srr.String(),
+			errtxt,
+		}
+		return r
+	}
+
+	filename := s.Format("submission-errors-20060102") + e.Format("-20060102.csv")
+	w.Header().Set("Content-Type", "application/csv")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	cdb.FormattedWriteCQueryToCSV(q, w, cols, f)
 }
 
 // }}}

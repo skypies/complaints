@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	// "regexp"
@@ -114,10 +115,11 @@ func (p ComplainerProfile)ThirdPartyCommsOK() bool {
 
 // {{{ p.GetStructuredAddress
 
-func (p ComplainerProfile)GetStructuredAddress() PostalAddress {	
-	if p.StructuredAddress.Street == "" && p.Address != "" {
-		p.UpdateStructuredAddress()
-	}
+func (p *ComplainerProfile)GetStructuredAddress() PostalAddress {
+	// Don't call the map geocoder on every access to this call - costs real money :/
+	// if p.StructuredAddress.Street == "" && p.Address != "" {
+	//	p.UpdateStructuredAddress()
+	// }
 	return p.StructuredAddress
 
 /*
@@ -220,6 +222,24 @@ func (so SubmissionOutcome)String() string {
 	}
 }
 
+type SubmissionRejectReason int
+const(
+	SubmissionNoReject = iota
+	SubmissionRejectConstraint
+	SubmissionRejectBadField
+	SubmissionRejectOther
+)
+func (srr SubmissionRejectReason)String() string {
+	switch srr {
+	case SubmissionNoReject: return "OK"
+	case SubmissionRejectConstraint: return "db-constraint"
+	case SubmissionRejectBadField: return "bad-field"
+	case SubmissionRejectOther: return "unclassified"
+	default: return fmt.Sprintf("?%d?", srr)
+	}
+}
+
+
 // Fields about backend submission
 type Submission struct {
 	T            time.Time
@@ -236,7 +256,99 @@ func (s Submission)WasFailure() bool {
 }
 
 func (s Submission)String() string {
-	return fmt.Sprintf("{%s@%s(%d)-%s:%db}", s.Outcome, s.T, s.Attempts, s.D, len(s.Key))
+	str := s.Outcome.String()
+	if s.Outcome == SubmissionRejected {
+		srr,txt := s.ClassifyRejection()
+		str += "/" + srr.String()
+		if srr == SubmissionRejectBadField {
+			str += "-" + txt
+		}
+	}
+	return fmt.Sprintf("{%s@%s(%d)-%s:%db}", str, s.T, s.Attempts, s.D, len(s.Key))
+}
+
+func (s Submission)ClassifyRejection() (SubmissionRejectReason, string) {
+	if s.Outcome != SubmissionRejected {
+		return SubmissionNoReject, "not rejected"
+	}
+
+	var jsonMap map[string]interface{}
+	if err := json.Unmarshal(s.Response, &jsonMap); err != nil {
+		return SubmissionRejectOther, "could not parse response as json"
+	}
+
+	/* Look for backend errors of this form:
+      {
+        "body": "\u003cp\u003eYour noise report was not submitted because there was a problem with this online noise report system. Try submitting the noise report again or contact us by email at noiseabatementoffice@flysfo.com\u003c/p\u003e\n",
+        "debug": "\nsubmittingError inserting into database.Cannot add or update a child row: a foreign key constraint fails (`sfo5`.`submissions`, CONSTRAINT `complaints_fkey5` FOREIGN KEY (`browser_id`) REFERENCES `browsers` (`browser_id`) ON DELETE NO ACTION ON UPDATE NO ACTION)",
+        "error": "Error inserting into database.Cannot add or update a child row: a foreign key constraint fails (`sfo5`.`submissions`, CONSTRAINT `complaints_fkey5` FOREIGN KEY (`browser_id`) REFERENCES `browsers` (`browser_id`) ON DELETE NO ACTION ON UPDATE NO ACTION)",
+        "result": "0",
+        "title": "Error"
+      }
+  */
+	if v := jsonMap["error"]; v != nil {
+		e := v.(string)
+		switch {
+		case strings.Contains(e, "key constraint fails"): //regexp.MustCompile("").MatchString(e):
+			// "Error inserting into database.Cannot add or update a child
+			// row: a foreign key constraint fails (`sfo5`.`submissions`,
+			// CONSTRAINT `complaints_fkey5` FOREIGN KEY (`browser_id`)
+			// REFERENCES `browsers` (`browser_id`) ON DELETE NO ACTION ON
+			// UPDATE NO ACTION)"
+			return SubmissionRejectConstraint, e
+		default:
+			return SubmissionRejectOther, e
+		}
+	}
+
+	/* Look for problems with mandatory fields
+{
+  "body": "There are some problems. Please correct the mistakes and submit the form again.",
+  "debug": "",
+  "required": [
+    "activity_type",
+    "address1",
+    "aircrafttype",
+    "city",
+    "date",
+    "event_type",
+    "name",
+    "surname",
+    "time"
+  ],
+  "result": "0",
+  "site_name": "sfo5",
+  "submitted": {
+    "activity_type": {
+      "error": "",
+      "formatted": null,
+      "ok": true,
+      "value": "Other"
+    },
+    "address1": {
+      "error": "Please fill in",
+      "formatted": null,
+      "ok": false,
+      "value": ""
+    }
+  */
+	if v := jsonMap["submitted"]; v != nil {
+		// If we found this 'submitted' element, we're almost certainly in a bad field response.
+		probs := []string{}
+		if w,ok := jsonMap["submitted"].(map[string]interface{}); ok { // cast it to a map
+			for name,vals := range w {
+				if m,ok := vals.(map[string]interface{}); ok {
+					if m["ok"] == false {
+						probs = append(probs, name)
+					}
+				}
+			}
+		}
+
+		return SubmissionRejectBadField, fmt.Sprintf("[%s]", strings.Join(probs, ","))
+	}
+
+	return SubmissionRejectOther, "could not classify"
 }
 
 // }}}
