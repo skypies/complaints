@@ -29,8 +29,17 @@ const bksvPath = "/sfo5" + "?response=json" // response *must* be a GET param, n
 
 func PopulateForm(c types.Complaint, submitkey string) url.Values {
 	first,last := c.Profile.SplitName()
-	addr := c.Profile.GetStructuredAddress()
 	if c.Activity == "" { c.Activity = "Loud noise" }
+
+	address1 := ""
+	addr := c.Profile.GetStructuredAddress()
+	if addr.Street == "" {
+		address1 = c.Profile.Address // default to the raw string, if we don't have a structured one
+	} else if addr.Number == "" {
+		address1 = addr.Street
+	} else {
+		address1 = addr.Number + " " + addr.Street
+	}
 
 	vals := url.Values{
 		"response":         {"json"}, // Must always set this as a GET param
@@ -41,7 +50,7 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 		"caller_code":      {c.Profile.CallerCode},
 		"name":             {first},
 		"surname":          {last},
-		"address1":         {addr.Number + " " + addr.Street},
+		"address1":         {address1},
 		"address2":         {""},
 		"zipcode":          {addr.Zip},
 		"city":             {addr.City},
