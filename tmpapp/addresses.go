@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	//"github.com/skypies/util/gcp/tasks"
 
@@ -10,7 +11,7 @@ import (
 )
 
 func init() {
-	http.HandleFunc("/tmp/addresses", addressesHandler)
+	// http.HandleFunc("/tmp/addresses", addressesHandler)
 }
 
 // {{{ addressesHandler
@@ -30,11 +31,22 @@ func addressesHandler(w http.ResponseWriter, r *http.Request) {
 	str := fmt.Sprintf("Found %d profiles\n\n", len(cps))
 
 	good,noStreet,noCity,noStr := 0,0,0,0
+
+	addrs := []string{}
 	
 	for _,cp := range cps {
 		addrS := cp.StructuredAddress
-		if addrS.Number == "" || addrS.Street == "" {
+
+		if addrS.Street == "" {
 			noStreet++
+
+			if r.FormValue("fix") != "" {
+				addrS = cp.GetStructuredAddress() // May call the google maps geocoder api
+				cdb.PersistProfile(cp)
+			}
+
+			addrs = append(addrs, fmt.Sprintf("{%s} %#v", cp.Address, addrS))
+
 		} else if addrS.City == "" {
 			noCity++
 			str += fmt.Sprintf("{{%s}} %#v\n", cp.Address, addrS)
@@ -46,6 +58,8 @@ func addressesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str += fmt.Sprintf("\n\ngood: %d\nnoCity: %d\nnoStreet: %d\nnoStr: %d\n", good, noCity, noStreet, noStr)
+
+	str += "\n\n--\n" + strings.Join(addrs, "\n") + "\n--\n"
 	
 	w.Write([]byte(fmt.Sprintf("OK\n\n%s", str)))
 }

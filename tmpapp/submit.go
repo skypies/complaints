@@ -200,6 +200,17 @@ func bksvSubmitComplaintHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// FIXME - remove this hack at some point.
+	// Hack; we manually fixed up a ton of profiles on 2020.01.28.
+	// Complaints that were stored before this time may have crappy
+	// address data, so re-pull the profile and copy it over.
+	goodAddressesDate := time.Date(2020, time.February, 01, 0, 0, 0, 0, time.UTC)
+	if complaint.Timestamp.Before(goodAddressesDate) {
+		if cp,err := cdb.MustLookupProfile(complaint.Profile.EmailAddress); err == nil {
+			complaint.Profile = *cp
+		}
+	}
+
 	// Don't POST if this complaint has already been accepted.
 	if r.FormValue("force") == "" && complaint.Submission.Outcome == types.SubmissionAccepted {
 		return
