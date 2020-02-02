@@ -88,8 +88,6 @@ func profileUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Re
 
 	sesh,_ := ui.GetUserSession(ctx)
 
-	// Maybe make a call to fetch the elevation ??
-	// https://developers.google.com/maps/documentation/elevation/intro
 	cp := types.ComplainerProfile{
 		EmailAddress: sesh.Email,
 		CallerCode: r.FormValue("CallerCode"),
@@ -113,6 +111,12 @@ func profileUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Re
 		Long: long,
 		Elevation: elev,
 		ButtonId: []string{},
+	}
+
+	// Sometimes, we have the raw string, but not the structured bits.
+	// This call will go to the Google Maps geocoder API to parse it.
+	if p.StructuredAddress.Street == "" && p.Address != "" {
+		p.UpdateStructuredAddress()
 	}
 
 	// Preserve some values from the old profile
