@@ -226,6 +226,7 @@ type SubmissionRejectReason int
 const(
 	SubmissionNoReject = iota
 	SubmissionRejectConstraint
+	SubmissionRejectDupeReceipt
 	SubmissionRejectBadField
 	SubmissionRejectOther
 )
@@ -233,6 +234,7 @@ func (srr SubmissionRejectReason)String() string {
 	switch srr {
 	case SubmissionNoReject: return "OK"
 	case SubmissionRejectConstraint: return "db-constraint"
+	case SubmissionRejectDupeReceipt: return "dupe-receipt"
 	case SubmissionRejectBadField: return "bad-field"
 	case SubmissionRejectOther: return "unclassified"
 	default: return fmt.Sprintf("?%d?", srr)
@@ -267,6 +269,8 @@ func (s Submission)String() string {
 	return fmt.Sprintf("{%s@%s(%d)-%s:%db}", str, s.T, s.Attempts, s.D, len(s.Key))
 }
 
+// {{{ s.ClasifyRejection
+
 func (s Submission)ClassifyRejection() (SubmissionRejectReason, string) {
 	if s.Outcome != SubmissionRejected {
 		return SubmissionNoReject, "not rejected"
@@ -296,6 +300,12 @@ func (s Submission)ClassifyRejection() (SubmissionRejectReason, string) {
 			// REFERENCES `browsers` (`browser_id`) ON DELETE NO ACTION ON
 			// UPDATE NO ACTION)"
 			return SubmissionRejectConstraint, e
+
+		case strings.Contains(e, "receipt_key_UNIQUE"): //regexp.MustCompile("").MatchString(e):
+			// "Error inserting into database.Duplicate entry
+			// 'asdasdadasdasdasdasdasdasda' for key 'receipt_key_UNIQUE'
+			return SubmissionRejectDupeReceipt, e
+
 		default:
 			return SubmissionRejectOther, e
 		}
@@ -350,6 +360,8 @@ func (s Submission)ClassifyRejection() (SubmissionRejectReason, string) {
 
 	return SubmissionRejectOther, "could not classify"
 }
+
+// }}}
 
 // }}}
 // {{{ Browser{}
