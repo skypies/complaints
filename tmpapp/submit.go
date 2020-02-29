@@ -22,7 +22,10 @@ import (
 	"github.com/skypies/complaints/complaintdb/types"
 )
 
-var stem = "/tmp/bksv"
+var(
+	CascadableUrlParams = []string{"force", "rejects"}
+	stem = "/tmp/bksv"
+)
 
 func init() {
 	http.HandleFunc(stem+"/scan-dates",       bksvScanDateRangeHandler)
@@ -35,7 +38,8 @@ func init() {
 
 // /some/url
 //   &date=range&range_from=2016/01/21&range_to=2016/01/26
-//  [&force=1] force resubmits
+//  [&force=1]    force resubmits
+//  [&rejects=1]  only submit complaints currently tagged as rejected
 
 // Get all the keys for the time range, and queue them for submission.
 func bksvScanDateRangeHandler(w http.ResponseWriter, r *http.Request) {
@@ -62,8 +66,11 @@ func bksvScanDateRangeHandler(w http.ResponseWriter, r *http.Request) {
 		uri := stem+"/scan-day"
 		params := url.Values{}
 		params.Set("day", dayStr)
-		if r.FormValue("force") != "" {
-			params.Set("force", r.FormValue("force"))
+		// Cascade these params down
+		for _,param := range CascadableUrlParams {
+			if r.FormValue(param) != "" {
+				params.Set(param, r.FormValue(param))
+			}
 		}
 
 		if _,err := tasks.SubmitAETask(ctx, taskClient, ProjectID, LocationID, QueueName, delay, uri, params); err != nil {
@@ -109,13 +116,12 @@ func bksvScanDayHandler(w http.ResponseWriter, r *http.Request) {
 func bksvScanTimeRange(ctx context.Context, w http.ResponseWriter, r *http.Request, start,end time.Time) {
 	cdb := complaintdb.NewDB(ctx)
 
-	/*
-	str := fmt.Sprintf("Wahey! scantimerange\nstart: %s\nend  : %s\n", start, end)
-	w.Write([]byte(str))
-	return
-*/
+	q := cdb.NewComplaintQuery().ByTimespan(start,end)
+	if r.FormValue("rejects") != "" {
+		q = q.BySubmissionOutcome(int(types.SubmissionRejected))
+	}
 
-	keyers,err := cdb.LookupAllKeys(cdb.NewComplaintQuery().ByTimespan(start,end))
+	keyers,err := cdb.LookupAllKeys(q)
 	if err != nil {
 		cdb.Errorf(" bksvScanTimeRange: LookupAllKeys: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -131,16 +137,15 @@ func bksvScanTimeRange(ctx context.Context, w http.ResponseWriter, r *http.Reque
 	// each one is. The results seem to be loosely ordered by user, So
 	// do a quick (repeatable for debugging !!) shuffle.
 	rand.Seed(0)
-	rand.Shuffle(len(keyers), func(i, j int) { keyers[i],keyers[j] = keyers[j],keyers[i] })	
-	rand.Shuffle(len(keyers), func(i, j int) { keyers[i],keyers[j] = keyers[j],keyers[i] })	
-	rand.Shuffle(len(keyers), func(i, j int) { keyers[i],keyers[j] = keyers[j],keyers[i] })	
-
+	shuffler := func(i, j int) { keyers[i],keyers[j] = keyers[j],keyers[i] }
+	rand.Shuffle(len(keyers), shuffler)
+	rand.Shuffle(len(keyers), shuffler)
+	rand.Shuffle(len(keyers), shuffler)
 	cdb.Infof(" bksvScanTimeRange: shuffling done")
 	
 	// Give ourselves time to finish submitting, before the deluge; we want this submission
 	// loop to have the backend to itself.
-	baseDelay := time.Minute * 10 
-	//baseDelay := time.Second * 10 // time.Minute * 10 
+	baseDelay := time.Minute * 10
 
 	taskClient,err := tasks.GetClient(ctx)
 	if err != nil {
@@ -154,8 +159,11 @@ func bksvScanTimeRange(ctx context.Context, w http.ResponseWriter, r *http.Reque
 		uri := stem+"/submit-complaint"
 		params := url.Values{}
 		params.Set("id", keyer.Encode())
-		if r.FormValue("force") != "" {
-			params.Set("force", r.FormValue("force"))
+		// Cascade these params down
+		for _,param := range CascadableUrlParams {
+			if r.FormValue(param) != "" {
+				params.Set(param, r.FormValue(param))
+			}
 		}
 
 		delay := baseDelay + time.Millisecond * 250 * time.Duration(i)

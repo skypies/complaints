@@ -228,6 +228,7 @@ const(
 	SubmissionRejectConstraint
 	SubmissionRejectDupeReceipt
 	SubmissionRejectBadField
+	SubmissionRejectBadApiKey
 	SubmissionRejectOther
 )
 func (srr SubmissionRejectReason)String() string {
@@ -236,6 +237,7 @@ func (srr SubmissionRejectReason)String() string {
 	case SubmissionRejectConstraint: return "db-constraint"
 	case SubmissionRejectDupeReceipt: return "dupe-receipt"
 	case SubmissionRejectBadField: return "bad-field"
+	case SubmissionRejectBadApiKey: return "bad-apikey"
 	case SubmissionRejectOther: return "unclassified"
 	default: return fmt.Sprintf("?%d?", srr)
 	}
@@ -301,10 +303,14 @@ func (s Submission)ClassifyRejection() (SubmissionRejectReason, string) {
 			// UPDATE NO ACTION)"
 			return SubmissionRejectConstraint, e
 
-		case strings.Contains(e, "receipt_key_UNIQUE"): //regexp.MustCompile("").MatchString(e):
+		case strings.Contains(e, "receipt_key_UNIQUE"):
 			// "Error inserting into database.Duplicate entry
 			// 'asdasdadasdasdasdasdasdasda' for key 'receipt_key_UNIQUE'
 			return SubmissionRejectDupeReceipt, e
+
+		case strings.Contains(e, "validateSubmitKey"):
+			// "validateSubmitKey returned false"
+			return SubmissionRejectBadApiKey, e
 
 		default:
 			return SubmissionRejectOther, e

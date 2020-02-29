@@ -20,6 +20,10 @@ import (
 	"github.com/skypies/complaints/config"
 )
 
+// "Real" one      : https://viewpoint.emsbk.com/sfo5
+// Temp one        : https://viewpoint.emsbk.com/sfo12
+// Other Temp one  : https://viewpoint.emsbk.com/sfo50
+
 //https://viewpoint.emsbk.com/<sitename>?response=json
 //const bksvHost = "complaints-us.emsbk.com"
 const bksvHost = "viewpoint.emsbk.com"
@@ -39,6 +43,11 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 		address1 = addr.Street
 	} else {
 		address1 = addr.Number + " " + addr.Street
+	}
+
+	browser_version := c.Browser.Version
+	if (len(browser_version) > 50) {
+		browser_version = browser_version[0:49]
 	}
 
 	vals := url.Values{
@@ -85,7 +94,7 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 		"cellphone": {""},
 
 		"browser_name":     {c.Browser.Name},
-		"browser_version":  {c.Browser.Version},
+		"browser_version":  {browser_version},
 		"browser_vendor":   {c.Browser.Vendor},
 		"browser_uuid":     {c.Browser.UUID},
 		"browser_platform": {c.Browser.Platform},

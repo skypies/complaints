@@ -24,7 +24,7 @@ cron:
   schedule: 1 of month 04:30
   timezone: America/Los_Angeles
 
-#- description: Daily complaints to BKSV via http
-#url: /backend/bksv/scan-yesterday
-#  schedule: every day 02:02
-#  timezone: America/Los_Angeles
+- description: Daily complaints to BKSV via their API
+  url: /tmp/bksv/scan-yesterday
+  schedule: every day 02:02
+  timezone: America/Los_Angeles
