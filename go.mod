@@ -7,6 +7,7 @@ require (
 	cloud.google.com/go/bigquery v1.1.0
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/gorilla/sessions v1.2.0
+	github.com/mailjet/mailjet-apiv3-go v0.0.0-20190724151621-55e56f74078c // indirect
 	github.com/skypies/flightdb v0.1.0
 	github.com/skypies/geo v0.0.0-20180901233721-9d4f211f3066
 	github.com/skypies/pi v0.0.0-20181231003623-22e413099279

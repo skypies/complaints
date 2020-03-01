@@ -1,5 +1,5 @@
 runtime: go113
-instance_class: B4
+instance_class: B2
 service: tmpapp
 basic_scaling:
   max_instances: 8

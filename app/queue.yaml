@@ -1,9 +1,10 @@
 queue:
 - name: submitreports
-  rate: 500/m
-  max_concurrent_requests: 15
-#  rate: 80/m
-#  max_concurrent_requests: 2
+  # Keep this sedate, because at 500/min, we get dupe races
+  rate: 100/m
+  max_concurrent_requests: 4
+#  rate: 30/m
+#  max_concurrent_requests: 1
   retry_parameters:
     min_backoff_seconds: 15
     task_retry_limit: 6

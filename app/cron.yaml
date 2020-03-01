@@ -24,6 +24,12 @@ cron:
   schedule: 1 of month 04:30
   timezone: America/Los_Angeles
 
+# Good new stuff
+- description: Send new complaint emails
+  url: /tmp/emailer/yesterday
+  schedule: every day 01:40
+  timezone: America/Los_Angeles
+
 - description: Daily complaints to BKSV via their API
   url: /tmp/bksv/scan-yesterday
   schedule: every day 02:02
