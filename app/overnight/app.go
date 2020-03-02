@@ -2,6 +2,7 @@ package main
 
 import(
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -9,10 +10,13 @@ import(
 
 	"golang.org/x/net/context"
 
+	"github.com/skypies/complaints/ui"
 	"github.com/skypies/complaints/complaintdb"
 )
 
 var(
+	templates *template.Template
+
 	emailerUrlStem = "/overnight/emailer"
 	bksvStem       = "/overnight/bksv"
 )
@@ -28,9 +32,7 @@ func init() {
 	http.HandleFunc(bksvStem+"/scan-yesterday",   bksvScanDayHandler)
 	http.HandleFunc(bksvStem+"/submit-complaint", bksvSubmitComplaintHandler)
 
-	// For go111, appengine uses the module root, which is the root of the git repo; so
-	// the relative dirname for templates is relative to the root of the git repo.
-	// tmpl = widget.ParseRecursive(template.New("").Funcs(ui.TemplateFuncMap()), "app/frontend/templates")
+	templates = ui.LoadTemplates("app/overnight/web/templates")
 }
 
 func main() {

@@ -1,7 +1,5 @@
 package main
 
-// Please REVISE THE URL STEM, and fixup the HackTemplates
-
 import(
 	"bytes"
 	"fmt"
@@ -15,13 +13,15 @@ import(
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
 	"github.com/skypies/complaints/config"
-
-	hackbackend "github.com/skypies/complaints/backend" // Just for HackTemplates
 )
 
 var(
 	senderEmail = "reporters@jetnoise.net"
 )
+
+func init() {
+	// http.HandleFunc(emailerUrlStem+"/template-test",  templateTestHandler)
+}
 
 // {{{ emailYesterdayHandler
 
@@ -58,8 +58,6 @@ func sendEmailsForTimeRange(r *http.Request, s,e time.Time) (error, string) {
 	for _,p := range profiles {
 		if p.SendDailyEmailOK() == false { continue }
 
-		if p.EmailAddress != "adam@worrall.cc" { continue }  // FIXME: remove this to go live
-
 		var complaints = []types.Complaint{}
 		complaints, err = cdb.LookupAll(cdb.CQByEmail(p.EmailAddress).ByTimespan(s,e))
 		if err != nil {
@@ -77,6 +75,8 @@ func sendEmailsForTimeRange(r *http.Request, s,e time.Time) (error, string) {
 		str += fmt.Sprintf(" * %-50.50s : % 3d (%v)\n", p.EmailAddress, len(complaints), err)
 	}
 
+	cdb.Infof(str)
+
 	return nil, str
 }
 
@@ -86,7 +86,7 @@ func sendEmailsForTimeRange(r *http.Request, s,e time.Time) (error, string) {
 func sendEmail(cap types.ComplaintsAndProfile) error {
 	buf := new(bytes.Buffer)	
 
-	if err := hackbackend.HackTemplates.ExecuteTemplate(buf, "email-bundle", cap); err != nil {
+	if err := templates.ExecuteTemplate(buf, "email-bundle", cap); err != nil {
 		return err
 	}
 
@@ -113,6 +113,27 @@ func sendEmail(cap types.ComplaintsAndProfile) error {
   _,err := client.SendMailV31(&messages)
 
 	return err
+}
+
+// }}}
+
+// {{{ templateTestHandler
+
+func templateTestHandler(w http.ResponseWriter, r *http.Request) {
+	cap := types.ComplaintsAndProfile{
+		Complaints: []types.Complaint{},
+	}
+
+	str := ""
+	buf := new(bytes.Buffer)	
+	
+	if err := templates.ExecuteTemplate(buf, "email-bundle", cap); err != nil {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write([]byte(fmt.Sprintf("OK emailer\n\nErr: %v\n\nOutput:-\n%s", err,str)))
+	} else {
+		w.Header().Set("Content-Type", "text/html")
+		w.Write(buf.Bytes())
+	}
 }
 
 // }}}
