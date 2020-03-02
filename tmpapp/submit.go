@@ -25,6 +25,10 @@ import (
 var(
 	CascadableUrlParams = []string{"force", "rejects"}
 	stem = "/tmp/bksv"
+
+	LocationID = "us-central1" // This is "us-central" in appengine-land, needs a 1 for cloud tasks
+	ProjectID = "serfr0-1000"
+	QueueName = "submitreports"
 )
 
 func init() {
