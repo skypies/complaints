@@ -1,10 +1,10 @@
 runtime: go113
 instance_class: B2
-service: tmpapp
+service: overnight
 basic_scaling:
   max_instances: 8
   idle_timeout: 2m
 
 handlers:
-- url: /tmp/.*
+- url: /overnight/.*
   script: auto

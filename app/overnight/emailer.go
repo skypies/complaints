@@ -20,13 +20,8 @@ import(
 )
 
 var(
-	emailerStem = "/tmp/emailer"
 	senderEmail = "reporters@jetnoise.net"
 )
-
-func init() {
-	http.HandleFunc(emailerStem+"/yesterday", emailYesterdayHandler)
-}
 
 // {{{ emailYesterdayHandler
 
@@ -63,7 +58,7 @@ func sendEmailsForTimeRange(r *http.Request, s,e time.Time) (error, string) {
 	for _,p := range profiles {
 		if p.SendDailyEmailOK() == false { continue }
 
-		if p.EmailAddress != "adam@worrall.cc" { continue }
+		if p.EmailAddress != "adam@worrall.cc" { continue }  // FIXME: remove this to go live
 
 		var complaints = []types.Complaint{}
 		complaints, err = cdb.LookupAll(cdb.CQByEmail(p.EmailAddress).ByTimespan(s,e))

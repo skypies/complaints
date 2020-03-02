@@ -1,9 +1,5 @@
 package main
 
-// DO NOT JUST COPY back into backend/; also check app.go for code to copy over, and anything
-// else around here.
-// ALSO, revise the stem (remove /tmp prefix)
-
 import (
 	"fmt"
 	"math/rand"
@@ -24,19 +20,12 @@ import (
 
 var(
 	CascadableUrlParams = []string{"force", "rejects"}
-	stem = "/tmp/bksv"
 
+	// Should really put these vars somewhere more sensible
 	LocationID = "us-central1" // This is "us-central" in appengine-land, needs a 1 for cloud tasks
 	ProjectID = "serfr0-1000"
 	QueueName = "submitreports"
 )
-
-func init() {
-	http.HandleFunc(stem+"/scan-dates",       bksvScanDateRangeHandler)
-	http.HandleFunc(stem+"/scan-day",         bksvScanDayHandler)
-	http.HandleFunc(stem+"/scan-yesterday",   bksvScanDayHandler)
-	http.HandleFunc(stem+"/submit-complaint", bksvSubmitComplaintHandler)
-}
 
 // {{{ bksvScanDateRangeHandler
 
@@ -67,7 +56,7 @@ func bksvScanDateRangeHandler(w http.ResponseWriter, r *http.Request) {
 		dayStr := day.Format("2006/01/02")
 		str += fmt.Sprintf(" * adding %s\n", dayStr)
 
-		uri := stem+"/scan-day"
+		uri := bksvStem+"/scan-day"
 		params := url.Values{}
 		params.Set("day", dayStr)
 		// Cascade these params down
@@ -160,7 +149,7 @@ func bksvScanTimeRange(ctx context.Context, w http.ResponseWriter, r *http.Reque
 	
 	i := 0
 	for _,keyer := range keyers {
-		uri := stem+"/submit-complaint"
+		uri := bksvStem+"/submit-complaint"
 		params := url.Values{}
 		params.Set("id", keyer.Encode())
 		// Cascade these params down

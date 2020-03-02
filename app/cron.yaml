@@ -26,11 +26,11 @@ cron:
 
 # Good new stuff
 - description: Send new complaint emails
-  url: /tmp/emailer/yesterday
+  url: /overnight/emailer/yesterday
   schedule: every day 01:40
   timezone: America/Los_Angeles
 
 - description: Daily complaints to BKSV via their API
-  url: /tmp/bksv/scan-yesterday
+  url: /overnight/bksv/scan-yesterday
   schedule: every day 02:02
   timezone: America/Los_Angeles
