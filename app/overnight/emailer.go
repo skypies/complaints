@@ -90,7 +90,7 @@ func sendEmail(cap types.ComplaintsAndProfile) error {
 		return err
 	}
 
-	subject := fmt.Sprintf("TESTING Daily report summary for %s", cap.Profile.FullName)
+	subject := fmt.Sprintf("Daily report summary for %s", cap.Profile.FullName)
 	
   client := mailjet.NewMailjetClient(config.Get("mailjet.apikey"), config.Get("mailjet.privatekey"))
 
