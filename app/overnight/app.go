@@ -22,10 +22,12 @@ var(
 )
 
 func init() {
-	http.HandleFunc("/overnight/submissions/debug", SubmissionsDebugHandler)
-	http.HandleFunc("/overnight/submissions/debugcomp", complaintdb.ComplaintDebugHandler)
+	http.HandleFunc("/overnight/csv", csvHandler)
 
 	http.HandleFunc(emailerUrlStem+"/yesterday",  emailYesterdayHandler)
+
+	http.HandleFunc("/overnight/submissions/debug", SubmissionsDebugHandler)
+	http.HandleFunc("/overnight/submissions/debugcomp", complaintdb.ComplaintDebugHandler)
 
 	http.HandleFunc(bksvStem+"/scan-dates",       bksvScanDateRangeHandler)
 	http.HandleFunc(bksvStem+"/scan-day",         bksvScanDayHandler)

@@ -15,10 +15,11 @@ cron:
   schedule: every day 00:10
   timezone: America/Los_Angeles
 
-- description: Write monthly CSV, that is emailed to BKSV, into GCS
-  url: /backend/monthdump
-  schedule: 1 of month 04:00
-  timezone: America/Los_Angeles
+# OLD; disabled as of 2020.03.10
+#- description: Write monthly CSV, that is emailed to BKSV, into GCS
+#  url: /backend/monthdump
+#  schedule: 1 of month 04:00
+#  timezone: America/Los_Angeles
 
 - description: Write monthly ascii report into GCS
   url: /report/summary-dump
@@ -35,4 +36,9 @@ cron:
 - description: Daily complaints to BKSV via their API
   url: /overnight/bksv/scan-yesterday
   schedule: every day 02:02
+  timezone: America/Los_Angeles
+
+- description: Write monthly CSV into GCS
+  url: /overnight/csv
+  schedule: 1 of month 04:00
   timezone: America/Los_Angeles
