@@ -9,12 +9,13 @@ cron:
 #   url: /backend/emails-for-yesterday
 #   schedule: every day 00:40
 #   timezone: America/Los_Angeles
-
-- description: Publish complaints to BigQuery
-  url: /backend/publish-complaints?datestring=yesterday
-  schedule: every day 00:10
-  timezone: America/Los_Angeles
-
+#
+# OLD; disabled as of 2020.03.21
+# - description: Publish complaints to BigQuery
+#   url: /backend/publish-complaints?datestring=yesterday
+#   schedule: every day 00:10
+#   timezone: America/Los_Angeles
+#
 # OLD; disabled as of 2020.03.10
 #- description: Write monthly CSV, that is emailed to BKSV, into GCS
 #  url: /backend/monthdump
@@ -41,4 +42,9 @@ cron:
 - description: Write monthly CSV into GCS
   url: /overnight/csv
   schedule: 1 of month 04:00
+  timezone: America/Los_Angeles
+
+- description: Publish complaints to BigQuery
+  url: /overnight/bigquery/day?datestring=yesterday
+  schedule: every day 00:10
   timezone: America/Los_Angeles

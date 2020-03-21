@@ -10,6 +10,8 @@ import(
 
 	"golang.org/x/net/context"
 
+	"github.com/skypies/util/date"
+
 	"github.com/skypies/complaints/ui"
 	"github.com/skypies/complaints/complaintdb"
 )
@@ -24,6 +26,9 @@ var(
 func init() {
 	http.HandleFunc("/overnight/csv", csvHandler)
 
+	http.HandleFunc("/overnight/bigquery/day", publishComplaintsDayHandler)
+	// http.HandleFunc("/overnight/bigquery/all", publishComplaintsAllHandler)
+	
 	http.HandleFunc(emailerUrlStem+"/yesterday",  emailYesterdayHandler)
 
 	http.HandleFunc("/overnight/submissions/debug", SubmissionsDebugHandler)
@@ -51,4 +56,14 @@ func req2ctx(r *http.Request) context.Context {
 }
 func req2client(r *http.Request) *http.Client {
 	return &http.Client{}
+}
+
+// TODO: move to util/date, bump the version
+func DayWindows(s,e time.Time) [][]time.Time {
+	out := [][]time.Time{}
+	s = s.Add(-1*time.Second) // Tip s into previous day, so that it counts as an 'intermediate'
+	for _,tMidnight := range date.IntermediateMidnights(s,e) {
+		out = append(out, []time.Time{tMidnight, tMidnight.AddDate(0,0,1).Add(-1*time.Second) })
+	}
+	return out
 }
