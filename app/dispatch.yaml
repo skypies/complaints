@@ -1,9 +1,5 @@
 dispatch:
 
-# This is dead or broken or both
-- url: "jetnoise.app/*"
-  module: debug
-
 - url: "*/report/*"
   module: overnight
 
