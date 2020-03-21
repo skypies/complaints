@@ -294,6 +294,59 @@ func (cdb *ComplaintDB)SummaryReport(start,end time.Time, countByUser bool, zipF
 
 // }}}
 
+/*
+// {{{ ReadEncodedData
+
+func ReadEncodedData(resp *http.Response, encoding string, data interface{}) error {
+	switch encoding {
+	case "gob": return gob.NewDecoder(resp.Body).Decode(data)
+	default:    return json.NewDecoder(resp.Body).Decode(data)
+	}
+}
+
+// }}}
+// {{{ GetProcedureMap
+
+// Call out to the flight database, and get back a condensed summary of the flights (flightnumber,
+// times, waypoints) which flew to/from a NORCAL airport (SFO,SJC,OAK) for the time range (a day?)
+func GetProcedureMap(r *http.Request, s,e time.Time) (map[string]fdb.CondensedFlight,error) {
+	ret := map[string]fdb.CondensedFlight{}
+
+	// This procedure map stuff is expensive, and brittle; so disable by default.
+	if r.FormValue("getProcedures") == "" {
+		return ret, nil
+	}
+	
+	client := req2client(r)
+	
+	encoding := "gob"	
+	url := fmt.Sprintf("http://fdb.serfr1.org/api/procedures?encoding=%s&tags=:NORCAL:&s=%d&e=%d",
+		encoding, s.Unix(), e.Unix())
+
+	condensedFlights := []fdb.CondensedFlight{}
+
+	if resp,err := client.Get(url); err != nil {
+		return ret,err
+	} else {
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return ret,fmt.Errorf("Bad status fetching proc map for %s: %v", url, resp.Status)
+		} else if err := ReadEncodedData(resp, encoding, &condensedFlights); err != nil {
+			return ret,err
+		}
+	}
+
+	for _,cf := range condensedFlights {
+		ret[cf.BestFlightNumber] = cf
+	}
+	
+	return ret,nil
+}
+
+// }}}
+*/
+
 // {{{ -------------------------={ E N D }=----------------------------------
 
 // Local variables:

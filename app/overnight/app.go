@@ -25,7 +25,7 @@ var(
 
 func init() {
 	http.HandleFunc("/overnight/csv", csvHandler)
-
+	http.HandleFunc("/overnight/monthly-report", monthlySummaryReportHandler)
 	http.HandleFunc("/overnight/counts", countsHandler)
 	
 	http.HandleFunc("/overnight/bigquery/day", publishComplaintsDayHandler)

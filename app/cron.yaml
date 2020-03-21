@@ -23,11 +23,11 @@ cron:
 #  url: /backend/monthdump
 #  schedule: 1 of month 04:00
 #  timezone: America/Los_Angeles
-
-- description: Write monthly ascii report into GCS
-  url: /report/summary-dump
-  schedule: 1 of month 04:30
-  timezone: America/Los_Angeles
+#
+# - description: Write monthly ascii report into GCS
+#   url: /report/summary-dump
+#   schedule: 1 of month 04:30
+#   timezone: America/Los_Angeles
 
 ##### Good new stuff
 #
@@ -46,6 +46,11 @@ cron:
   schedule: 1 of month 04:00
   timezone: America/Los_Angeles
 
+- description: Write monthly ascii report into GCS
+  url: /overnight/monthly-report
+  schedule: 1 of month 04:30
+  timezone: America/Los_Angeles
+
 - description: Publish complaints to BigQuery
   url: /overnight/bigquery/day?datestring=yesterday
   schedule: every day 00:10
@@ -54,4 +59,9 @@ cron:
 - description: Update the daily totals
   url: /overnight/counts?date=yesterday
   schedule: every day 00:05
+  timezone: America/Los_Angeles
+
+- description: Write monthly ascii report into GCS
+  url: /overnight/monthly-report
+  schedule: 1 of month 04:30
   timezone: America/Los_Angeles
