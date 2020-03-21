@@ -1,36 +1,4 @@
 cron:
-#
-# OLD; disabled as of 2020.03.21
-#- description: Update the daily totals
-#  url: /backend/setcounts?date=yesterday
-#  schedule: every day 00:05
-#  timezone: America/Los_Angeles
-#
-# OLD; disabled as of 2020.03.02
-# - description: Send complaint emails
-#   url: /backend/emails-for-yesterday
-#   schedule: every day 00:40
-#   timezone: America/Los_Angeles
-#
-# OLD; disabled as of 2020.03.21
-# - description: Publish complaints to BigQuery
-#   url: /backend/publish-complaints?datestring=yesterday
-#   schedule: every day 00:10
-#   timezone: America/Los_Angeles
-#
-# OLD; disabled as of 2020.03.10
-#- description: Write monthly CSV, that is emailed to BKSV, into GCS
-#  url: /backend/monthdump
-#  schedule: 1 of month 04:00
-#  timezone: America/Los_Angeles
-#
-# - description: Write monthly ascii report into GCS
-#   url: /report/summary-dump
-#   schedule: 1 of month 04:30
-#   timezone: America/Los_Angeles
-
-##### Good new stuff
-#
 - description: Send new complaint emails
   url: /overnight/emailer/yesterday
   schedule: every day 01:40

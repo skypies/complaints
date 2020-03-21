@@ -4,11 +4,8 @@ dispatch:
 - url: "jetnoise.app/*"
   module: debug
 
-- url: "*/backend/*"
-  module: backend
-
 - url: "*/report/*"
-  module: backend
+  module: overnight
 
 - url: "*/overnight/*"
   module: overnight

@@ -1,0 +1,56 @@
+{{define "date-report-form"}}
+
+<html>
+  {{template "header"}}
+  <body>
+    <h1>{{.Title}}</h1><p/>
+
+    <form action="{{.FormUrl}}" method="post">
+      <div class="stack">
+        {{if .Message}}<div class="message">{{.Message}}</div><br/>{{end}}
+    
+        <div class="box">
+        <table border="0">
+          <tr>
+            <td>Date range</td>
+            <td>{{template "widget-date-range" .}}</td>
+          </tr>
+          <tr><td>&nbsp;</td></tr>
+          <tr>
+            <td>Filter to ZIPs</td>
+            <td><input type="text" size="20" name="zips"/></td>
+          </tr>
+          <tr>
+            <td>Arrival procedures</td>
+            <td><input type="checkbox" size="20" name="getProcedures"/>
+            (>25h old; brittle, day reports only)</td>
+          </tr>
+          <tr><td>&nbsp;</td></tr>
+
+          <tr><td colspan="2">This report is being locked down to
+          known users only; it is receiving too much traffic from
+          unknown sources. If you'd like access to it, get in touch.
+          You're probably better off using
+          the <a href="https://sites.google.com/a/jetnoise.net/how-to/anonymized-complaints-dataset">anonymized
+          SQL database</a>, though.</td></tr>
+          <tr><td>&nbsp;</td></tr>
+
+          <tr><td colspan="2"><b>Monthly reports</b> are published to the
+           public
+           at <a href="https://goo.gl/tdnftJ">https://goo.gl/tdnftJ</a>.</td></tr>
+          <tr><td>&nbsp;</td></tr>
+
+          <tr><td colspan="2"><hr/></td></tr>
+        </table>
+
+        <br/>
+        <p style="text-align:center"><input class="button" type="submit" value="GENERATE"/></p>
+        <br/>
+        </div>
+
+      </div>
+    </form>
+  </body>
+</html>
+
+{{end}}

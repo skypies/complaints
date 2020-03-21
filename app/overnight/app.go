@@ -24,6 +24,8 @@ var(
 )
 
 func init() {
+	http.HandleFunc("/report/summary", summaryReportHandler)
+	
 	http.HandleFunc("/overnight/csv", csvHandler)
 	http.HandleFunc("/overnight/monthly-report", monthlySummaryReportHandler)
 	http.HandleFunc("/overnight/counts", countsHandler)
