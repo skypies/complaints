@@ -1,9 +1,11 @@
 cron:
-- description: Update the daily totals
-  url: /backend/setcounts?date=yesterday
-  schedule: every day 00:05
-  timezone: America/Los_Angeles
-
+#
+# OLD; disabled as of 2020.03.21
+#- description: Update the daily totals
+#  url: /backend/setcounts?date=yesterday
+#  schedule: every day 00:05
+#  timezone: America/Los_Angeles
+#
 # OLD; disabled as of 2020.03.02
 # - description: Send complaint emails
 #   url: /backend/emails-for-yesterday
@@ -47,4 +49,9 @@ cron:
 - description: Publish complaints to BigQuery
   url: /overnight/bigquery/day?datestring=yesterday
   schedule: every day 00:10
+  timezone: America/Los_Angeles
+
+- description: Update the daily totals
+  url: /overnight/counts?date=yesterday
+  schedule: every day 00:05
   timezone: America/Los_Angeles
