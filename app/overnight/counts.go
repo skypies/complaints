@@ -37,7 +37,7 @@ func countsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 
 	} else {	
-		cdb.AddDailyCount(complaintdb.DailyCount{
+		err = cdb.AddDailyCount(complaintdb.DailyCount{
 			Datestring: date.Time2Datestring(s),
 			NumComplaints: n_complaints,
 			NumComplainers: n_users,
@@ -46,8 +46,8 @@ func countsHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		cdb.Infof(fmt.Sprintf("set daily counts for %s to {%d,%d}\n",
 			date.Time2Datestring(s), n_complaints, n_users))
-		w.Write([]byte(fmt.Sprintf("OK!\nSet %s to {%d,%d}\n",
-			date.Time2Datestring(s), n_complaints, n_users)))
+		w.Write([]byte(fmt.Sprintf("OK!\nSet %s to {%d,%d}\nerr: %v",
+			date.Time2Datestring(s), n_complaints, n_users, err)))
 	}
 }
 

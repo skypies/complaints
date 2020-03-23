@@ -21,7 +21,9 @@ type GlobalStats struct {
 	Counts []DailyCount
 }
 
-type FrozenGlobalStats struct { Bytes []byte }
+type FrozenGlobalStats struct {
+	Bytes []byte `datastore:",noindex"`
+}
 
 // {{{ cdb.DeleteAllGlobalStats
 
@@ -101,13 +103,13 @@ func (cdb ComplaintDB)LoadGlobalStats() (*GlobalStats, error) {
 
 // {{{ cdb.AddDaily
 
-func (cdb ComplaintDB)AddDailyCount(dc DailyCount) {
+func (cdb ComplaintDB)AddDailyCount(dc DailyCount) error {
 	if gs,err := cdb.LoadGlobalStats(); err != nil {
-		return
+		return err
 	} else {
 		gs.Counts = append(gs.Counts, dc)
 		sort.Sort(DailyCountDesc(gs.Counts))	
-		cdb.SaveGlobalStats(*gs)
+		return cdb.SaveGlobalStats(*gs)
 	}
 }
 
