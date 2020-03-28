@@ -15,6 +15,7 @@ automatic_scaling:
 inbound_services:
 - mail_bounce
 
+# FIXME: all these "login: admin" things need to be checked in the app
 handlers:
 - url: /cdb/.*
   script: _go_app

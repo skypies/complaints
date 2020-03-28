@@ -7,8 +7,6 @@ import(
 	"time"
 	
 	"golang.org/x/net/context"
-	// "google.golang.org/ appengine"
-	// "google.golang.org/ appengine/log"
 )
 
 /* Common code for pulling out a user session cookie, populating a Context, etc. */
@@ -51,21 +49,6 @@ func WithCtx(ch contextHandler) baseHandler {
 		ch(ctx,w,r)
 	}
 }
-
-//func WithCtxTlsTmplSession(ch,fallback contextHandler, t *template.Template) baseHandler {
-//	return WithCtx(WithTLS(WithTmpl(WithSession(ch,fallback),t)))
-//}
-// Underlying handlers should call this to get their session object
-/*func GetTemplates(ctx context.Context) (*template.Template, bool) {
-	tmpl, ok := ctx.Value(templatesKey).(*template.Template)
-	return tmpl, ok
-}*/
-/*func WithTmpl(ch contextHandler, t *template.Template) contextHandler {
-	return func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-		ctx = context.WithValue(ctx, templatesKey, t)		
-		ch(ctx, w, r)
-	}
-}*/
 
 // Redirects to a https:// version of the URL, if needed
 func WithTLS(ch contextHandler) contextHandler {
@@ -134,56 +117,3 @@ func WithSession(ch contextHandler, fallback contextHandler) contextHandler {
 		handler(ctx, w, r)
 	}
 }
-
-/*
-
-// Will redirect to sessionUrl if the session was empty, and it is non-nil
-func WithSession(ch contextHandler, sessionUrl string) contextHandler {
-	return func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-
-		cookieNames := []string{}
-		for _,c := range r.Cookies() {
-			cookieNames = append(cookieNames, c.Name)
-		}
-		
-		// Session will always be non-nil
-		session,err := sessions.Get(r)
-		if err != nil {
-			log.Errorf(ctx, "session.Get failed with err: %v", err)
-			log.Errorf(ctx, "cookies found: %d %v", len(r.Cookies()), cookieNames)
-		}
-		
-		if strings.HasPrefix(r.UserAgent(), "Google") {
-			// Robot - do nothing
-
-		} else if session.Values["email"] == nil {
-			reqBytes,_ := httputil.DumpRequest(r, true)
-			log.Errorf(ctx, "session was empty (sessions.Debug=%v)", sessions.Debug)
-			log.Errorf(ctx, "cookies: %q", cookieNames)
-			log.Errorf(ctx, "req: %s", reqBytes)
-
-			// If we have a URL to redirect to, in cases of no session, then do it
-			if sessionUrl != "" {
-				http.Redirect(w, r, sessionUrl, http.StatusFound)
-				return
-			}
-
-		} else {
-			sesh := UserSession{Email: session.Values["email"].(string)}
-
-			if session.Values["tstamp"] != nil {
-				tstampStr := session.Values["tstamp"].(string)
-				tstamp,_ := time.Parse(time.RFC3339, tstampStr)
-				sesh.CreatedAt = tstamp
-				sesh.hasCreatedAt = true // time.IsZero seems useless
-			}
-			
-			ctx = context.WithValue(ctx, sessionKey, sesh)
-		}
-
-		// Call the underlying handler, with our shiny context
-		ch(ctx, w, r)
-	}
-}
-
-*/
