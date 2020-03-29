@@ -50,6 +50,13 @@ func WithCtx(ch contextHandler) baseHandler {
 	}
 }
 
+// This just lets us easily shift gears to use a basehandler, when we're in a chain of contexthandlers
+func WithoutCtx(bh baseHandler) contextHandler {
+	return func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+		bh(w,r)
+	}
+}
+
 // Redirects to a https:// version of the URL, if needed
 func WithTLS(ch contextHandler) contextHandler {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request) {

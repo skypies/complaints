@@ -16,8 +16,6 @@ var(
 )
 
 func init() {
-	ui.InitSessionStore(config.Get("sessions.key"), config.Get("sessions.prevkey"))
-
 	//AdminEmails := map[string]int{}
 	for _,e := range strings.Split(config.Get("users.admin"), ",") {
 		adminEmails[strings.ToLower(e)] = 1
@@ -30,30 +28,37 @@ func IsAdmin(email string) bool {
 	return exists
 }
 
+
+// Convenience combos
+
 // Assert that the user is logged in, and is an admin user; if so, then run the handler,
 // else return a 401. E.g.:
-// 	 http.HandleFunc("/foo/bar", ui.HasAdmin(SomeNormalHandler))
-
+// 	 http.HandleFunc("/foo/bar", ui.HasAdmin(SomeBaseHandler))
 func HasAdmin(bh baseHandler) baseHandler {
-	return func(w http.ResponseWriter, r *http.Request) {
-		fallback := func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-			http.Error(w, "This URL requires you to be logged in", http.StatusUnauthorized)
-		}
+	return WithCtx(WithSession(WithAdmin(WithoutCtx(bh)), authFallback))	
+}
 
-		seshChecker := func(bh baseHandler) contextHandler {
-			return func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-				sesh,hadSesh := GetUserSession(ctx)
-				if !hadSesh || !IsAdmin(sesh.Email){
-					http.Error(w, "This URL requires admin access", http.StatusUnauthorized)
-					return
-				}
-				
-				// Just run the handler
-				bh(w,r)
-			}
+// 	 http.HandleFunc("/foo/bar", ui.WithCtxAdmin(SomeContextHandler))
+func WithCtxAdmin(ch contextHandler) baseHandler {
+	return WithCtx(WithSession(WithAdmin(ch), authFallback))	
+}
+
+
+// The main func
+
+func WithAdmin(ch contextHandler) contextHandler {
+	return func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+		sesh,hadSesh := GetUserSession(ctx)
+		if !hadSesh || !IsAdmin(sesh.Email){
+			http.Error(w, "This URL requires admin access", http.StatusUnauthorized)
+			return
 		}
-		
-		handler := WithCtx(WithSession(seshChecker(bh),fallback))	
-		handler(w,r)
+				
+		// We have admin rights - run the handler
+		ch(ctx,w,r)
 	}
+}
+
+func authFallback(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	http.Error(w, "This URL requires you to be logged in", http.StatusUnauthorized)
 }

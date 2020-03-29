@@ -12,6 +12,7 @@ import(
 
 	"github.com/skypies/util/date"
 
+	"github.com/skypies/complaints/config"
 	"github.com/skypies/complaints/ui"
 	"github.com/skypies/complaints/complaintdb"
 )
@@ -44,6 +45,7 @@ func init() {
 	http.HandleFunc(bksvStem+"/submit-complaint", bksvSubmitComplaintHandler)
 
 	templates = ui.LoadTemplates("app/overnight/web/templates")
+	ui.InitSessionStore(config.Get("sessions.key"), config.Get("sessions.prevkey"))
 }
 
 func main() {
