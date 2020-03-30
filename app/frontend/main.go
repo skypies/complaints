@@ -31,14 +31,13 @@ var(
 )
 
 func init() {
-	templates = ui.LoadTemplates("app/frontend/web/templates")
+	templates = ui.LoadTemplates("app/frontend/web/templates") // for appengine golang, relative to git module root
 	ui.InitSessionStore(config.Get("sessions.key"), config.Get("sessions.prevkey"))
 
 	login.OnSuccessCallback = func(w http.ResponseWriter, r *http.Request, email string) error {
 		ui.CreateSession(r.Context(), w, r, ui.UserSession{Email:email})
 		return nil
 	}
-	//login.Host                  = "https://frontend-dot-serfr0-1000.appspot.com"
 	login.Host                  = "https://stop.jetnoise.net"
 	login.RedirectUrlStem       = "/login" // oauth2 callbacks will register  under here
 	login.AfterLoginRelativeUrl = "/" // where the user finally ends up, after being logged in
