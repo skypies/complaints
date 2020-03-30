@@ -28,28 +28,28 @@ func IsAdmin(email string) bool {
 	return exists
 }
 
-
 // Convenience combos
+func WithCtxAdmin(ch contextHandler) baseHandler {
+	return WithCtx(WithSession(WithAdmin(ch), authFallback))
+}
+func WithCtxTlsAdmin(ch contextHandler) baseHandler {
+	return WithCtx(WithTLS(WithSession(WithAdmin(ch), authFallback)))
+}
 
-// Assert that the user is logged in, and is an admin user; if so, then run the handler,
-// else return a 401. E.g.:
-// 	 http.HandleFunc("/foo/bar", ui.HasAdmin(SomeBaseHandler))
 func HasAdmin(bh baseHandler) baseHandler {
 	return WithCtx(WithSession(WithAdmin(WithoutCtx(bh)), authFallback))	
 }
 
-// 	 http.HandleFunc("/foo/bar", ui.WithCtxAdmin(SomeContextHandler))
-func WithCtxAdmin(ch contextHandler) baseHandler {
-	return WithCtx(WithSession(WithAdmin(ch), authFallback))	
-}
-
-
-// The main func
-
+// WithAdmin validates that the request has admin privileges, and runs the handler (or returns 401).
+// Privileges are either that the user is logged in, and is an admin; or that the request came from
+// an appengine cron job.
+// https://cloud.google.com/appengine/docs/flexible/nodejs/scheduling-jobs-with-cron-yaml#validating_cron_requests
 func WithAdmin(ch contextHandler) contextHandler {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+		cron := r.Header.Get("x-appengine-cron")
 		sesh,hadSesh := GetUserSession(ctx)
-		if !hadSesh || !IsAdmin(sesh.Email){
+
+		if cron == "" && (!hadSesh || !IsAdmin(sesh.Email)) {
 			http.Error(w, "This URL requires admin access", http.StatusUnauthorized)
 			return
 		}

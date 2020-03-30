@@ -22,7 +22,6 @@ var (
 )
 
 func init() {
-	http.HandleFunc("/heatmap", heatmapHandler)
 	gob.Register(geo.LatlongSlice{})
 }
 

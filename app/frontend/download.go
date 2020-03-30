@@ -15,11 +15,6 @@ import (
 	"github.com/skypies/complaints/ui"
 )
 
-func init() {
-	http.HandleFunc("/download-complaints", ui.WithCtxTlsSession(DownloadHandler,fallbackHandler))
-	http.HandleFunc("/personal-report", ui.WithCtxTlsSession(personalReportHandler,fallbackHandler))
-}
-
 // These guys *should* be in backend, but they depend on user sessions, which segfault
 // because of being in another module or something.
 

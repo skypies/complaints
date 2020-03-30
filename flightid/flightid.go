@@ -17,13 +17,9 @@ import(
 	"github.com/skypies/pi/airspace"
 )
 
-func init() {
-	http.HandleFunc("/cdb/airspace", airspaceHandler)
-}
+// {{{ AirspaceHandler
 
-// {{{ airspaceHandler
-
-func airspaceHandler(w http.ResponseWriter, r *http.Request) {
+func AirspaceHandler(w http.ResponseWriter, r *http.Request) {
 	client := &http.Client{}
 	pos := geo.Latlong{37.060312,-121.990814}
 	str := ""

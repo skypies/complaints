@@ -1,84 +1,59 @@
-# Breaks with "cannot use -o with multiple packages", sigh
-#runtime: go111
-
-runtime: go
-api_version: go1
+runtime: go113
 instance_class: F1
-service: default
+
+#service: default
+service: frontend
 
 automatic_scaling:
   # Default is 8; but there are latency issues that I think are
   # explained by requests blocking each other on the same (single) OS thread.
-  # Only python runtimes support this, sadly.
+  # But only python runtimes support this setting, sadly.
   max_concurrent_requests: 1
 
-inbound_services:
-- mail_bounce
+# FIXME: lock down the /cdb handlers
+#- url: /cdb/.*
 
-# FIXME: all these "login: admin" things need to be checked in the app
+# Note: for go113 etc., the 'application root' directory is the github (module) root
+
 handlers:
-- url: /cdb/.*
-  script: _go_app
-  login: admin
-
-- url: /stats-reset
-  script: _go_app
-  login: admin
-- url: /month
-  script: _go_app
-  login: admin
-
-- url: /email
-  script: _go_app
-  login: admin
-- url: /emails-for-yesterday
-  script: _go_app
-  login: admin
-- url: /masq
-  script: _go_app
-  login: admin
-- url: /_ah/bounce
-  script: _go_app
-  login: admin
-
 - url: /static
-  static_dir: static
+  static_dir: app/frontend/web/static
 
 - url: /sw.js
-  static_files: static/service-worker.js
-  upload: static/service-worker.js
+  static_files: app/frontend/web/static/service-worker.js
+  upload: app/frontend/web/static/service-worker.js
 
 - url: /favicon.ico
-  static_files: static/favicon.ico
-  upload: static/favicon.ico
+  static_files: app/frontend/web/static/favicon.ico
+  upload: app/frontend/web/static/favicon.ico
 
 - url: /apple-touch-icon.png
-  static_files: static/icon.png
-  upload: static/icon.png
+  static_files: app/frontend/web/static/icon.png
+  upload: app/frontend/web/static/icon.png
 - url: /apple-touch-icon-precomposed.png
-  static_files: static/icon.png
-  upload: static/icon.png
+  static_files: app/frontend/web/static/icon.png
+  upload: app/frontend/web/static/icon.png
 
 - url: /apple-touch-icon-76x76.png
-  static_files: static/icon-76.png
-  upload: static/icon-76.png
+  static_files: app/frontend/web/static/icon-76.png
+  upload: app/frontend/web/static/icon-76.png
 - url: /apple-touch-icon-76x76-precomposed.png
-  static_files: static/icon-76.png
-  upload: static/icon-76.png
+  static_files: app/frontend/web/static/icon-76.png
+  upload: app/frontend/web/static/icon-76.png
 
 - url: /apple-touch-icon-120x120.png
-  static_files: static/icon-120.png
-  upload: static/icon-120.png
+  static_files: app/frontend/web/static/icon-120.png
+  upload: app/frontend/web/static/icon-120.png
 - url: /apple-touch-icon-120x120-precomposed.png
-  static_files: static/icon-120.png
-  upload: static/icon-120.png
+  static_files: app/frontend/web/static/icon-120.png
+  upload: app/frontend/web/static/icon-120.png
 
 - url: /apple-touch-icon-152x152.png
-  static_files: static/icon-152.png
-  upload: static/icon-152.png
+  static_files: app/frontend/web/static/icon-152.png
+  upload: app/frontend/web/static/icon-152.png
 - url: /apple-touch-icon-152x152-precomposed.png
-  static_files: static/icon-152.png
-  upload: static/icon-152.png
+  static_files: app/frontend/web/static/icon-152.png
+  upload: app/frontend/web/static/icon-152.png
 
 - url: /.*
-  script: _go_app
+  script: auto

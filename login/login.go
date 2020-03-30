@@ -20,9 +20,9 @@ func getCallbackRelativeUrl(o Oauth2er) string {
 type Oauth2SucessCallback func(w http.ResponseWriter, r *http.Request, email string) error
 
 var(
-	// The caller shoudl configure these values
+	// The caller should configure these values - but *if you do*, they need to call login.Init()
 	Host                        = "https://stop.jetnoise.net"
-	RedirectUrlStem             = "/tmp/login" // oauth2 callbacks will register  under here
+	RedirectUrlStem             = "/login" // oauth2 callbacks will register  under here
 	AfterLoginRelativeUrl       = "/" // where the user finally ends up, after being logged in
 	OnSuccessCallback           Oauth2SucessCallback
 	
@@ -31,7 +31,8 @@ var(
 	Fboauth2 Oauth2er
 )
 
-func init() {
+// The caller *must* call this, after they've set the vars above
+func Init() {
 	Goauth2  = NewGoogleOauth2()
 	Fboauth2 = NewFacebookOauth2()
 

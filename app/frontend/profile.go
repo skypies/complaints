@@ -15,15 +15,6 @@ import (
 	"github.com/skypies/complaints/ui"
 )
 
-func init() {
-	http.HandleFunc("/profile", ui.WithCtxTlsSession(profileFormHandler,fallbackHandler))
-	http.HandleFunc("/profile-update", ui.WithCtxTlsSession(profileUpdateHandler,fallbackHandler))
-
-	http.HandleFunc("/profile-buttons", ui.WithCtxTlsSession(profileButtonsHandler,fallbackHandler))
-	http.HandleFunc("/profile-button-add", ui.WithCtxTlsSession(profileButtonAddHandler,fallbackHandler))
-	http.HandleFunc("/profile-button-delete", ui.WithCtxTlsSession(profileButtonDeleteHandler,fallbackHandler))
-}
-
 // {{{ profileFormHandler
 
 func profileFormHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -115,8 +106,8 @@ func profileUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Re
 
 	// Sometimes, we have the raw string, but not the structured bits.
 	// This call will go to the Google Maps geocoder API to parse it.
-	if p.StructuredAddress.Street == "" && p.Address != "" {
-		p.UpdateStructuredAddress()
+	if cp.StructuredAddress.Street == "" && cp.Address != "" {
+		cp.UpdateStructuredAddress()
 	}
 
 	// Preserve some values from the old profile

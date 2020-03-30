@@ -7,13 +7,9 @@ import (
 	"github.com/skypies/complaints/complaintdb"
 )
 
-func init() {
-	http.HandleFunc("/stats", statsHandler)
-	//http.HandleFunc("/stats-reset", statsResetHandler)
-}
-
 // {{{ statsResetHandler
 
+// Just don't call this. It will be a nightmare to rebuild them.
 func statsResetHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
 	complaintdb.NewDB(ctx).ResetGlobalStats()

@@ -10,7 +10,6 @@ import(
 	"github.com/skypies/flightdb/ui"
 	"github.com/skypies/util/date"
 	"github.com/skypies/util/widget"
-	appengineds "github.com/skypies/util/ae/ds"
 )
 
 var templates *template.Template
@@ -18,10 +17,10 @@ var templates *template.Template
 func init() {
 	// Load up our parsing functions, and the ones for flightdb templates
 	base := template.New("").Funcs(GetFuncMap()).Funcs(ui.TemplateFuncMap())
-	templates = widget.ParseRecursive(base, "templates")
+	templates = widget.ParseRecursive(base, "app/frontend/web/templates")
 
 	// Kind of a hack; we can only trigger this after templates has been initialized.
-	http.HandleFunc("/map", widget.WithCtxTmpl(appengineds.CtxMakerFunc, templates, ui.MapHandler))
+	http.HandleFunc("/map", widget.WithCtxTmpl(req2ctx, templates, ui.MapHandler))
 }
 
 func GetFuncMap() template.FuncMap {

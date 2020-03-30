@@ -38,18 +38,6 @@ var (
 
 // }}}
 
-func init() {
-	http.HandleFunc("/button", buttonHandler)
-
-	//ui.WithCtxTlsSession(rootHandler, fallbackHandler))
-  http.HandleFunc("/add-complaint", ui.WithCtxTlsSession(addComplaintHandler, fallbackHandler))
-	http.HandleFunc("/add-historical-complaint", ui.WithCtxTlsSession(addHistoricalComplaintHandler,fallbackHandler))
-	http.HandleFunc("/update-complaint", ui.WithCtxTlsSession(updateComplaintHandler,fallbackHandler))
-	http.HandleFunc("/delete-complaints", ui.WithCtxTlsSession(deleteComplaintsHandler,fallbackHandler))
-	http.HandleFunc("/view-complaint", ui.WithCtxTlsSession(viewComplaintHandler,fallbackHandler))
-	http.HandleFunc("/complaint-updateform", ui.WithCtxTlsSession(complaintUpdateFormHandler,fallbackHandler))
-}
-
 // {{{ form2Complaint
 
 // /add-complaint?loudness=timestamp_epoch=1441214141&flight=UA123

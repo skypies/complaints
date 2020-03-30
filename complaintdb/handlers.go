@@ -15,10 +15,6 @@ import(
 	"github.com/skypies/complaints/complaintdb/types"
 )
 
-func init() {
-	http.HandleFunc("/cdb/comp/debug", ComplaintDebugHandler)
-}
-
 func req2ctx(r *http.Request) context.Context {
 	ctx,_ := context.WithTimeout(r.Context(), 9 * time.Minute)
 	return ctx

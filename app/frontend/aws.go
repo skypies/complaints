@@ -12,10 +12,6 @@ import (
 	"github.com/skypies/complaints/config"
 )
 
-func init() {
-	http.HandleFunc("/aws-iot", awsIotHandler)
-}
-
 // Comes from this lambda: https://www.losant.com/blog/getting-started-with-aws-iot-button-losant
 // {"clickType":"SINGLE", "serialNumber":"DEADBEEFDEADBEEF", "batteryVoltage":"1582mV"}
 type AwsIotEvent struct {

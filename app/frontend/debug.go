@@ -8,21 +8,12 @@ import (
 	
 	"golang.org/x/net/context"
 
-	// "google.golang.org/ appengine"
-	// "google.golang.org/ appengine/log"
-
 	"github.com/skypies/util/date"
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
 	"github.com/skypies/complaints/ui"
 )
-
-func init() {
-	//http.HandleFunc("/deb", debHandler)
-	//http.HandleFunc("/deb2", debugHandler3)
-	//http.HandleFunc("/deb4", countsHandler)
-}
 
 // {{{ debHandler
 

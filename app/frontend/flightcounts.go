@@ -12,11 +12,7 @@ import (
 	"github.com/skypies/util/widget"
 )
 
-func init() {
-	http.HandleFunc("/complaints-for", complaintsForHandler)
-}
-
-// {{{ complaintsForHandler
+// {{{ complaintsForFlightHandler
 
 // ?flight=UA123        (IATA flight number)
 // &start=123&end=123   (epochs; defaults to current PDT day)
@@ -27,7 +23,7 @@ func (a timeAsc) Len() int           { return len(a) }
 func (a timeAsc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a timeAsc) Less(i, j int) bool { return a[i].Before(a[j]) }
 
-func complaintsForHandler(w http.ResponseWriter, r *http.Request) {
+func complaintsForFlightHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := req2ctx(r)
 
 	s,e := widget.FormValueEpochTime(r,"start"),widget.FormValueEpochTime(r,"end")

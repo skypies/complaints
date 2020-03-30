@@ -12,8 +12,6 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
-	// "google.golang.org/ appengine"
-	// "google.golang.org/ appengine/aetest"
 )
 
 //var inst aetest.Instance
@@ -67,7 +65,7 @@ func call(t *testing.T, r *http.Request, handler baseHandler) (int,http.Header,s
 // doing all the cookie crypto stuff.
 func withSpoofedSession(sesh ui.UserSession, ch contextHandler) baseHandler {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx,_ := context.WithTimeout(appengine.NewContext(r), 55 * time.Second)
+		ctx,_ := context.WithTimeout(r.Context(), 55 * time.Second)
 		ctx = ui.SetUserSession(ctx, sesh)
 
 		ch(ctx, w, r)

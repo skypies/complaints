@@ -8,16 +8,13 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
-	// "google.golang.org/ appengine/log"
-	// "google.golang.org/ appengine/user"
 
 	"github.com/skypies/util/date"
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
 	"github.com/skypies/complaints/config"
+	"github.com/skypies/complaints/flightid"
 	"github.com/skypies/complaints/login"
-	// "github.com/skypies/complaints/fb"
-	// "github.com/skypies/complaints/g"
 	"github.com/skypies/complaints/ui"
 )
 
@@ -28,25 +25,51 @@ var(
 )
 
 func init() {
-	http.HandleFunc("/",       ui.WithCtxTlsSession(rootHandler, fallbackHandler))
-	http.HandleFunc("/masq",   ui.WithCtxTlsSession(masqueradeHandler, fallbackHandler))
-	http.HandleFunc("/logout", ui.WithCtx(logoutHandler))
-
-	http.HandleFunc("/faq",    faqHandler)
-	http.HandleFunc("/intro",  gettingStartedHandler)
-	
-	http.HandleFunc("/zip",                     makeRedirectHandler("/report/zip"))
-	http.HandleFunc("/personal-report/results", makeRedirectHandler("/personal-report"))
-
 	ui.InitSessionStore(config.Get("sessions.key"), config.Get("sessions.prevkey"))
 
 	login.OnSuccessCallback = func(w http.ResponseWriter, r *http.Request, email string) error {
 		ui.CreateSession(r.Context(), w, r, ui.UserSession{Email:email})
 		return nil
 	}
-	login.Host                  = "https://stop.jetnoise.net"
+	login.Host                  = "https://frontend-dot-serfr0-1000.appspot.com"
+	//login.Host                  = "https://stop.jetnoise.net"
 	login.RedirectUrlStem       = "/login" // oauth2 callbacks will register  under here
 	login.AfterLoginRelativeUrl = "/" // where the user finally ends up, after being logged in
+	login.Init()
+
+	http.HandleFunc("/",                      ui.WithCtxTlsSession(rootHandler, fallbackHandler))
+	http.HandleFunc("/masq",                  ui.WithCtxTlsAdmin(masqueradeHandler))
+	http.HandleFunc("/logout",                ui.WithCtx(logoutHandler))
+	http.HandleFunc("/faq",                   faqHandler)
+	http.HandleFunc("/intro",                 gettingStartedHandler)
+	http.HandleFunc("/down",                  flatPageHandler)
+
+	http.HandleFunc("/cdb/list",              ui.WithCtxTlsAdmin(listUsersComplaintsHandler))
+	http.HandleFunc("/cdb/airspace",          ui.HasAdmin(flightid.AirspaceHandler))
+	http.HandleFunc("/cdb/comp/debug",        ui.HasAdmin(complaintdb.ComplaintDebugHandler))
+
+	http.HandleFunc("/download-complaints",   ui.WithCtxTlsSession(DownloadHandler,fallbackHandler))
+	http.HandleFunc("/personal-report",       ui.WithCtxTlsSession(personalReportHandler,fallbackHandler))
+	http.HandleFunc("/personal-report/results", makeRedirectHandler("/personal-report"))
+
+	http.HandleFunc("/profile",               ui.WithCtxTlsSession(profileFormHandler,fallbackHandler))
+	http.HandleFunc("/profile-update",        ui.WithCtxTlsSession(profileUpdateHandler,fallbackHandler))
+	http.HandleFunc("/profile-buttons",       ui.WithCtxTlsSession(profileButtonsHandler,fallbackHandler))
+	http.HandleFunc("/profile-button-add",    ui.WithCtxTlsSession(profileButtonAddHandler,fallbackHandler))
+	http.HandleFunc("/profile-button-delete", ui.WithCtxTlsSession(profileButtonDeleteHandler,fallbackHandler))
+
+	http.HandleFunc("/button",                buttonHandler)
+	http.HandleFunc("/add-complaint",         ui.WithCtxTlsSession(addComplaintHandler, fallbackHandler))
+	http.HandleFunc("/add-historical-complaint", ui.WithCtxTlsSession(addHistoricalComplaintHandler,fallbackHandler))
+	http.HandleFunc("/update-complaint",      ui.WithCtxTlsSession(updateComplaintHandler,fallbackHandler))
+	http.HandleFunc("/delete-complaints",     ui.WithCtxTlsSession(deleteComplaintsHandler,fallbackHandler))
+	http.HandleFunc("/view-complaint",        ui.WithCtxTlsSession(viewComplaintHandler,fallbackHandler))
+	http.HandleFunc("/complaint-updateform",  ui.WithCtxTlsSession(complaintUpdateFormHandler,fallbackHandler))
+
+	http.HandleFunc("/heatmap",               heatmapHandler)
+	http.HandleFunc("/aws-iot",               awsIotHandler)
+	http.HandleFunc("/stats",                 statsHandler)
+	http.HandleFunc("/complaints-for",        complaintsForFlightHandler)
 }
 
 // {{{ HintedComplaints
