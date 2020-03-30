@@ -28,16 +28,18 @@ func IsAdmin(email string) bool {
 	return exists
 }
 
-// Convenience combos
+// Convenience combos.
+// In all of them, use the main handler as the authFallback too, because we want to run it whether we find a
+// usersession or not.
 func WithCtxAdmin(ch contextHandler) baseHandler {
-	return WithCtx(WithSession(WithAdmin(ch), authFallback))
+	return WithCtx(WithSession(WithAdmin(ch), WithAdmin(ch)))
 }
 func WithCtxTlsAdmin(ch contextHandler) baseHandler {
-	return WithCtx(WithTLS(WithSession(WithAdmin(ch), authFallback)))
+	return WithCtx(WithTLS(WithSession(WithAdmin(ch), WithAdmin(ch))))
 }
-
 func HasAdmin(bh baseHandler) baseHandler {
-	return WithCtx(WithSession(WithAdmin(WithoutCtx(bh)), authFallback))	
+	handler := WithAdmin(WithoutCtx(bh))
+	return WithCtx(WithSession(handler, handler))
 }
 
 // WithAdmin validates that the request has admin privileges, and runs the handler (or returns 401).
@@ -48,17 +50,25 @@ func WithAdmin(ch contextHandler) contextHandler {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 		cron := r.Header.Get("x-appengine-cron")
 		sesh,hadSesh := GetUserSession(ctx)
+		//log.Printf("WithAdmin: hadSesh=%v, sesh=%#v, cron=%q", hadSesh, sesh, cron)
 
-		if cron == "" && (!hadSesh || !IsAdmin(sesh.Email)) {
-			http.Error(w, "This URL requires admin access", http.StatusUnauthorized)
+		haveAdmin := false
+		if cron != "" {
+			haveAdmin = true
+		} else if hadSesh && IsAdmin(sesh.Email) {
+			haveAdmin = true
+		}
+
+		if !haveAdmin {
+			errstr := "This URL requires you to be logged in"
+			if hadSesh {
+				errstr = "This URL requires admin access"
+			}
+			http.Error(w, errstr, http.StatusUnauthorized)
 			return
 		}
 				
 		// We have admin rights - run the handler
 		ch(ctx,w,r)
 	}
-}
-
-func authFallback(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "This URL requires you to be logged in", http.StatusUnauthorized)
 }
