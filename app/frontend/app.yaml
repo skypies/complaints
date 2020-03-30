@@ -1,8 +1,7 @@
 runtime: go113
 instance_class: F1
 
-#service: default
-service: frontend
+service: default
 
 automatic_scaling:
   # Default is 8; but there are latency issues that I think are
@@ -10,10 +9,8 @@ automatic_scaling:
   # But only python runtimes support this setting, sadly.
   max_concurrent_requests: 1
 
-# FIXME: lock down the /cdb handlers
-#- url: /cdb/.*
-
-# Note: for go113 etc., the 'application root' directory is the github (module) root
+# Note: for go113 etc., the 'application root' directory is the github (module) root. So
+# all the static paths are fully prefixed with app/frontend/.
 
 handlers:
 - url: /static
@@ -22,7 +19,6 @@ handlers:
 - url: /sw.js
   static_files: app/frontend/web/static/service-worker.js
   upload: app/frontend/web/static/service-worker.js
-
 - url: /favicon.ico
   static_files: app/frontend/web/static/favicon.ico
   upload: app/frontend/web/static/favicon.ico
@@ -33,21 +29,18 @@ handlers:
 - url: /apple-touch-icon-precomposed.png
   static_files: app/frontend/web/static/icon.png
   upload: app/frontend/web/static/icon.png
-
 - url: /apple-touch-icon-76x76.png
   static_files: app/frontend/web/static/icon-76.png
   upload: app/frontend/web/static/icon-76.png
 - url: /apple-touch-icon-76x76-precomposed.png
   static_files: app/frontend/web/static/icon-76.png
   upload: app/frontend/web/static/icon-76.png
-
 - url: /apple-touch-icon-120x120.png
   static_files: app/frontend/web/static/icon-120.png
   upload: app/frontend/web/static/icon-120.png
 - url: /apple-touch-icon-120x120-precomposed.png
   static_files: app/frontend/web/static/icon-120.png
   upload: app/frontend/web/static/icon-120.png
-
 - url: /apple-touch-icon-152x152.png
   static_files: app/frontend/web/static/icon-152.png
   upload: app/frontend/web/static/icon-152.png
