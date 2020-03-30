@@ -25,24 +25,23 @@ var(
 )
 
 func init() {
-	http.HandleFunc("/report/summary", summaryReportHandler)
-	
-	http.HandleFunc("/overnight/csv", csvHandler)
-	http.HandleFunc("/overnight/monthly-report", monthlySummaryReportHandler)
-	http.HandleFunc("/overnight/counts", countsHandler)
-	
-	http.HandleFunc("/overnight/bigquery/day", publishComplaintsDayHandler)
-	// http.HandleFunc("/overnight/bigquery/all", publishComplaintsAllHandler)
-	
-	http.HandleFunc(emailerUrlStem+"/yesterday",  emailYesterdayHandler)
+	http.HandleFunc("/report/summary",                  ui.HasAdmin(summaryReportHandler))
 
-	http.HandleFunc("/overnight/submissions/debug", SubmissionsDebugHandler)
-	http.HandleFunc("/overnight/submissions/debugcomp", complaintdb.ComplaintDebugHandler)
+	http.HandleFunc("/overnight/csv",                   ui.HasAdmin(csvHandler))
+	http.HandleFunc("/overnight/monthly-report",        ui.HasAdmin(monthlySummaryReportHandler))
+	http.HandleFunc("/overnight/counts",                ui.HasAdmin(countsHandler))
 
-	http.HandleFunc(bksvStem+"/scan-dates",       bksvScanDateRangeHandler)
-	http.HandleFunc(bksvStem+"/scan-day",         bksvScanDayHandler)
-	http.HandleFunc(bksvStem+"/scan-yesterday",   bksvScanDayHandler)
-	http.HandleFunc(bksvStem+"/submit-complaint", bksvSubmitComplaintHandler)
+	http.HandleFunc("/overnight/bigquery/day",          ui.HasAdmin(publishComplaintsDayHandler))
+
+	http.HandleFunc(emailerUrlStem+"/yesterday",        ui.HasAdmin(emailYesterdayHandler))
+
+	http.HandleFunc("/overnight/submissions/debug",     ui.HasAdmin(SubmissionsDebugHandler))
+	http.HandleFunc("/overnight/submissions/debugcomp", ui.HasAdmin(complaintdb.ComplaintDebugHandler))
+
+	http.HandleFunc(bksvStem+"/scan-dates",             ui.HasAdmin(bksvScanDateRangeHandler))
+	http.HandleFunc(bksvStem+"/scan-day",               ui.HasAdmin(bksvScanDayHandler))
+	http.HandleFunc(bksvStem+"/scan-yesterday",         ui.HasAdmin(bksvScanDayHandler))
+	http.HandleFunc(bksvStem+"/submit-complaint",       ui.HasAdmin(bksvSubmitComplaintHandler))
 
 	templates = ui.LoadTemplates("app/overnight/web/templates")
 	ui.InitSessionStore(config.Get("sessions.key"), config.Get("sessions.prevkey"))
