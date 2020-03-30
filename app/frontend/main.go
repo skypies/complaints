@@ -10,6 +10,10 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
+	"github.com/skypies/util/widget"
+
+	fdbui "github.com/skypies/flightdb/ui"
+
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
 	"github.com/skypies/complaints/config"
@@ -19,12 +23,15 @@ import (
 )
 
 var(
+	templates *template.Template
+
 	// Whenever a handler is required to have a session, but doesn't have one, it will
 	// invoke this handler instead.
 	fallbackHandler = landingPageHandler
 )
 
 func init() {
+	templates = ui.LoadTemplates("app/frontend/web/templates")
 	ui.InitSessionStore(config.Get("sessions.key"), config.Get("sessions.prevkey"))
 
 	login.OnSuccessCallback = func(w http.ResponseWriter, r *http.Request, email string) error {
@@ -70,6 +77,8 @@ func init() {
 	http.HandleFunc("/aws-iot",               awsIotHandler)
 	http.HandleFunc("/stats",                 statsHandler)
 	http.HandleFunc("/complaints-for",        complaintsForFlightHandler)
+
+	http.HandleFunc("/map",                   widget.WithCtxTmpl(req2ctx, templates, fdbui.MapHandler))
 }
 
 // {{{ HintedComplaints
