@@ -46,17 +46,21 @@ func HasAdmin(bh baseHandler) baseHandler {
 // Privileges are either that the user is logged in, and is an admin; or that the request came from
 // an appengine cron job.
 // https://cloud.google.com/appengine/docs/flexible/nodejs/scheduling-jobs-with-cron-yaml#validating_cron_requests
+// https://cloud.google.com/tasks/docs/creating-appengine-handlers#reading_app_engine_task_request_headers
 func WithAdmin(ch contextHandler) contextHandler {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-		cron := r.Header.Get("x-appengine-cron")
+		fromCron := r.Header.Get("x-appengine-cron")
+		fromCloudTasks := r.Header.Get("x-appengine-queuename")
+
 		sesh,hadSesh := GetUserSession(ctx)
-		//log.Printf("WithAdmin: hadSesh=%v, sesh=%#v, cron=%q", hadSesh, sesh, cron)
+		//log.Printf("WithAdmin: hadSesh=%v, sesh=%#v, cron=%q, cloudtasks=%q", hadSesh, sesh, fromCron, fromCloudTasks)
 
 		haveAdmin := false
-		if cron != "" {
-			haveAdmin = true
-		} else if hadSesh && IsAdmin(sesh.Email) {
-			haveAdmin = true
+		switch {
+		case fromCron != "":                 haveAdmin = true
+		case fromCloudTasks != "":           haveAdmin = true
+		case hadSesh && IsAdmin(sesh.Email): haveAdmin = true
+		default:                             haveAdmin = false
 		}
 
 		if !haveAdmin {
