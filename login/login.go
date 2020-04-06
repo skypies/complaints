@@ -3,6 +3,7 @@ package login
 // Generic oauth2 stuff, and impls for Google and Facebook
 
 import(
+	"log"
 	"net/http"
 )
 
@@ -46,12 +47,14 @@ func Init() {
 func NewOauth2Handler(oauth2 Oauth2er) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if email,err := oauth2.CallbackToEmail(r); err != nil {
+			log.Printf("NewOauth2Handler/CallbackToEmail: %v\n", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 
 		} else {
 			if OnSuccessCallback != nil {
 				if err := OnSuccessCallback(w,r,email); err != nil {
+					log.Printf("NewOauth2Handler/OnSuccessCallback: %v\n", err)
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
