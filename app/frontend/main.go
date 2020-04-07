@@ -38,8 +38,8 @@ func init() {
 		ui.CreateSession(r.Context(), w, r, ui.UserSession{Email:email})
 		return nil
 	}
-	//login.Host                  = "https://stop.jetnoise.net"
-	login.Host                  = "https://frontend-dot-serfr0-1000.appspot.com"
+	login.Host                  = "https://stop.jetnoise.net"
+	//login.Host                  = "https://frontend-dot-serfr0-1000.appspot.com"
 	login.RedirectUrlStem       = "/login" // oauth2 callbacks will register  under here
 	login.AfterLoginRelativeUrl = "/" // where the user finally ends up, after being logged in
 	login.Init()
