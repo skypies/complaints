@@ -8,9 +8,6 @@ import (
 
 	"golang.org/x/net/context"
 
-	// "google.golang.org/ appengine"
-	// "google.golang.org/ appengine/aetest" // Also used for testing Cloud API, in theory
-
 	"github.com/skypies/util/gcp/ds"
 	"github.com/skypies/complaints/complaintdb/types"
 )

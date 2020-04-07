@@ -7,9 +7,6 @@ import (
 	"sort"
 	"time"
 
-	// "google.golang.org/ appengine/user"
-	// aelog "google.golang.org/ appengine/log"
-	// "google.golang.org/ appengine/urlfetch"
 	"golang.org/x/net/context"
 
 	"github.com/skypies/util/gcp/ds"
@@ -46,7 +43,7 @@ func NewDB(ctx context.Context) ComplaintDB {
 			StartTime: time.Now(),
 			// FIXME: find a way to figure out admin users during cdb.NewDB()
 			admin: false, // (user.Current(ctx) != nil && user.Current(ctx).Admin),
-			Provider: p, // appengineds.AppengineDSProvider{},
+			Provider: p,
 		}
 	}
 }

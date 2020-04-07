@@ -8,9 +8,6 @@ import(
 	"strings"
 	"time"
 
-	// "google.golang.org/ appengine"
-	// "google.golang.org/ appengine/urlfetch"
-
 	fdb "github.com/skypies/flightdb"
 	"github.com/skypies/flightdb/fr24"
 	"github.com/skypies/geo"
