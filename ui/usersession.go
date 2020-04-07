@@ -24,13 +24,15 @@ func InitSessionStore(key, prevkey string) {
 	Debug = fmt.Sprintf("ui.usersessions.Init (%d,%d bytes)", len(key), len(prevkey))
 }
 
-// Pretty much all handlers should expect to be able to pluck this object out of their Context
+// Pretty much all handlers should expect to be able to pluck this object out of their
+// Context; see handlerware.go
 type UserSession struct {
 	Email        string     // case sensitive, sadly
 	CreatedAt    time.Time  // when the user last went through the OAuth2 dance
 }
 
 func (us UserSession)IsEmpty() bool { return us.Email == "" }
+func (us UserSession)IsAdmin() bool { return !us.IsEmpty() && IsAdmin(us.Email) }
 
 // Assumes the serfr0 cookie is present
 func Req2Session(r *http.Request, crumbs *CrumbTrail) (UserSession, error) {

@@ -33,16 +33,21 @@ func (cdb ComplaintDB)Ctx() context.Context { return cdb.ctx }
 func (cdb ComplaintDB)HTTPClient() *http.Client { return &http.Client{} }
 
 func NewDB(ctx context.Context) ComplaintDB {
-	// FIXME: un-hardcode the project ID
-	if p,err := ds.NewCloudDSProvider(ctx, "serfr0-1000"); err != nil {
-		panic(fmt.Errorf("NewDB: could not get a clouddsprovider: %v\n", err))
+	props,propsOk := GetContextProperties(ctx)
+
+	projectId := "serfr0-1000"
+	if propsOk && props.ProjectId != "" {
+		projectId = props.ProjectId
+	}
+	
+	if p,err := ds.NewCloudDSProvider(ctx, projectId); err != nil {
+		panic(fmt.Errorf("NewDB: could not get a clouddsprovider (projectId=%s): %v\n", projectId, err))
 
 	} else {
 		return ComplaintDB{
 			ctx: ctx,
 			StartTime: time.Now(),
-			// FIXME: find a way to figure out admin users during cdb.NewDB()
-			admin: false, // (user.Current(ctx) != nil && user.Current(ctx).Admin),
+			admin: (propsOk && props.IsAdmin==true),
 			Provider: p,
 		}
 	}

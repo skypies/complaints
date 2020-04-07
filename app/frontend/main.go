@@ -184,9 +184,8 @@ func rootHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	}
 	cdb.Debugf("root_005", "cdb.GetAllByEmailAddress done")
 
-	// FIXME: how to check if complaints user is admin user / 
-	//modes["admin"] = user.Current(ctx)!=nil && user.Current(ctx).Admin
-	//modes["superuser"] = modes["admin"]
+	modes["admin"] = sesh.IsAdmin()
+	modes["superuser"] = modes["admin"]
 
 	// Default to "", unless we had a complaint in the past hour.
 	lastActivity := ""
