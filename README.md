@@ -7,9 +7,9 @@ Prerequisites:
 * define your Go workspace: `export GOPATH=~/go`
 
 Download and run the site locally:
-* `go get github.com/skypies/complaints/app` (pulls down all dependencies)
+* `go get github.com/skypies/complaints/app/frontend` (pulls down all dependencies)
 * `mv complaints/config/test-values.go.sample complaints/config/test-values.go` (setup test config)
-* `dev_appserver.py $GOPATH/github.com/skypies/complaints/app` (build & run locally)
+* `go run $GOPATH/github.com/skypies/complaints/app/frontend/*go` (build & run locally)
 * Look at <http://localhost:8080/> (appengine admin panel is <http://localhost:8000/>)
 
 Deploy an instance of the site to your google cloud project:
@@ -24,14 +24,3 @@ Deploy an instance of the site to your google cloud project:
 
 The `test-values.go.sample` sample file has no passwords in, so
 Facebook login won't be working.
-
-
----- DELETE ME
-
-new ui/handlerware.go
- - a 'provides session' handler
- - if no serfr0 cookie (or no validcontents), invoke landingPageHandler
- - else read session, push into ctx
- - in all circumstances, drop a
-
-new ui/session.go (which provides helpers to handlerware)

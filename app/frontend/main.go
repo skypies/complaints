@@ -10,6 +10,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
+	"github.com/skypies/util/login"	
 	"github.com/skypies/util/widget"
 
 	fdbui "github.com/skypies/flightdb/ui"
@@ -18,7 +19,6 @@ import (
 	"github.com/skypies/complaints/complaintdb/types"
 	"github.com/skypies/complaints/config"
 	"github.com/skypies/complaints/flightid"
-	"github.com/skypies/complaints/login"
 	"github.com/skypies/complaints/ui"
 )
 
@@ -39,9 +39,12 @@ func init() {
 		return nil
 	}
 	login.Host                  = "https://stop.jetnoise.net"
-	//login.Host                  = "https://frontend-dot-serfr0-1000.appspot.com"
 	login.RedirectUrlStem       = "/login" // oauth2 callbacks will register  under here
 	login.AfterLoginRelativeUrl = "/" // where the user finally ends up, after being logged in
+	login.GoogleClientID        = config.Get("google.oauth2.appid")
+	login.GoogleClientSecret    = config.Get("google.oauth2.secret")
+	login.FacebookClientID      = config.Get("facebook.oauth2.appid")
+	login.FacebookClientSecret  = config.Get("facebook.oauth2.secret")
 	login.Init()
 
 	http.HandleFunc("/",                      ui.WithCtxTlsSession(rootHandler, fallbackHandler))
