@@ -1,35 +1,31 @@
 cron:
-- description: Send new complaint emails
+- description: Daily - send new complaint emails
   url: /overnight/emailer/yesterday
   schedule: every day 01:40
   timezone: America/Los_Angeles
 
-- description: Daily complaints to BKSV via their API
+- description: Daily - complaints to BKSV via their API
   url: /overnight/bksv/scan-yesterday
   schedule: every day 02:02
   timezone: America/Los_Angeles
 
-- description: Write monthly CSV into GCS
-  url: /overnight/csv
-  schedule: 1 of month 04:00
-  timezone: America/Los_Angeles
-
-- description: Write monthly ascii report into GCS
-  url: /overnight/monthly-report
-  schedule: 1 of month 04:30
-  timezone: America/Los_Angeles
-
-- description: Publish complaints to BigQuery
+- description: Daily - publish complaints to BigQuery
   url: /overnight/bigquery/day?datestring=yesterday
   schedule: every day 00:10
   timezone: America/Los_Angeles
 
-- description: Update the daily totals
+- description: Daily - update the daily totals
   url: /overnight/counts?date=yesterday
   schedule: every day 00:05
   timezone: America/Los_Angeles
 
-- description: Write monthly ascii report into GCS
+- description: Monthly - ascii report into GCS
   url: /overnight/monthly-report
   schedule: 1 of month 04:30
   timezone: America/Los_Angeles
+
+# We no longer need this, now that we're doing daily API pushes
+# - description: Monthly - CSV report into GCS
+#   url: /overnight/csv
+#   schedule: 1 of month 04:00
+#   timezone: America/Los_Angeles
