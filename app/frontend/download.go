@@ -9,10 +9,10 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
+	hw "github.com/skypies/util/handlerware"
 	"github.com/skypies/util/widget"
 	
 	"github.com/skypies/complaints/complaintdb"
-	"github.com/skypies/complaints/ui"
 )
 
 // These guys *should* be in backend, but they depend on user sessions, which segfault
@@ -60,7 +60,7 @@ func keysByKeyAsc(m map[string]int) []string {
 // {{{ DownloadHandler
 
 func DownloadHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	sesh,_ := ui.GetUserSession(ctx)
+	sesh,_ := hw.GetUserSession(ctx)
 
 	filename := date.NowInPdt().Format("complaints-20060102.csv")
 	w.Header().Set("Content-Type", "application/csv")
@@ -113,7 +113,7 @@ func DownloadHandler(ctx context.Context, w http.ResponseWriter, r *http.Request
 // {{{ personalReportHandler
 
 func personalReportHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	sesh,_ := ui.GetUserSession(ctx)
+	sesh,_ := hw.GetUserSession(ctx)
 
 	if r.FormValue("date") == "" {
 		var params = map[string]interface{}{

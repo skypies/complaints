@@ -8,11 +8,12 @@ import (
 
 	"golang.org/x/net/context"
 
+	hw "github.com/skypies/util/handlerware"
+
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
 	"github.com/skypies/complaints/config"
 	"github.com/skypies/complaints/flightid"
-	"github.com/skypies/complaints/ui"
 )
 
 // {{{ profileFormHandler
@@ -29,7 +30,7 @@ func profileFormHandler(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	sesh,_ := ui.GetUserSession(ctx)
+	sesh,_ := hw.GetUserSession(ctx)
 	cdb := complaintdb.NewDB(ctx)
 	cp,_ := cdb.LookupProfile(sesh.Email)
 	if cp.EmailAddress == "" {
@@ -77,7 +78,7 @@ func profileUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	sesh,_ := ui.GetUserSession(ctx)
+	sesh,_ := hw.GetUserSession(ctx)
 
 	cp := types.ComplainerProfile{
 		EmailAddress: sesh.Email,
@@ -129,7 +130,7 @@ func profileUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Re
 // {{{ profileButtonsHandler
 
 func profileButtonsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	sesh,_ := ui.GetUserSession(ctx)
+	sesh,_ := hw.GetUserSession(ctx)
 	cdb := complaintdb.NewDB(ctx)
 	cp,_ := cdb.LookupProfile(sesh.Email)
 	
@@ -148,7 +149,7 @@ func sanitizeButtonId(in string) string {
 
 func profileButtonAddHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(ctx)
-	sesh,_ := ui.GetUserSession(ctx)
+	sesh,_ := hw.GetUserSession(ctx)
 	
 	cp, _ := cdb.LookupProfile(sesh.Email)
 
@@ -189,7 +190,7 @@ func profileButtonAddHandler(ctx context.Context, w http.ResponseWriter, r *http
 
 func profileButtonDeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(ctx)
-	sesh,_ := ui.GetUserSession(ctx)
+	sesh,_ := hw.GetUserSession(ctx)
 	cp,_ := cdb.LookupProfile(sesh.Email)
 
 	str := "OK\n--\n"

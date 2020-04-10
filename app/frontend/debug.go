@@ -9,10 +9,10 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
+	hw "github.com/skypies/util/handlerware"
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
-	"github.com/skypies/complaints/ui"
 )
 
 // {{{ debHandler
@@ -26,7 +26,7 @@ func debHandler(w http.ResponseWriter, r *http.Request) {
 // {{{ debSessionHandler
 
 func debSessionHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	sesh,ok := ui.GetUserSession(ctx)
+	sesh,ok := hw.GetUserSession(ctx)
 	str := fmt.Sprintf("OK\nctx = [%T] %v\nemail=%s, ok=%v\n", ctx, ctx, sesh.Email, ok) 
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(str))

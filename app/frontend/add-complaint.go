@@ -9,11 +9,11 @@ import (
 
 	"github.com/skypies/util/date"
 	"github.com/skypies/util/gcp/ds"
+	hw "github.com/skypies/util/handlerware"
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
 	"github.com/skypies/complaints/flightid"
-	"github.com/skypies/complaints/ui"
 )
 // {{{ kActivities = []string
 
@@ -101,7 +101,7 @@ func buttonHandler(w http.ResponseWriter, r *http.Request) {
 
 func complaintUpdateFormHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(ctx)
-	sesh,_ := ui.GetUserSession(ctx)
+	sesh,_ := hw.GetUserSession(ctx)
 
 	key := r.FormValue("k")
 
@@ -133,7 +133,7 @@ func complaintUpdateFormHandler(ctx context.Context, w http.ResponseWriter, r *h
 func addComplaintHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(ctx)
 	
-	sesh,_ := ui.GetUserSession(ctx)
+	sesh,_ := hw.GetUserSession(ctx)
 	cdb.Debugf("ac_001", "session obtained: tstamp=%s, age=%s", sesh.CreatedAt, time.Since(sesh.CreatedAt))
 
 	complaint := form2Complaint(r)
@@ -154,7 +154,7 @@ func addComplaintHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 
 func addHistoricalComplaintHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(ctx)
-	sesh,_ := ui.GetUserSession(ctx)	
+	sesh,_ := hw.GetUserSession(ctx)	
 	complaint := form2Complaint(r)
 
 	if err := cdb.AddHistoricalComplaintByEmailAddress(sesh.Email, &complaint); err != nil {
@@ -171,7 +171,7 @@ func addHistoricalComplaintHandler(ctx context.Context, w http.ResponseWriter, r
 
 func updateComplaintHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(ctx)
-	sesh,_ := ui.GetUserSession(ctx)	
+	sesh,_ := hw.GetUserSession(ctx)	
 
 	new := form2Complaint(r)
 	newFlightNumber := r.FormValue("manualflightnumber")
@@ -216,7 +216,7 @@ func updateComplaintHandler(ctx context.Context, w http.ResponseWriter, r *http.
 
 func deleteComplaintsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(ctx)
-	sesh,_ := ui.GetUserSession(ctx)	
+	sesh,_ := hw.GetUserSession(ctx)	
 	
 	r.ParseForm()
 	// This is so brittle; need to move away from display text
@@ -251,7 +251,7 @@ func deleteComplaintsHandler(ctx context.Context, w http.ResponseWriter, r *http
 // This handler isn't complete; only renders the debug blob for now.
 func viewComplaintHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	cdb := complaintdb.NewDB(ctx)
-	sesh,_ := ui.GetUserSession(ctx)
+	sesh,_ := hw.GetUserSession(ctx)
 
 	key := r.FormValue("k")
 

@@ -6,3 +6,8 @@ dispatch:
 - url: "*/overnight/*"
   module: overnight
 
+# - url: "*.jetnoise.app/*"
+#   module: frontend
+
+- url : "bot.worrall.io/*"
+  module: bot

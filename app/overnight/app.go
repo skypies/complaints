@@ -11,9 +11,9 @@ import(
 	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
+	hw "github.com/skypies/util/handlerware"
 
-	"github.com/skypies/complaints/config"
-	"github.com/skypies/complaints/ui"
+	// "github.com/skypies/complaints/config"
 	"github.com/skypies/complaints/complaintdb"
 )
 
@@ -25,26 +25,29 @@ var(
 )
 
 func init() {
-	http.HandleFunc("/report/summary",                  ui.HasAdmin(summaryReportHandler))
+  hw.InitTemplates("app/overnight/web/templates") // Must be relative to module root, i.e. git repo root
+	templates = hw.Templates
+	
+  hw.RequireTls = true
+  hw.CtxMakerCallback = req2ctx
+	
+	http.HandleFunc("/report/summary",                  hw.WithAdmin(summaryReportHandler))
 
-	http.HandleFunc("/overnight/csv",                   ui.HasAdmin(csvHandler))
-	http.HandleFunc("/overnight/monthly-report",        ui.HasAdmin(monthlySummaryReportHandler))
-	http.HandleFunc("/overnight/counts",                ui.HasAdmin(countsHandler))
+	http.HandleFunc("/overnight/csv",                   hw.WithAdmin(hw.WithoutCtx(csvHandler)))
+	http.HandleFunc("/overnight/monthly-report",        hw.WithAdmin(hw.WithoutCtx(monthlySummaryReportHandler)))
+	http.HandleFunc("/overnight/counts",                hw.WithAdmin(hw.WithoutCtx(countsHandler)))
 
-	http.HandleFunc("/overnight/bigquery/day",          ui.HasAdmin(publishComplaintsDayHandler))
+	http.HandleFunc("/overnight/bigquery/day",          hw.WithAdmin(hw.WithoutCtx(publishComplaintsDayHandler)))
 
-	http.HandleFunc(emailerUrlStem+"/yesterday",        ui.HasAdmin(emailYesterdayHandler))
+	http.HandleFunc(emailerUrlStem+"/yesterday",        hw.WithAdmin(hw.WithoutCtx(emailYesterdayHandler)))
 
-	http.HandleFunc("/overnight/submissions/debug",     ui.HasAdmin(SubmissionsDebugHandler))
-	http.HandleFunc("/overnight/submissions/debugcomp", ui.HasAdmin(complaintdb.ComplaintDebugHandler))
+	http.HandleFunc("/overnight/submissions/debug",     hw.WithAdmin(hw.WithoutCtx(SubmissionsDebugHandler)))
+	http.HandleFunc("/overnight/submissions/debugcomp", hw.WithAdmin(hw.WithoutCtx(complaintdb.ComplaintDebugHandler)))
 
-	http.HandleFunc(bksvStem+"/scan-dates",             ui.HasAdmin(bksvScanDateRangeHandler))
-	http.HandleFunc(bksvStem+"/scan-day",               ui.HasAdmin(bksvScanDayHandler))
-	http.HandleFunc(bksvStem+"/scan-yesterday",         ui.HasAdmin(bksvScanDayHandler))
-	http.HandleFunc(bksvStem+"/submit-complaint",       ui.HasAdmin(bksvSubmitComplaintHandler))
-
-	templates = ui.LoadTemplates("app/overnight/web/templates")
-	ui.InitSessionStore(config.Get("sessions.key"), config.Get("sessions.prevkey"))
+	http.HandleFunc(bksvStem+"/scan-dates",             hw.WithAdmin(hw.WithoutCtx(bksvScanDateRangeHandler)))
+	http.HandleFunc(bksvStem+"/scan-day",               hw.WithAdmin(hw.WithoutCtx(bksvScanDayHandler)))
+	http.HandleFunc(bksvStem+"/scan-yesterday",         hw.WithAdmin(hw.WithoutCtx(bksvScanDayHandler)))
+	http.HandleFunc(bksvStem+"/submit-complaint",       hw.WithAdmin(hw.WithoutCtx(bksvSubmitComplaintHandler)))
 }
 
 func main() {
@@ -52,6 +55,7 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
+	log.Printf("Listening on port %s", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), nil))
 }
 

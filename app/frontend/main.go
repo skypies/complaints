@@ -10,17 +10,14 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/skypies/util/date"
+	hw "github.com/skypies/util/handlerware"
 	"github.com/skypies/util/login"	
-	"github.com/skypies/util/widget"
-
-	fdbui "github.com/skypies/flightdb/ui"
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
-	"github.com/skypies/complaints/config"
-	"github.com/skypies/complaints/flightid"
-	"github.com/skypies/complaints/ui"
 )
+
+/*
 
 var(
 	templates *template.Template
@@ -83,6 +80,8 @@ func init() {
 
 	http.HandleFunc("/map",                   widget.WithCtxTmpl(req2ctx, templates, fdbui.MapHandler))
 }
+
+*/
 
 // {{{ HintedComplaints
 
@@ -150,7 +149,7 @@ func rootHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	cdb := complaintdb.NewDB(ctx)
-	sesh,_ := ui.GetUserSession(ctx)
+	sesh,_ := hw.GetUserSession(ctx)
 	
 	if sesh.Email == "" {
 		// "this should never happen", 'cos WithSession takes care of it all
@@ -240,7 +239,7 @@ func rootHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
 // {{{ logoutHandler
 
 func logoutHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	ui.OverwriteSessionToNil(ctx, w, r)
+	hw.OverwriteSessionToNil(ctx, w, r)
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
@@ -256,7 +255,7 @@ func masqueradeHandler (ctx context.Context, w http.ResponseWriter, r *http.Requ
 
 	log.Printf("masq into [%s]", email)
 
-	ui.CreateSession(ctx, w, r, ui.UserSession{Email:email})
+	hw.CreateSession(ctx, w, r, hw.UserSession{Email:email})
 	
 	http.Redirect(w, r, "/", http.StatusFound)
 }

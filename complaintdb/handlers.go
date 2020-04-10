@@ -14,6 +14,13 @@ import(
 	"github.com/skypies/complaints/complaintdb/types"
 )
 
+/* FIXME: use new handlerware
+
+Somehow, app.go needs to call complaintdb.SetContextProperties({IsAdmin:true}) to inject into the Context.
+Is this an inner contexthandler, that we wrap ? e.g. WithSession(WithCdbParamInjction(...)) ?
+
+*/
+
 func req2ctx(r *http.Request) context.Context {
 	ctx,_ := context.WithTimeout(r.Context(), 9 * time.Minute)
 	return ctx
