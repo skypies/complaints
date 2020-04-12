@@ -79,7 +79,7 @@ func SubmissionsDebugHandler(w http.ResponseWriter, r *http.Request) {
 	sort.Slice(problems, func (i,j int) bool {
 		return problems[i].Profile.EmailAddress < problems[j].Profile.EmailAddress
 	})
-	
+
 	countkeys := []string{}
 	for k,_ := range counts { countkeys = append(countkeys, k) }
 	sort.Strings(countkeys)

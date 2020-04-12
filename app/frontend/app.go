@@ -95,6 +95,10 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
+
+	fs := http.FileServer(http.Dir("./app/frontend/web/static"))
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
+
 	log.Printf("Listening on port %s", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), nil))
 }
