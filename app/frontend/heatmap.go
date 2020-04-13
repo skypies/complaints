@@ -3,12 +3,10 @@ package main
 import (
 	"encoding/gob"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/skypies/geo"
-	"github.com/skypies/util/ae"
 	"github.com/skypies/util/widget"
 
 	//"github.com/skypies/util/singleton/memcache"
@@ -51,16 +49,17 @@ func heatmapHandler(w http.ResponseWriter, r *http.Request) {
 
 	e := time.Now()	
 	s := e.Add(-1 * dur)
-	
-	key := fmt.Sprintf("heatmap-uniques=%v-%s:%s", uniqueUsers, dur, icaoid)
-	positions := geo.LatlongSlice{} // Use explicit type as registered with encoding/gob
 
+	// singletonKey := fmt.Sprintf("heatmap-uniques=%v-%s:%s", uniqueUsers, dur, icaoid)
+	positions := geo.LatlongSlice{} // Use explicit type as registered with encoding/gob
+	var err error
+	
 	// Now try a range of ways to fill up positions[] ...
 	//memcached := config.Get("memcached.server")
 	//sp := ttl.NewProvider(ttl, memcache.NewProvider(memcached))
 	//sp.SingletonProvider.NumShards = 32
 	//if err := sp.ReadSingleton(ctx, key, nil, &positions); err != nil {
-	if err := ae.LoadFromMemcacheShardsTTL(ctx, key, &positions); err == nil {
+	if false { // err := ae. LoadFromMemcacheShardsTTL(ctx, key, &positions); err == nil {
 		// Fresh data from cache; we will use it !
 
 	} else if r.FormValue("allusers") != "" {
@@ -79,7 +78,7 @@ func heatmapHandler(w http.ResponseWriter, r *http.Request) {
 		if uniqueUsers { ttl = time.Hour * 24 }
 
 		// sp.WriteMemcache(ctx, key, nil, &positions)
-		ae.SaveToMemcacheShardsTTL(ctx, key, &positions, ttl)
+		// ae. SaveToMemcacheShardsTTL(ctx, key, &positions, ttl)
 	}
 
 	if jsonBytes,err := json.Marshal(positions); err != nil {

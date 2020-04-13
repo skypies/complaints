@@ -12,7 +12,6 @@ import(
 
 	hw "github.com/skypies/util/handlerware"
 	"github.com/skypies/util/login"	
-	"github.com/skypies/util/widget"
 
 	fdbui "github.com/skypies/flightdb/ui"
 
@@ -86,7 +85,7 @@ func init() {
 	http.HandleFunc("/complaints-for",        complaintsForFlightHandler)
 
 	// FIXME: move flightdb/ui over to the new handlerware, then it can pull templates out of the context
-	http.HandleFunc("/map",                   widget.WithCtxTmpl(req2ctx, templates, fdbui.MapHandler))
+	http.HandleFunc("/map",                   hw.WithCtx(fdbui.MapHandler))
 }
 
 
