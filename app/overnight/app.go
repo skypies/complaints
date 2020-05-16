@@ -33,6 +33,9 @@ func init() {
 	
 	http.HandleFunc("/report/summary",                  hw.WithAdmin(summaryReportHandler))
 
+	http.HandleFunc("/overnight/hello1",                helloHandler)
+	http.HandleFunc("/overnight/hello2",                hw.WithAdmin(hw.WithoutCtx(helloHandler)))
+
 	http.HandleFunc("/overnight/csv",                   hw.WithAdmin(hw.WithoutCtx(csvHandler)))
 	http.HandleFunc("/overnight/monthly-report",        hw.WithAdmin(hw.WithoutCtx(monthlySummaryReportHandler)))
 	http.HandleFunc("/overnight/counts",                hw.WithAdmin(hw.WithoutCtx(countsHandler)))
@@ -75,4 +78,10 @@ func DayWindows(s,e time.Time) [][]time.Time {
 		out = append(out, []time.Time{tMidnight, tMidnight.AddDate(0,0,1).Add(-1*time.Second) })
 	}
 	return out
+}
+
+func helloHandler (w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(fmt.Sprintf("OK\nHello Handler for %s\n", r)))
+
 }

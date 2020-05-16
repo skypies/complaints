@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
+	"net/http/httputil"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -16,6 +19,13 @@ import (
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
 )
+
+// This is loopy. Need a real logging system.
+func logPrintf(r *http.Request, fmtstr string, varargs ...interface{}) {
+	payload := fmt.Sprintf(fmtstr, varargs...)
+	prefix := fmt.Sprintf("ip:%s", r.Header.Get("x-appengine-user-ip"))
+	log.Printf("%s %s", prefix, payload)
+}
 
 // {{{ HintedComplaints
 
@@ -60,15 +70,38 @@ func hintComplaints(in []types.Complaint, isSuperHinter bool) []HintedComplaint 
 // {{{ landingPageHandler
 
 func landingPageHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {	
+	// The .GetLoginURL calls mutate the response - they add cookies, which we hope to eventually
+	// compare against values returned to use from the OAuth services. If those cookies get dropped,
+	// then we will get the dreaded "no oauth google cookie http: named cookie not present" error
+	// instead of a clean login.
+
+	// So, let's log the entire response fopr this page, to see exactly
+	// how we're dropping the cookie headers.
+	var respLog bytes.Buffer
+	rsp := io.MultiWriter(w, &respLog)
+	
 	var params = map[string]interface{}{
 		"google": login.Goauth2.GetLoginUrl(w,r),
 		"googlefromscratch": login.Goauth2.GetLogoutUrl(w,r),
 		"facebook": login.Fboauth2.GetLoginUrl(w,r),
+		"host": r.Host,
 	}
 
-	if err := templates.ExecuteTemplate(w, "landing", params); err != nil {
+	w.Header().Write(&respLog)
+
+	template := "landing"
+	if r.Host == "complaints.serfr1.org" {
+		// Tell users to get off this URL - it causes the infamous cookie bug
+		template = "landing-serfr1"
+	}
+	
+	if err := templates.ExecuteTemplate(rsp, template, params); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+
+	reqLog,_ := httputil.DumpRequest(r,true)
+	
+	logPrintf(r, "landingpage HTTP>>>>\n%s\n<<<<\n%s====\n", reqLog, respLog.String())
 }
 
 // }}}

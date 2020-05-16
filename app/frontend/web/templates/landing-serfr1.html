@@ -1,0 +1,40 @@
+{{define "landing-serfr1"}}
+
+<html>
+  <head>
+    <title>complaints.serfr1.org</title>
+    <link rel="stylesheet" type="text/css" href="/static/serfr.css">
+    <link rel="icon" type="image/png" href="/static/icon.png" />
+    <link rel="manifest" href="/static/manifest.json" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
+  </head>
+
+  <body>
+    <div class="stack">
+
+      <h1>This is an old URL</h1>
+
+      <p> Hello ! You have requested the
+      URL <code>complaints.serfr1.org</code>, but this has been stale
+        for years now.</p>
+
+      <p> The new URL is <b><code>stop.jetnoise.net</code></b>.
+      <b>Please update your bookmarks, and any 'add to homescreen' links
+      you might have, to use <code>stop.jetnoise.net</code></b>.</p>
+
+      <p> I've kept the old URL alive all this time, but recently
+      discovered that using it was the cause of a pernicious problem
+      for some users, where from time to time "the site makes me login
+        for every complaint".</p>
+
+      <p>(The issue ? A cookie that was used during the login
+      exchange, which was issued for <code>stop.jetnoise.net</code>,
+      but in response to a request sent
+      to <code>complaints.sefr1.or</code>. Some browsers, notably
+      Safari, considered this kind of cross-site cookie a possible
+      privacy violation, and so would drop it. Sometimes.)</p>
+    </div>
+  </body>
+</html>
+
+{{end}}
