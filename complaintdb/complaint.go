@@ -76,7 +76,7 @@ func FixupComplaint(c *types.Complaint, keyStr string) {
 		// c.AircraftOverhead.Fr24Url = c.AircraftOverhead.PlaybackUrl()
 
 		c.AircraftOverhead.Fr24Url = "http://flightaware.com/live/flight/" +
-			c.AircraftOverhead.FlightNumber
+			c.AircraftOverhead.Callsign
 		// Or: http://flightaware.com/live/flight/UAL337/history/20151215/ [0655Z/KLAX/KSFO]
 		// date is UTC of departure time; might be tricky to guess :/
 	}

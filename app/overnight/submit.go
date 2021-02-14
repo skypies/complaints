@@ -29,7 +29,7 @@ var(
 
 // {{{ bksvScanDateRangeHandler
 
-// /some/url
+// /overnight/bksv/scan-dates
 //   &date=range&range_from=2016/01/21&range_to=2016/01/26
 //  [&force=1]    force resubmits
 //  [&rejects=1]  only submit complaints currently tagged as rejected

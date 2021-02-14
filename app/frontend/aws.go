@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"strings"
 	"time"
 
 	"github.com/skypies/complaints/complaintdb"
@@ -45,13 +46,22 @@ func awsIotHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	expectedSecret := config.Get("awsiot.secret")
-	if expectedSecret == "" {
-		cdb.Errorf("secret config lookup failed ! bad config ?")
+	secrets := strings.Fields(config.Get("api.keys")) // The space-sep list of API keys we accept
+	if len(secrets) == 0 {
+		cdb.Errorf("`api.keys` secret config lookup failed ! bad config ?")
 		http.Error(w, "bad secret config", http.StatusInternalServerError)
 		return
-	} else if expectedSecret != ev.Secret {
-		cdb.Errorf("bad secret submitted")
+	}
+
+	secretOK := false
+	for _,secret := range secrets {
+		if secret == ev.Secret {
+			secretOK = true
+		}
+	}
+
+	if !secretOK {
+		cdb.Errorf("bad secret submitted, no match in `api.keys`")
 		cdb.Errorf("-> %s", reqBytes)
 		http.Error(w, "bad secret submitted", http.StatusInternalServerError)
 		return

@@ -19,8 +19,8 @@ Deploy an instance of the site to your google cloud project:
 * `gcloud app deploy --project=$YOURPROJECT app/dispatch.yaml`
 * `gcloud app deploy --project=$YOURPROJECT app/queue.yaml`
 * `gcloud app deploy --project=$YOURPROJECT app/cron.yaml`
-* `gcloud app deploy --project=$YOURPROJECT --version=1 app`
-* `gcloud app deploy --project=$YOURPROJECT --version=1 backend`
+* `gcloud app deploy --project=$YOURPROJECT --version=1 app/frontend`
+* `gcloud app deploy --project=$YOURPROJECT --version=1 app/overnight`
 
 The `test-values.go.sample` sample file has no passwords in, so
 Facebook login won't be working.
