@@ -72,6 +72,7 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 		"year":             {date.InPdt(c.Timestamp).Format("2006")},
 		"hour":             {date.InPdt(c.Timestamp).Format("15")},
 		"min":              {date.InPdt(c.Timestamp).Format("4")},
+		"sec":              {date.InPdt(c.Timestamp).Format("5")},
 
 		"aircrafttype":     {"J"},
 		"aircraftcategory": {"J"},
