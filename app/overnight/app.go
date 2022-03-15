@@ -27,9 +27,12 @@ var(
 func init() {
   hw.InitTemplates("app/overnight/web/templates") // Must be relative to module root, i.e. git repo root
 	templates = hw.Templates
-	
-  hw.RequireTls = true
+
+	hw.RequireTls = true
   hw.CtxMakerCallback = req2ctx
+	hw.CookieName = "serfr0"
+	hw.InitSessionStore(config.Get("sessions.key"), config.Get("sessions.prevkey"))
+  hw.InitGroup(hw.AdminGroup, config.Get("users.admin"))
 	
 	http.HandleFunc("/report/summary",                  hw.WithAdmin(summaryReportHandler))
 
