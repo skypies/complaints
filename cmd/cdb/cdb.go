@@ -51,8 +51,8 @@ func init() {
 	//flag.BoolVar(&fPurgeFlights, "purge", false, "remove flightnumber from random() complaints")
 
 	var s,e timeType
-	flag.Var(&s, "s", "start time (2006-01-02T15:04:05)")
-	flag.Var(&e, "e", "end time (2006-01-02T15:04:05)")	
+	flag.Var(&s, "s", "start time in PT (2006-01-02T15:04:05)")
+	flag.Var(&e, "e", "end time in PT   (2006-01-02T15:04:05)")	
 	flag.Parse()
 
 	for _,e := range []string{"GOOGLE_APPLICATION_CREDENTIALS"} {
@@ -103,7 +103,9 @@ func queryFromArgs() *complaintdb.CQuery {
 	if ! fTStart.IsZero() { cq = cq.Filter("Timestamp >= ", fTStart) }
 	if ! fTEnd.IsZero() { cq = cq.Filter("Timestamp < ", fTEnd) }
 
-	cq.Limit(fLimit)
+	if fLimit > 0 {
+		cq.Limit(fLimit)
+	}
 
 	if fDesc {
 		cq.Order("-Timestamp")

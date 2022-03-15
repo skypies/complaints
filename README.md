@@ -4,12 +4,13 @@ How to run a local instance
 Prerequisites:
 * the [Go programming language](https://golang.org/dl/)
 * the [Go appengine SDK](https://cloud.google.com/appengine/docs/go/), and add it to your `$PATH`
-* define your Go workspace: `export GOPATH=~/go`
+* define your Go workspace: `export GOPATH=~/go/src`
 
 Download and run the site locally:
 * `go get github.com/skypies/complaints/app/frontend` (pulls down all dependencies)
 * `mv complaints/config/test-values.go.sample complaints/config/test-values.go` (setup test config)
-* `go run $GOPATH/github.com/skypies/complaints/app/frontend/*go` (build & run locally)
+* `cd $GOPATH/github.com/skypies/complaints`
+* `go run ./app/frontend/*go` (build & run locally)
 * Look at <http://localhost:8080/> (appengine admin panel is <http://localhost:8000/>)
 
 Deploy an instance of the site to your google cloud project:

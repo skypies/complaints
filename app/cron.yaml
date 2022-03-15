@@ -25,8 +25,9 @@ cron:
   schedule: 1 of month 04:30
   timezone: America/Los_Angeles
 
-# We no longer need this, now that we're doing daily API pushes
-# - description: Monthly - CSV report into GCS
-#   url: /overnight/csv
-#   schedule: 1 of month 04:00
-#   timezone: America/Los_Angeles
+# This runs every day, but will fail early if it succeeded
+# earlier in the month. Cheap retries.
+- description: Monthly - generate CSV into GCS, and email
+  url: /overnight/csv
+  schedule: every day 06:30
+  timezone: America/Los_Angeles
