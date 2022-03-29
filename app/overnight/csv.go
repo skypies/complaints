@@ -27,7 +27,7 @@ import (
 // Everything is in Pacific Time.
 func formValueMonthDefaultToPrev(r *http.Request) (month, year int, err error){
 	// Default to the previous month
-	now := NowInPdt()
+	now := date.NowInPdt()
 	oneMonthAgo := time.Date(now.Year(), now.Month(), 1, now.Hour(), now.Minute(), now.Second(), 0, now.Location()).AddDate(0, -1, 0)
 	// oneMonthAgo := date.NowInPdt().AddDate(0,-1,0) // This is too dumb; Mar 29 turns into Feb 29 and normalizes to Mar 1, back into March
 
