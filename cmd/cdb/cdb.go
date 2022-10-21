@@ -4,9 +4,9 @@ import(
 	"golang.org/x/net/context"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
+	"reflect"
 	"regexp"
 	"time"
 
@@ -250,7 +250,7 @@ func archiveComplaints() {
 			log.Fatal(err)
 		}
 
-		gcsOverwrite := false
+		gcsOverwrite := true
 		gcsFilename := m.Format("2006-01-02-archived-complaints")
 		if exists,_ := gcs.Exists(ctx, ArchiveGCSBucketName, gcsFilename); exists && !gcsOverwrite {
 			log.Fatal(fmt.Errorf("will not overwrite existing GCS file %s/%s", ArchiveGCSBucketName, gcsFilename))
@@ -269,7 +269,7 @@ func archiveComplaints() {
 		fmt.Printf(" --[%s], %d complaints written to %s/%s\n", m, len(complaints), ArchiveGCSBucketName, gcsFilename)		
 
 		// Reads 'em all back. Doesn't look at the contents though. Maybe should return a count, at least ?
-		if err := verifyArchiveComplaints(ArchiveGCSBucketName, gcsFilename); err != nil {
+		if err := verifyArchiveComplaints(ArchiveGCSBucketName, gcsFilename, complaints); err != nil {
 			log.Fatal(err)
 		}
 
@@ -279,43 +279,40 @@ func archiveComplaints() {
 // }}}
 // {{{ verifyArchiveComplaints
 
-// -archivefrom=2015.01.01                        :  does just that day (first of Jan)
-// -archivefrom=2015.01.01 -archiveto=2015.01.01  :  also does just that day (first of Jan)
-// -archivefrom=2015.01.01 -archiveto=2015.01.04  :  does the first four days of Jan
-
-func verifyArchiveComplaints(bucketname, filename string) error {
-
-	// Sigh. This broadly lives in util/gcp/gcs, but I'm avoiding module version hell
-	getIOReader := func(h *gcs.RWHandle) io.Reader {
-		bucket := h.Client.Bucket(bucketname)
-		if bucket == nil {
-			log.Fatal(fmt.Errorf("GCS client.Bucket() was nil"))
-		}
-		r,err := bucket.Object(filename).NewReader(ctx)
-		if err != nil {
-			log.Fatal(err)
-		}
-		return io.Reader(r)
-	}
+func verifyArchiveComplaints(bucketname, filename string, origComplaints []types.Complaint) error {
 	
 	if exists,_ := gcs.Exists(ctx, bucketname, filename); !exists {
 		return fmt.Errorf("can not find existing file %s/%s", bucketname, filename)
 	}
 
-	filehandle,err := gcs.OpenRW(ctx, bucketname, filename, "application/octet-stream")
+	filehandle, err := gcs.OpenRW(ctx, bucketname, filename, "application/octet-stream")
 	if err != nil {
 		return err
 	}
 	defer filehandle.Close()
 
-	complaints, err := cdb.UnmarshalComplaintSlice(getIOReader(filehandle))
+	rdr, err := filehandle.ToReader(ctx, bucketname, filename)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("  - %d complaints read from %s/%s\n", len(complaints), bucketname, filename)		
-	for _,c := range complaints {
-		fmt.Printf("  -- %#v\n\n", c)
+	archivedComplaints, err := cdb.UnmarshalComplaintSlice(rdr)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("  - %d complaints read from %s/%s\n", len(archivedComplaints), bucketname, filename)
+	if len(archivedComplaints) != len(origComplaints) {
+		return fmt.Errorf("%s/%s: count mismatch - orig=%d, archive=%d\n", bucketname, filename,
+			len(origComplaints), len(archivedComplaints))
+	}
+
+	for i:=0; i<len(origComplaints); i++ {
+		cSanitizedOrig := origComplaints[i].ToCopyWithStoredDataOnly()
+		if ! reflect.DeepEqual(cSanitizedOrig, archivedComplaints[i]) {
+			return fmt.Errorf("%s/%s: complaint %d did not match:-\n* orig: %#v\n* arcv: %#v\n\n",
+				bucketname, filename, i, cSanitizedOrig, archivedComplaints[i])
+		}
 	}
 
 	return nil

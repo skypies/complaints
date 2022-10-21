@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	// "regexp"
 	"strings"
 	"time"
 	
@@ -433,6 +432,21 @@ func (c Complaint) AltitudeHrefString() template.HTML {
 
 		return template.HTML(fmt.Sprintf("<a target=\"_blank\" href=\"%s\">%s</a>", url, txt))
 	}
+}
+
+// }}}
+// {{{ c.ToCopyWithStoredDataOnly
+
+// ToCopyWithStoredDataOnly returns a copy of the complaint that only has the stored data fields
+// (e.g. no synthetic fields). This is for use when archiving, and verifying archives.
+func (c1 Complaint)ToCopyWithStoredDataOnly() Complaint {
+	c2 := c1
+
+	c2.DatastoreKey = ""
+	c2.Dist2KM = 0.0
+	c2.Dist3KM = 0.0
+
+	return c2
 }
 
 // }}}
