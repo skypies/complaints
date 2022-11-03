@@ -16,4 +16,4 @@ require (
 
 require github.com/skypies/util v0.1.28
 
-// replace github.com/skypies/util v0.1.19 => ../util
+replace github.com/skypies/util v0.1.28 => ../util

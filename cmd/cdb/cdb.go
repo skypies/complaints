@@ -11,6 +11,7 @@ import(
 	"time"
 
 	"github.com/skypies/util/date"
+	"github.com/skypies/util/gcp/ds"
 	"github.com/skypies/util/gcp/gcs"
 
 	"github.com/skypies/complaints/complaintdb"
@@ -221,7 +222,12 @@ func runUserReport() {
 
 // go run cdb.go -archive -archivefrom=2015.08.09 : the first day, with 31 complaints
 
+// have archived up to 2022.06.30
+
 func archiveComplaints() {
+	gcsOverwrite := false
+	deleteFromDatabase := true
+
 	s := date.Datestring2MidnightPdt(fArchiveFrom)
 	e := date.Datestring2MidnightPdt(fArchiveTo)
 
@@ -231,18 +237,19 @@ func archiveComplaints() {
 		log.Printf("(assuming single day of archiving)")
 		e = s
 	}
-
-	// Nudge a second either way, else intermediate midnights will skipe them
+	// Nudge a second either way, else IntermediateMidnights will skip them
 	s = s.Add(-1 * time.Second)
 	e = e.Add(1 * time.Second)
-	
-	log.Printf("(archiving from %s - %s)\n", fArchiveFrom, fArchiveTo)
+
 	log.Printf("(archiving from %s - %s)\n", s, e)
 
 	midnights := date.IntermediateMidnights(s, e)
-	for _,m := range midnights {
-		winS,winE := date.WindowForTime(m)
-		
+	for _, m := range midnights {
+		gcsFilename := m.Format("2006-01-02-archived-complaints")
+		gcsFileExists,_ := gcs.Exists(ctx, ArchiveGCSBucketName, gcsFilename)
+
+		winS, winE := date.WindowForTime(m) // start/end timestamps for the 23-25h day that follows the midnight
+
 		// A fresh iterating query for each day, to go into its own GCS file.
 		cq := cdb.NewComplaintQuery().ByTimespan(winS, winE)
 		complaints,err := cdb.LookupAll(cq)
@@ -250,29 +257,64 @@ func archiveComplaints() {
 			log.Fatal(err)
 		}
 
-		gcsOverwrite := true
-		gcsFilename := m.Format("2006-01-02-archived-complaints")
-		if exists,_ := gcs.Exists(ctx, ArchiveGCSBucketName, gcsFilename); exists && !gcsOverwrite {
-			log.Fatal(fmt.Errorf("will not overwrite existing GCS file %s/%s", ArchiveGCSBucketName, gcsFilename))
-		}
-		filehandle,err := gcs.OpenRW(ctx, ArchiveGCSBucketName, gcsFilename, "application/octet-stream")
-		if err != nil {
-			log.Fatal(err)
-		}
-		if err := cdb.MarshalComplaintSlice(complaints, filehandle.IOWriter()); err != nil {
-			log.Fatal(err)
-		}
-		if err := filehandle.Close(); err != nil {
-			log.Fatal(err)
+		if len(complaints) == 0 {
+			if gcsFileExists {
+				log.Printf(" -- [%s], no complaints found in DB - already archived. skipping\n", m)
+				continue 
+			} else {
+				log.Fatal(" -- [%s], no complaints found in DB, no archive found, bad date ?!\n", m)
+			}
 		}
 		
-		fmt.Printf(" --[%s], %d complaints written to %s/%s\n", m, len(complaints), ArchiveGCSBucketName, gcsFilename)		
+		if gcsFileExists && !gcsOverwrite {
+			log.Printf(" --[%s], file %s/%s already exists, will verify it\n", m, ArchiveGCSBucketName, gcsFilename)
 
-		// Reads 'em all back. Doesn't look at the contents though. Maybe should return a count, at least ?
+		} else {
+
+			filehandle,err := gcs.OpenRW(ctx, ArchiveGCSBucketName, gcsFilename, "application/octet-stream")
+			if err != nil {
+				log.Fatal(err)
+			}
+			if err := cdb.MarshalComplaintSlice(complaints, filehandle.IOWriter()); err != nil {
+				log.Fatal(err)
+			}
+			if err := filehandle.Close(); err != nil {
+				log.Fatal(err)
+			}
+			log.Printf(" --[%s], %d complaints written to %s/%s\n", m, len(complaints),
+				ArchiveGCSBucketName, gcsFilename)
+		}
+
+		// Reads 'em all back, compare to what we stated with
 		if err := verifyArchiveComplaints(ArchiveGCSBucketName, gcsFilename, complaints); err != nil {
 			log.Fatal(err)
 		}
 
+		// Archiving looks good - delete them from datastore !
+		if deleteFromDatabase {
+			keyers := make([]ds.Keyer, len(complaints))
+			for i:=0; i<len(complaints); i++ {
+				keyers[i] = cdb.GetKeyerOrNil(complaints[i])
+			}
+
+			log.Printf("deleting %d archived complaints from DB ...\n", len(keyers))
+
+			// May need to make multiple calls
+			maxKeyersToDeleteInOneCall := 500
+			for len(keyers) > 0 {
+				keyersToDelete := []ds.Keyer{}
+				if len(keyers) <= maxKeyersToDeleteInOneCall {
+					keyersToDelete, keyers = keyers, keyersToDelete
+				} else {
+					keyersToDelete, keyers = keyers[0:maxKeyersToDeleteInOneCall], keyers[maxKeyersToDeleteInOneCall:]
+				}
+
+				if err := cdb.DeleteAllKeys(keyersToDelete); err != nil {
+					log.Fatal(err)
+				}
+			}
+			log.Printf("... done\n")
+		}
 	}
 }
 
@@ -285,7 +327,7 @@ func verifyArchiveComplaints(bucketname, filename string, origComplaints []types
 		return fmt.Errorf("can not find existing file %s/%s", bucketname, filename)
 	}
 
-	filehandle, err := gcs.OpenRW(ctx, bucketname, filename, "application/octet-stream")
+	filehandle, err := gcs.OpenR(ctx, bucketname, filename)
 	if err != nil {
 		return err
 	}
@@ -301,7 +343,7 @@ func verifyArchiveComplaints(bucketname, filename string, origComplaints []types
 		return err
 	}
 
-	fmt.Printf("  - %d complaints read from %s/%s\n", len(archivedComplaints), bucketname, filename)
+
 	if len(archivedComplaints) != len(origComplaints) {
 		return fmt.Errorf("%s/%s: count mismatch - orig=%d, archive=%d\n", bucketname, filename,
 			len(origComplaints), len(archivedComplaints))
@@ -314,6 +356,8 @@ func verifyArchiveComplaints(bucketname, filename string, origComplaints []types
 				bucketname, filename, i, cSanitizedOrig, archivedComplaints[i])
 		}
 	}
+
+	log.Printf("  - %d complaints read and verified from %s/%s\n", len(archivedComplaints), bucketname, filename)
 
 	return nil
 }

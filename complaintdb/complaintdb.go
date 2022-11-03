@@ -136,6 +136,19 @@ func (cdb ComplaintDB)ComplaintKeyStrOwnedBy(keyStr, owner string) (bool,error) 
 
 // }}}
 
+// {{{ cdb.GetKeyer
+
+func (cdb ComplaintDB)GetKeyerOrNil(c types.Complaint) ds.Keyer {
+	if c.DatastoreKey != "" {
+		keyer, err := cdb.Provider.DecodeKey(c.DatastoreKey)
+		if err == nil {
+			return keyer
+		}
+	}
+	return nil
+}
+
+// }}}
 // {{{ cdb.PersistComplaint
 
 func (cdb ComplaintDB)PersistComplaint(c types.Complaint) error {
@@ -269,6 +282,21 @@ func (cdb ComplaintDB)DeleteByKey(keyer ds.Keyer) error {
 
 // }}}
 // {{{ cdb.DeleteAllKeys
+
+/*
+			// May need to make multiple calls
+			maxKeyersToDeleteInOneCall := 500
+			for len(keyers) > 0 {
+				keyersToDelete := []ds.Keyer{}
+				if len(keyers) <= maxKeyersToDeleteInOneCall {
+					keyersToDelete, keyers = keyers, keyersToDelete
+				} else {
+					keyersToDelete, keyers = keyers[0:maxKeyersToDeleteInOneCall], keyers[maxKeyersToDeleteInOneCall:]
+				}
+				if err := cdb.DeleteAllKeys(keyersToDelete); err != nil {
+					log.Fatal(err)
+				}
+*/
 
 func (cdb ComplaintDB)DeleteAllKeys(keyers []ds.Keyer) error {
 	return cdb.Provider.DeleteMulti(cdb.Ctx(), keyers)

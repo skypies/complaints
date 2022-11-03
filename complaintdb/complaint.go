@@ -89,6 +89,17 @@ func FixupComplaint(c *types.Complaint, keyStr string) {
 		c.Dist2KM = observerPos.Dist(aircraftPos)
 		c.Dist3KM = observerPos.Dist3(aircraftPos, a.Altitude)
 	}
+
+	// Some old complaints have junk submission timestamps
+	if c.Submission.T.Year() == 0 {
+		var zeroTime time.Time
+		c.Submission.T = zeroTime
+	}
+	// They can also have entirely uninitialized response slices
+	if c.Submission.Response == nil {
+		c.Submission.Response = []byte{}
+	}
+
 }
 
 // }}}

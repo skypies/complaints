@@ -438,7 +438,7 @@ func (c Complaint) AltitudeHrefString() template.HTML {
 // {{{ c.ToCopyWithStoredDataOnly
 
 // ToCopyWithStoredDataOnly returns a copy of the complaint that only has the stored data fields
-// (e.g. no synthetic fields). This is for use when archiving, and verifying archives.
+// (e.g. no synthetic fields). This copy is what we store during archiving, and verifying archives.
 func (c1 Complaint)ToCopyWithStoredDataOnly() Complaint {
 	c2 := c1
 
