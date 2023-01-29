@@ -7,7 +7,9 @@ automatic_scaling:
   # Default is 8; but there are latency issues that I think are
   # explained by requests blocking each other on the same (single) OS thread.
   # But only python runtimes support this setting, sadly.
-  max_concurrent_requests: 1
+  #
+  # abw, 2023.01.29 - this is tripling the num of instances, wasting money
+  # max_concurrent_requests: 1
 
 # Note: for go113 etc., the 'application root' directory is the github (module) root. So
 # all the static paths are fully prefixed with app/frontend/.

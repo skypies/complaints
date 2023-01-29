@@ -158,8 +158,6 @@ github.com/skypies/pi v0.1.0/go.mod h1:k4zrHQSgL8lCVWtmWDDDJpHKLwJ+5dVeDnVTeIX3J
 github.com/skypies/util v0.0.0-20190105191238-968094913d77/go.mod h1:tvv5wvYsDRTGi0TrIKxVYKoTRYOcrHStYYirc7ADImU=
 github.com/skypies/util v0.1.18/go.mod h1:WV+5KUxqbkilJPiaRS0cJnanHSQhV8Ug22LYH/XDkK4=
 github.com/skypies/util v0.1.19/go.mod h1:07MCmD5SbG5yzSnVgPhueIurqRUj3rC7M1NCtKCtMVA=
-github.com/skypies/util v0.1.28 h1:GJ9RtVl3KcJn+BwL3BC5d5winBRRXG647aL7g1KVSbA=
-github.com/skypies/util v0.1.28/go.mod h1:CQQgIr4B3SynJyX8k+xUDek5zNgWTRjkUTawSM5NDaw=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.4.0 h1:2E4SXV/wtOkTonXsotYi4li6zVWxYlZuYNCXe9XRJyk=

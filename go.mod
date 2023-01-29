@@ -14,6 +14,6 @@ require (
 	googlemaps.github.io/maps v0.0.0-20191014172202-ce2e58e026c5
 )
 
-require github.com/skypies/util v0.1.28
+require github.com/skypies/util v0.1.29
 
-replace github.com/skypies/util v0.1.28 => ../util
+// replace github.com/skypies/util v0.1.28 => ../util
