@@ -3,7 +3,6 @@
   <body>
     <p>Hello, {{.Profile.FullName}} !</p>
 
-    <p><b>These Emails Will Continue :)</b> We've found a fix.</p>
     <p>All of these complaints have already been submitted to SFO
       directly. This email is just for your personal records (or to
       forward on to OAK or SJC.)</p>
@@ -38,8 +37,8 @@
             {{end}}
             {{if .AircraftOverhead.EquipType}}
             ({{.AircraftOverhead.EquipType}}; speed: {{.AircraftOverhead.Speed}} knots,
-            altitude: {{.AircraftOverhead.Altitude}} ft,
-            distance: {{.Dist2KM | printf "%.0f"}} KM)
+            altitude: {{.AircraftOverhead.Altitude | printf "%.0f"}} ft,
+            distance: {{.Dist2KM | printf "%.1f"}} KM)
             {{end}}
           </td>
           {{end}}
