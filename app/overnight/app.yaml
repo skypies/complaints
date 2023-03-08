@@ -1,4 +1,4 @@
-runtime: go113
+runtime: go119
 instance_class: B2
 service: overnight
 basic_scaling:

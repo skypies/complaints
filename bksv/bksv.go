@@ -149,7 +149,7 @@ func PostComplaint(client *http.Client, c types.Complaint) (*types.Submission, e
 	req,_ := http.NewRequest("POST", "https://"+bksvHost+bksvPath, strings.NewReader(vals.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded") // This is important
 	reqBytes,_ := httputil.DumpRequestOut(req,true)
-	s.Log += "Full req:-\n--\n"+string(reqBytes)+"\n--\n\n"
+	s.Log += "Full req to ["+bksvHost+"]:-\n--\n"+string(reqBytes)+"\n--\n\n"
 	resp,err := client.Do(req)
 
 	s.D = time.Since(s.T)
@@ -161,8 +161,12 @@ func PostComplaint(client *http.Client, c types.Complaint) (*types.Submission, e
 		return &s,err
 	}
 
+	respBytes,_ := httputil.DumpResponse(resp,true)
+	s.Log += "Full resp:-\n--\n"+string(respBytes)+"\n--\n\n"
+
 	defer resp.Body.Close()
 	body,_ := ioutil.ReadAll(resp.Body)
+
 	s.Log += fmt.Sprintf("ComplaintPOST: HTTP response '%s'\n", resp.Status)
 	s.Response = []byte(body)
 	if resp.StatusCode >= 400 {
