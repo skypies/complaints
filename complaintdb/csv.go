@@ -18,12 +18,7 @@ func (cdb ComplaintDB)WriteCQueryToCSV(cq *CQuery, w io.Writer, headers bool) (i
 		cols = []string{
 			"CallerCode", "Name", "Address", "Zip", "Email",
 			"HomeLat", "HomeLong", "UnixEpoch", "Date", "Time(PDT)",
-			"Notes", "ActivityDisturbed", "Flightnumber", "Notes",
-			// Column names above are incorrect, but BKSV are used to them.
-			//
-			//"CallerCode", "Name", "Address", "Zip", "Email", "HomeLat", "HomeLong", 
-			//"UnixEpoch", "Date", "Time(PDT)", "Notes", "Flightnumber",
-			//"ActivityDisturbed", "CcSFO",
+			"Notes", "Flightnumber", "ActivityDisturbed", "Loudness", "HeardSpeedbrakes",
 		}
 	}
 
@@ -44,7 +39,8 @@ func (cdb ComplaintDB)WriteCQueryToCSV(cq *CQuery, w io.Writer, headers bool) (i
 			c.Description,
 			c.AircraftOverhead.FlightNumber,
 			c.Activity,
-			fmt.Sprintf("%v",c.Profile.CcSfo),
+			fmt.Sprintf("%d", c.Loudness),
+			fmt.Sprintf("%v", c.HeardSpeedbreaks),
 		}
 		return r
 	}

@@ -175,7 +175,7 @@ func PostComplaint(client *http.Client, c types.Complaint) (*types.Submission, e
 	}
 
 	var jsonMap map[string]interface{}
-	if err := json.Unmarshal([]byte(body), &jsonMap); err != nil {
+	if err := json.Unmarshal([]byte(body), &jsonMap); err != nil { 
 		s.Log += fmt.Sprintf("ComplaintPOST: JSON unmarshal '%v'\nBody:-\n%s\n--\n", err, body)
 		return &s,fmt.Errorf("ComplaintPOST: JSON unmarshal %v", err)
 		/* A few times, the remote site failed to send JSON responses, and sent HTML instead. This
@@ -200,6 +200,20 @@ func PostComplaint(client *http.Client, c types.Complaint) (*types.Submission, e
   "result": "1",
   "title": "Submission Received"
 }
+
+Or more recently,
+
+-- JsonMap:-
+{
+  "body": "Thank you, your submission has been received. Would you like to save these details for next time?",
+  "complaint_receipt_keys": [
+    "b85409b1152840d6d149e721cfda6eb639b05979"
+  ],
+  "receipt_key": null,
+  "result": "1",
+  "title": "Submission Received"
+}
+
 */
 	
 	v := jsonMap["result"];
@@ -215,16 +229,28 @@ func PostComplaint(client *http.Client, c types.Complaint) (*types.Submission, e
 		return &s,fmt.Errorf("ComplaintPOST: result='%s'", result)
 	}
 
-	v = jsonMap["receipt_key"]
-	if v == nil {
-		s.Log += fmt.Sprintf("ComplaintPOST: json no 'receipt_key'\n")
-		return &s,fmt.Errorf("ComplaintPOST: jsonmap had no 'receipt_key'")
+	// Extract the foreign key for this complaint
+	found := false
+	if v = jsonMap["receipt_key"]; v != nil {
+		s.Key = fmt.Sprintf("%.0f", jsonMap["receipt_key"].(string))	
+		s.Log += "Json Success !\n"
+		s.Outcome = types.SubmissionAccepted
+		found = true
+	} else if r := jsonMap["complaint_receipt_keys"]; r != nil {
+		if v, isSlice := r.([]interface{}); isSlice {
+			if len(v) > 0 {
+				s.Key = fmt.Sprintf("%.0f", v[0].(string))	
+				s.Log += "Json Success !\n"
+				s.Outcome = types.SubmissionAccepted
+				found = true
+			}
+		}
 	}
 
-	// Extract the foreign key for this complaint
-	s.Key = fmt.Sprintf("%.0f", jsonMap["receipt_key"].(string))	
-	s.Log += "Json Success !\n"
-	s.Outcome = types.SubmissionAccepted
+	if ! found {
+		s.Log += fmt.Sprintf("ComplaintPOST: json no 'receipt_key', or 'complaint_receipt_keys[]'\n")
+		return &s,fmt.Errorf("ComplaintPOST: jsonmap had no 'receipt_key'")
+	}
 
 	return &s,nil
 }
