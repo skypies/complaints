@@ -10,6 +10,7 @@ import (
 	"github.com/skypies/util/date"
 	"github.com/skypies/util/gcp/ds"
 	hw "github.com/skypies/util/handlerware"
+	"github.com/skypies/util/widget"
 
 	"github.com/skypies/complaints/complaintdb"
 	"github.com/skypies/complaints/complaintdb/types"
@@ -46,8 +47,8 @@ func form2Complaint(r *http.Request) types.Complaint {
 	c := types.Complaint{
 		Description: r.FormValue("content"),
 		Timestamp:   time.Now(), // No point setting a timezone, it gets reset to UTC
-		HeardSpeedbreaks: FormValueCheckbox(r, "speedbrakes"),
-		Loudness:  int(FormValueInt64(r, "loudness")),
+		HeardSpeedbreaks: widget.FormValueCheckbox(r, "speedbrakes"),
+		Loudness:  int(widget.FormValueInt64(r, "loudness")),
 		Activity:  r.FormValue("activity"),
 		Browser: types.Browser{
 			UUID: r.FormValue("browser_uuid"),
@@ -65,7 +66,7 @@ func form2Complaint(r *http.Request) types.Complaint {
 
 	// These fields are set directly in CGI args, for historical population
 	if r.FormValue("timestamp_epoch") != "" {
-		c.Timestamp = time.Unix(FormValueInt64(r,"timestamp_epoch"), 0)
+		c.Timestamp = time.Unix(widget.FormValueInt64(r,"timestamp_epoch"), 0)
 	}
 	if r.FormValue("flight") != "" {
 		c.AircraftOverhead.FlightNumber = r.FormValue("flight")

@@ -50,6 +50,14 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 		browser_version = browser_version[0:49]
 	}
 
+	func getLoudVal(in int) string {
+		loudVals := map[int]string{1: "Loud", 2:"Very Loud", 3:"Excessively Loud"}
+		if exists, val := loudVals[in]; exists {
+			return val
+		}
+		return "Loud"
+	}
+
 	vals := url.Values{
 		"response":         {"json"}, // Must always set this as a GET param
 		"contactmethod":    {"App"},
@@ -77,7 +85,7 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 		"aircrafttype":     {"J"},
 		"aircraftcategory": {"J"},
 		"activity_type":    {"Other"}, // perhaps map c.Activity to something ?
-		"event_type":       {"Loud"}, // perhaps map c.Activity to something ?
+		"event_type":       {getLoudVal(c.Loudness)},  // as per 2023.03.16
 		"adflag":           {"U"},
 		"comments":         {c.Description},
 		"responserequired": {"N"},
