@@ -8,7 +8,7 @@ import (
 	"github.com/skypies/util/gcp/gcs"
 	"github.com/skypies/util/date"
 	
-	"github.com/skypies/complaints/complaintdb"
+	"github.com/skypies/complaints/pkg/complaintdb"
 )
 
 // {{{ monthlySummaryReportHandler

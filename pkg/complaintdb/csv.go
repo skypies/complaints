@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"time"
-
-	"github.com/skypies/complaints/complaintdb/types"
 )
 
 // {{{ WriteCQueryToCSV
@@ -22,7 +20,7 @@ func (cdb ComplaintDB)WriteCQueryToCSV(cq *CQuery, w io.Writer, headers bool) (i
 		}
 	}
 
-	f := func(c *types.Complaint) []string {
+	f := func(c *Complaint) []string {
 		r := []string{
 			c.Profile.CallerCode,
 			c.Profile.FullName,
@@ -51,7 +49,7 @@ func (cdb ComplaintDB)WriteCQueryToCSV(cq *CQuery, w io.Writer, headers bool) (i
 // }}}
 // {{{ FormattedWriteCQueryToCSV
 
-func (cdb ComplaintDB)FormattedWriteCQueryToCSV(cq *CQuery, w io.Writer, headers []string, f func(*types.Complaint) []string) (int, error) {
+func (cdb ComplaintDB)FormattedWriteCQueryToCSV(cq *CQuery, w io.Writer, headers []string, f func(*Complaint) []string) (int, error) {
 	csvWriter := csv.NewWriter(w)
 
 	if len(headers) > 0 {

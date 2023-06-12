@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/skypies/complaints/complaintdb"
+	"github.com/skypies/complaints/pkg/complaintdb"
 )
 
 // {{{ statsResetHandler
@@ -41,6 +41,6 @@ func statsHandler(w http.ResponseWriter, r *http.Request) {
 
 // Local variables:
 // folded-file: t
-// end:
+// pkg/end:
 
 // }}}

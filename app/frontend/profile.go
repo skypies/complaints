@@ -10,10 +10,9 @@ import (
 
 	hw "github.com/skypies/util/handlerware"
 
-	"github.com/skypies/complaints/complaintdb"
-	"github.com/skypies/complaints/complaintdb/types"
-	"github.com/skypies/complaints/config"
-	"github.com/skypies/complaints/flightid"
+	"github.com/skypies/complaints/pkg/complaintdb"
+	"github.com/skypies/complaints/pkg/config"
+	"github.com/skypies/complaints/pkg/flightid"
 )
 
 // {{{ profileFormHandler
@@ -80,12 +79,12 @@ func profileUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Re
 
 	sesh,_ := hw.GetUserSession(ctx)
 
-	cp := types.ComplainerProfile{
+	cp := complaintdb.ComplainerProfile{
 		EmailAddress: sesh.Email,
 		CallerCode: r.FormValue("CallerCode"),
 		FullName: strings.TrimSpace(r.FormValue("FullName")),
 		Address: strings.TrimSpace(r.FormValue("AutoCompletingMagic")),
-		StructuredAddress: types.PostalAddress{
+		StructuredAddress: complaintdb.PostalAddress{
 			Number: r.FormValue("AddrNumber"),
 			Street: r.FormValue("AddrStreet"),
 			City: r.FormValue("AddrCity"),

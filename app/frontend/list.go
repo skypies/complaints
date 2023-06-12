@@ -7,7 +7,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/skypies/util/widget"
-	"github.com/skypies/complaints/complaintdb"
+	"github.com/skypies/complaints/pkg/complaintdb"
 )
 
 //  &user=a@b.com

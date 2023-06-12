@@ -9,10 +9,7 @@ import (
 	"github.com/skypies/geo"
 	"github.com/skypies/util/widget"
 
-	//"github.com/skypies/util/singleton/memcache"
-	//"github.com/skypies/util/singleton/ttl"
-	//"github.com/skypies/complaints/config"
-	"github.com/skypies/complaints/complaintdb"
+	"github.com/skypies/complaints/pkg/complaintdb"
 )
 
 var (

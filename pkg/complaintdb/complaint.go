@@ -6,7 +6,6 @@ import (
 	"github.com/skypies/util/date"
 
 	"github.com/skypies/geo"
-	"github.com/skypies/complaints/complaintdb/types"
 )
 
 const (
@@ -22,7 +21,7 @@ var rateLimitAddrs = map[string]int{
 	"test@example.com": 1,
 }
 
-func ComplaintsAreEquivalent(this, next types.Complaint) bool {
+func ComplaintsAreEquivalent(this, next Complaint) bool {
 	fn1 := this.AircraftOverhead.FlightNumber
 	fn2 := next.AircraftOverhead.FlightNumber
 	d1 := this.Description
@@ -63,7 +62,7 @@ func ComplaintsAreEquivalent(this, next types.Complaint) bool {
 // }}}
 // {{{ FixupComplaint
 
-func FixupComplaint(c *types.Complaint, keyStr string) {
+func FixupComplaint(c *Complaint, keyStr string) {
 	// 0. Snag the key, so we can refer to this object later
 	c.DatastoreKey = keyStr //key.Encode()
 
@@ -106,7 +105,7 @@ func FixupComplaint(c *types.Complaint, keyStr string) {
 // {{{ Overwrite
 
 // Overwrite user-entered data (and timestamp) into the base complaint.
-func Overwrite(this, from *types.Complaint) {
+func Overwrite(this, from *Complaint) {
 	orig := *this  // Keep a temp copy
 	*this = *from  // Overwrite everything
 

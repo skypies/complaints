@@ -10,7 +10,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/skypies/util/gcp/ds"
-	"github.com/skypies/complaints/complaintdb/types"
 )
 
 var(
@@ -95,7 +94,7 @@ func (cdb ComplaintDB)emailToRootKeyer(email string) ds.Keyer {
 // }}}
 // {{{ cdb.findOrGenerateComplaintKeyer
 
-func (cdb ComplaintDB)findOrGenerateComplaintKeyer(c types.Complaint) (ds.Keyer, error) {
+func (cdb ComplaintDB)findOrGenerateComplaintKeyer(c Complaint) (ds.Keyer, error) {
 	if c.DatastoreKey != "" {
 		return cdb.Provider.DecodeKey(c.DatastoreKey)
 	}
@@ -138,7 +137,7 @@ func (cdb ComplaintDB)ComplaintKeyStrOwnedBy(keyStr, owner string) (bool,error) 
 
 // {{{ cdb.GetKeyer
 
-func (cdb ComplaintDB)GetKeyerOrNil(c types.Complaint) ds.Keyer {
+func (cdb ComplaintDB)GetKeyerOrNil(c Complaint) ds.Keyer {
 	if c.DatastoreKey != "" {
 		keyer, err := cdb.Provider.DecodeKey(c.DatastoreKey)
 		if err == nil {
@@ -151,7 +150,7 @@ func (cdb ComplaintDB)GetKeyerOrNil(c types.Complaint) ds.Keyer {
 // }}}
 // {{{ cdb.PersistComplaint
 
-func (cdb ComplaintDB)PersistComplaint(c types.Complaint) error {
+func (cdb ComplaintDB)PersistComplaint(c Complaint) error {
 	keyer,err := cdb.findOrGenerateComplaintKeyer(c)
 	if err != nil {
 		return fmt.Errorf("PersistComplaint/findKey: %v", err)
@@ -167,7 +166,7 @@ func (cdb ComplaintDB)PersistComplaint(c types.Complaint) error {
 // }}}
 // {{{ cdb.PersistComplaints
 
-func (cdb ComplaintDB)PersistComplaints(complaints []types.Complaint) error {
+func (cdb ComplaintDB)PersistComplaints(complaints []Complaint) error {
 	keyers := make([]ds.Keyer, len(complaints))
 	for i,c := range complaints {
 		keyer,err := cdb.findOrGenerateComplaintKeyer(c)
@@ -190,7 +189,7 @@ func (cdb ComplaintDB)PersistComplaints(complaints []types.Complaint) error {
 
 // If owner is non-empty, return error if the looked-up key doesn't have that owner. Unless
 // the admin flag is set on the DB handle.
-func (cdb ComplaintDB)LookupKey(keyerStr string, owner string) (*types.Complaint, error) {
+func (cdb ComplaintDB)LookupKey(keyerStr string, owner string) (*Complaint, error) {
 	keyer,err := cdb.Provider.DecodeKey(keyerStr)
 	if err != nil {
 		return nil, fmt.Errorf("LookupKey/DecodeKey: %v", err)
@@ -200,7 +199,7 @@ func (cdb ComplaintDB)LookupKey(keyerStr string, owner string) (*types.Complaint
 		return nil, fmt.Errorf("LookupKey: ACL failure: %v\n", err)
 	}
 
-	c := types.Complaint{}
+	c := Complaint{}
 	if err := cdb.Provider.Get(cdb.Ctx(), keyer, &c); err != nil {
 		return nil, fmt.Errorf("LookupKey/Get: %v", err)
 	}
@@ -213,8 +212,8 @@ func (cdb ComplaintDB)LookupKey(keyerStr string, owner string) (*types.Complaint
 // }}}
 // {{{ cdb.RawLookupAll
 
-func (cdb ComplaintDB)RawLookupAll(cq *CQuery) ([]types.Complaint, error) {
-	complaints := []types.Complaint{}
+func (cdb ComplaintDB)RawLookupAll(cq *CQuery) ([]Complaint, error) {
+	complaints := []Complaint{}
 
 	cdb.Debugf("cdbRLA_201", "calling GetAll() ...")
 	_, err := cdb.Provider.GetAll(cdb.Ctx(), (*ds.Query)(cq), &complaints)
@@ -231,8 +230,8 @@ func (cdb ComplaintDB)RawLookupAll(cq *CQuery) ([]types.Complaint, error) {
 // }}}
 // {{{ cdb.LookupAll
 
-func (cdb ComplaintDB)LookupAll(cq *CQuery) ([]types.Complaint, error) {
-	complaints := []types.Complaint{}
+func (cdb ComplaintDB)LookupAll(cq *CQuery) ([]Complaint, error) {
+	complaints := []Complaint{}
 
 	cdb.Debugf("cdbLA_201", "calling GetAll() ...")
 	keyers, err := cdb.Provider.GetAll(cdb.Ctx(), (*ds.Query)(cq), &complaints)
@@ -247,7 +246,7 @@ func (cdb ComplaintDB)LookupAll(cq *CQuery) ([]types.Complaint, error) {
 		FixupComplaint(&complaints[i], keyers[i].Encode())
 	}
 
-	sort.Sort(types.ComplaintsByTimeDesc(complaints))
+	sort.Sort(ComplaintsByTimeDesc(complaints))
 
 	return complaints, nil
 }
@@ -255,7 +254,7 @@ func (cdb ComplaintDB)LookupAll(cq *CQuery) ([]types.Complaint, error) {
 // }}}
 // {{{ cdb.LookupFirst
 
-func (cdb ComplaintDB)LookupFirst(cq *CQuery) (*types.Complaint, error) {
+func (cdb ComplaintDB)LookupFirst(cq *CQuery) (*Complaint, error) {
 	if complaints,err := cdb.LookupAll(cq.Limit(1)); err != nil {
 		return nil, err
 	} else if len(complaints) == 0 {
@@ -306,7 +305,7 @@ func (cdb ComplaintDB)DeleteAllKeys(keyers []ds.Keyer) error {
 
 // {{{ cdb.PersistProfile
 
-func (cdb ComplaintDB)PersistProfile(p types.ComplainerProfile) error {
+func (cdb ComplaintDB)PersistProfile(p ComplainerProfile) error {
 	keyer := cdb.emailToRootKeyer(p.EmailAddress)
 	if _,err := cdb.Provider.Put(cdb.Ctx(), keyer, &p); err != nil {
 		return fmt.Errorf("PersistProfile/Put: %v", err)
@@ -318,8 +317,8 @@ func (cdb ComplaintDB)PersistProfile(p types.ComplainerProfile) error {
 // {{{ cdb.[Must]LookupProfile
 
 // If not found, returns an error
-func (cdb ComplaintDB)MustLookupProfile(email string) (*types.ComplainerProfile, error) {
-	profile := types.ComplainerProfile{}
+func (cdb ComplaintDB)MustLookupProfile(email string) (*ComplainerProfile, error) {
+	profile := ComplainerProfile{}
 	keyer := cdb.emailToRootKeyer(email)
 	
 	if err := cdb.Provider.Get(cdb.Ctx(), keyer, &profile); err != nil {
@@ -330,11 +329,11 @@ func (cdb ComplaintDB)MustLookupProfile(email string) (*types.ComplainerProfile,
 }
 
 // LookupProfile swallows the not-found error; and returns an empty profile on all errors.
-func (cdb ComplaintDB)LookupProfile(email string) (*types.ComplainerProfile, error) {
+func (cdb ComplaintDB)LookupProfile(email string) (*ComplainerProfile, error) {
 	if p,err := cdb.MustLookupProfile(email); err == ds.ErrNoSuchEntity {
-		return &types.ComplainerProfile{}, nil
+		return &ComplainerProfile{}, nil
 	} else if err != nil {
-		return &types.ComplainerProfile{}, fmt.Errorf("LookupProfile: %v", err)
+		return &ComplainerProfile{}, fmt.Errorf("LookupProfile: %v", err)
 	} else {
 		return p, nil
 	}
@@ -343,8 +342,8 @@ func (cdb ComplaintDB)LookupProfile(email string) (*types.ComplainerProfile, err
 // }}}
 // {{{ cdb.LookupAllProfiles
 
-func (cdb ComplaintDB)LookupAllProfiles(cq *CQuery) ([]types.ComplainerProfile, error) {
-	profiles := []types.ComplainerProfile{}
+func (cdb ComplaintDB)LookupAllProfiles(cq *CQuery) ([]ComplainerProfile, error) {
+	profiles := []ComplainerProfile{}
 
 	cdb.Debugf("cdbLAP_201", "calling GetAll() ...")
 	keyers, err := cdb.Provider.GetAll(cdb.Ctx(), (*ds.Query)(cq), &profiles)
@@ -360,7 +359,7 @@ func (cdb ComplaintDB)LookupAllProfiles(cq *CQuery) ([]types.ComplainerProfile, 
 
 1. Look in complaintdb/lookups.go - can this layer of logic live elsewhere ?
 
-3. Move ./types/types.go into ./<type>.go ?
+3. Move ./types/go into ./<type>.go ?
 
 7. counts.go: rename to "usersummary" or something; make generation less magical, more explicit
 7a. consider renaming the DailyCount{} struct

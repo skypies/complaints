@@ -3,19 +3,16 @@ package complaintdb
 import(
 	"encoding/gob"
 	"io"
-	//"time"
 
 	"github.com/skypies/util/date"
-
-	"github.com/skypies/complaints/complaintdb/types"
 )
 
-func (cdb ComplaintDB)MarshalComplaintSlice(complaints []types.Complaint, w io.Writer) error {
+func (cdb ComplaintDB)MarshalComplaintSlice(complaints []Complaint, w io.Writer) error {
 	return gob.NewEncoder(w).Encode(complaints)
 }
 
-func (cdb ComplaintDB)UnmarshalComplaintSlice(r io.Reader) ([]types.Complaint, error) {
-	complaints := []types.Complaint{}
+func (cdb ComplaintDB)UnmarshalComplaintSlice(r io.Reader) ([]Complaint, error) {
+	complaints := []Complaint{}
 
 	if err := gob.NewDecoder(r).Decode(&complaints); err != nil {
 		return nil, err

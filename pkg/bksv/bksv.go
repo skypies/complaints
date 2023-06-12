@@ -16,8 +16,8 @@ import (
 
 	"github.com/skypies/util/date"
 	
-	"github.com/skypies/complaints/complaintdb/types"
-	"github.com/skypies/complaints/config"
+	"github.com/skypies/complaints/pkg/complaintdb"
+	"github.com/skypies/complaints/pkg/config"
 )
 
 // "Real" one      : https://viewpoint.emsbk.com/sfo5
@@ -31,7 +31,7 @@ const bksvPath = "/sfo5" + "?response=json" // response *must* be a GET param, n
 
 // {{{ PopulateForm
 
-func PopulateForm(c types.Complaint, submitkey string) url.Values {
+func PopulateForm(c complaintdb.Complaint, submitkey string) url.Values {
 	first,last := c.Profile.SplitName()
 	if c.Activity == "" { c.Activity = "Loud noise" }
 
@@ -50,9 +50,9 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 		browser_version = browser_version[0:49]
 	}
 
-	func getLoudVal(in int) string {
+	getLoudVal := func(in int) string {
 		loudVals := map[int]string{1: "Loud", 2:"Very Loud", 3:"Excessively Loud"}
-		if exists, val := loudVals[in]; exists {
+		if val, exists := loudVals[in]; exists {
 			return val
 		}
 		return "Loud"
@@ -130,15 +130,15 @@ func PopulateForm(c types.Complaint, submitkey string) url.Values {
 //  "title":"Complaint Received",
 //  "body":"Thank you. We have received your complaint."}
 
-func PostComplaint(client *http.Client, c types.Complaint) (*types.Submission, error) {
+func PostComplaint(client *http.Client, c complaintdb.Complaint) (*complaintdb.Submission, error) {
 
 	// Initialize a new submission object, inheriting from previous
-	s := types.Submission{
+	s := complaintdb.Submission{
 		Attempts:  c.Submission.Attempts + 1,
 		Log:       c.Submission.Log+fmt.Sprintf("\n--------=={ PostComplaint @ %s }==-\n", time.Now()),
 		Key:       c.Submission.Key, // We're now keyless, should prob strip this out
 		T:         time.Now().UTC(),
-		Outcome:   types.SubmissionFailed, // Be pessimistic right up until the end
+		Outcome:   complaintdb.SubmissionFailed, // Be pessimistic right up until the end
 	}
 
 	// We used to have to fetch a unique key (which lived in the form),
@@ -163,7 +163,7 @@ func PostComplaint(client *http.Client, c types.Complaint) (*types.Submission, e
 	s.D = time.Since(s.T)
 	if err != nil {
 		if strings.Contains(err.Error(), "DEADLINE_EXCEEDED") {
-			s.Outcome = types.SubmissionTimeout
+			s.Outcome = complaintdb.SubmissionTimeout
 		}
 		s.Log += fmt.Sprintf("ComplaintPOST: Posting error (dur=%s): %v\n", s.D, err)
 		return &s,err
@@ -232,7 +232,7 @@ Or more recently,
 
 	result := v.(string)
 	if result != "1" {
-		s.Outcome = types.SubmissionRejected
+		s.Outcome = complaintdb.SubmissionRejected
 		s.Log += fmt.Sprintf("Json result not '1'\n")
 		return &s,fmt.Errorf("ComplaintPOST: result='%s'", result)
 	}
@@ -242,14 +242,14 @@ Or more recently,
 	if v = jsonMap["receipt_key"]; v != nil {
 		s.Key = fmt.Sprintf("%.0f", jsonMap["receipt_key"].(string))	
 		s.Log += "Json Success !\n"
-		s.Outcome = types.SubmissionAccepted
+		s.Outcome = complaintdb.SubmissionAccepted
 		found = true
 	} else if r := jsonMap["complaint_receipt_keys"]; r != nil {
 		if v, isSlice := r.([]interface{}); isSlice {
 			if len(v) > 0 {
 				s.Key = fmt.Sprintf("%.0f", v[0].(string))	
 				s.Log += "Json Success !\n"
-				s.Outcome = types.SubmissionAccepted
+				s.Outcome = complaintdb.SubmissionAccepted
 				found = true
 			}
 		}

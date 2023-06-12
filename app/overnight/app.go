@@ -13,8 +13,8 @@ import(
 	"github.com/skypies/util/date"
 	hw "github.com/skypies/util/handlerware"
 
-	"github.com/skypies/complaints/config"
-	"github.com/skypies/complaints/complaintdb"
+	"github.com/skypies/complaints/pkg/config"
+	"github.com/skypies/complaints/pkg/complaintdb"
 )
 
 var(

@@ -8,11 +8,10 @@ import (
 	"github.com/skypies/geo"
 	"github.com/skypies/util/date"
 
-	"github.com/skypies/complaints/config"
-	"github.com/skypies/complaints/complaintdb/types"
+	"github.com/skypies/complaints/pkg/config"
 )
 
-func profile2fingerprint(p types.ComplainerProfile) string {
+func profile2fingerprint(p ComplainerProfile) string {
 	// We use a single fixed secret salt, to prevent the guessing of hashes when given an email
 	// address.
 	salt := config.Get("anonymizer.salt")
@@ -30,12 +29,12 @@ func profile2fingerprint(p types.ComplainerProfile) string {
 */
 }
 
-func AnonymizeComplaint(c *types.Complaint) *types.AnonymizedComplaint {
+func AnonymizeComplaint(c *Complaint) *AnonymizedComplaint {
 	if c == nil { return nil }
 
 	postalAddress := c.Profile.GetStructuredAddress()
 
-	ac := types.AnonymizedComplaint{
+	ac := AnonymizedComplaint{
 		Timestamp: c.Timestamp,
 		Speedbrakes: c.HeardSpeedbreaks,
 		Loudness: c.Loudness,

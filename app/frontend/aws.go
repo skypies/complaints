@@ -8,9 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skypies/complaints/complaintdb"
-	"github.com/skypies/complaints/complaintdb/types"
-	"github.com/skypies/complaints/config"
+	"github.com/skypies/complaints/pkg/complaintdb"
+	"github.com/skypies/complaints/pkg/config"
 )
 
 // Comes from this lambda: https://www.losant.com/blog/getting-started-with-aws-iot-button-losant
@@ -70,7 +69,7 @@ func awsIotHandler(w http.ResponseWriter, r *http.Request) {
 	cdb.Infof("AWS-IoT button event received: %s", ev)
 
 	if ev.ClickType == "SINGLE" {
-		complaint := types.Complaint{
+		complaint := complaintdb.Complaint{
 			Timestamp:   time.Now(), // No point setting a timezone, it gets reset to UTC
 		}
 

@@ -12,7 +12,7 @@ import (
 	hw "github.com/skypies/util/handlerware"
 	"github.com/skypies/util/widget"
 	
-	"github.com/skypies/complaints/complaintdb"
+	"github.com/skypies/complaints/pkg/complaintdb"
 )
 
 // These guys *should* be in backend, but they depend on user sessions, which segfault

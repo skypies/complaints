@@ -13,9 +13,8 @@ import (
 	"github.com/skypies/util/gcp/tasks"
 	"github.com/skypies/util/widget"
 
-	"github.com/skypies/complaints/bksv"
-	"github.com/skypies/complaints/complaintdb"
-	"github.com/skypies/complaints/complaintdb/types"
+	"github.com/skypies/complaints/pkg/bksv"
+	"github.com/skypies/complaints/pkg/complaintdb"
 )
 
 var(
@@ -111,7 +110,7 @@ func bksvScanTimeRange(ctx context.Context, w http.ResponseWriter, r *http.Reque
 
 	q := cdb.NewComplaintQuery().ByTimespan(start,end)
 	if r.FormValue("rejects") != "" {
-		q = q.BySubmissionOutcome(int(types.SubmissionRejected))
+		q = q.BySubmissionOutcome(int(complaintdb.SubmissionRejected))
 	}
 
 	keyers,err := cdb.LookupAllKeys(q)
@@ -213,7 +212,7 @@ func bksvSubmitComplaintHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Don't POST if this complaint has already been accepted.
-	if r.FormValue("force") == "" && complaint.Submission.Outcome == types.SubmissionAccepted {
+	if r.FormValue("force") == "" && complaint.Submission.Outcome == complaintdb.SubmissionAccepted {
 		return
 	}
 	

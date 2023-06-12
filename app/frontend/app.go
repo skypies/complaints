@@ -15,9 +15,9 @@ import(
 
 	fdbui "github.com/skypies/flightdb/ui"
 
-	"github.com/skypies/complaints/complaintdb"
-	"github.com/skypies/complaints/config"
-	"github.com/skypies/complaints/flightid"
+	"github.com/skypies/complaints/pkg/complaintdb"
+	"github.com/skypies/complaints/pkg/config"
+	"github.com/skypies/complaints/pkg/flightid"
 )
 
 

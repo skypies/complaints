@@ -11,7 +11,6 @@ import(
 
 	"github.com/skypies/util/date"
 	"github.com/skypies/util/widget"
-	"github.com/skypies/complaints/complaintdb/types"
 )
 
 /* FIXME: use new handlerware
@@ -122,9 +121,9 @@ func SubmissionsDebugHandler(w http.ResponseWriter, r *http.Request) {
 
 	max_good,max_problems,max_retries := 5,200,200
 	counts := map[string]int{}
-	problems := []types.Complaint{}
-	good := []types.Complaint{}
-	retries := []types.Complaint{}
+	problems := []Complaint{}
+	good := []Complaint{}
+	retries := []Complaint{}
 
 	n := 0
 	for _,keyer := range keyers {
@@ -150,10 +149,10 @@ func SubmissionsDebugHandler(w http.ResponseWriter, r *http.Request) {
 				problems = append(problems, *c)
 			}
 		}
-		if len(good) < max_good && c.Submission.Outcome == types.SubmissionAccepted {
+		if len(good) < max_good && c.Submission.Outcome == SubmissionAccepted {
 			good = append(good, *c)
 		}
-		if c.Submission.Outcome == types.SubmissionAccepted {
+		if c.Submission.Outcome == SubmissionAccepted {
 			counts[fmt.Sprintf("[B] AttemptsToSucceed: %02d", c.Submission.Attempts)]++
 			counts[fmt.Sprintf("[C] SecondsForSuccess: %02d", int(c.D.Seconds()))]++
 			
@@ -220,7 +219,7 @@ func SubmissionsDebugHandler2(w http.ResponseWriter, r *http.Request) {
 	start,end,_ := widget.FormValueDateRange(r)
 
 	q := cdb.NewComplaintQuery().
-		BySubmissionOutcome(int(types.SubmissionRejected)).
+		BySubmissionOutcome(int(SubmissionRejected)).
 		ByTimespan(start,end)
 
 	if r.FormValue("csv") == "1" {
@@ -236,7 +235,7 @@ func SubmissionsDebugHandler2(w http.ResponseWriter, r *http.Request) {
 
 	max_problems := 4000
 	counts := map[string]int{}
-	problems := []types.Complaint{}
+	problems := []Complaint{}
 
 	for _,keyer := range keyers {
 
@@ -328,7 +327,7 @@ func submissionDebugCSV(cdb ComplaintDB, w http.ResponseWriter, q *CQuery, s,e t
 		// These are additional columns, for the error report
 	}
 
-	f := func(c *types.Complaint) []string {
+	f := func(c *Complaint) []string {
 		srr,errtxt := c.Submission.ClassifyRejection()
 
 		r := []string{

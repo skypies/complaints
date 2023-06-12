@@ -1,4 +1,4 @@
-package types
+package complaintdb
 
 import (
 	"bytes"
@@ -12,8 +12,8 @@ import (
 	
 	"github.com/skypies/geo"
 	fdb "github.com/skypies/flightdb"
-	"github.com/skypies/complaints/config"
-	"github.com/skypies/complaints/flightid"
+	"github.com/skypies/complaints/pkg/config"
+	"github.com/skypies/complaints/pkg/flightid"
 
 	"golang.org/x/net/context"
 

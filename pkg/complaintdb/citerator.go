@@ -3,14 +3,13 @@ package complaintdb
 import(
 	"golang.org/x/net/context"
 	"github.com/skypies/util/gcp/ds"
-	"github.com/skypies/complaints/complaintdb/types"
 )
 
 // A shim on the datastoreprovider iterator that can talk flights
 type ComplaintIterator ds.Iterator
 
 func (cdb *ComplaintDB)NewComplaintIterator(cq *CQuery) *ComplaintIterator {
-	it := ds.NewIterator(cdb.Ctx(), cdb.Provider, (*ds.Query)(cq), types.Complaint{})
+	it := ds.NewIterator(cdb.Ctx(), cdb.Provider, (*ds.Query)(cq), Complaint{})
 	return (*ComplaintIterator)(it)
 }
 
@@ -29,8 +28,8 @@ func (ci *ComplaintIterator)Err() error {
 	return it.Err()
 }
 
-func (ci *ComplaintIterator)Complaint() *types.Complaint {
-	c := types.Complaint{}
+func (ci *ComplaintIterator)Complaint() *Complaint {
+	c := Complaint{}
 
 	it := (*ds.Iterator)(ci)
 	keyer := it.Val(&c)

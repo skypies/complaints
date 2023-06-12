@@ -17,8 +17,8 @@ import (
 	"github.com/skypies/util/gcp/gcs"
 	"github.com/skypies/util/widget"
 
-	"github.com/skypies/complaints/complaintdb"
-	"github.com/skypies/complaints/config"
+	"github.com/skypies/complaints/pkg/complaintdb"
+	"github.com/skypies/complaints/pkg/config"
 )
 
 // {{{ formValueMonthDefaultToPrev

@@ -12,9 +12,8 @@ import (
 	hw "github.com/skypies/util/handlerware"
 	"github.com/skypies/util/widget"
 
-	"github.com/skypies/complaints/complaintdb"
-	"github.com/skypies/complaints/complaintdb/types"
-	"github.com/skypies/complaints/flightid"
+	"github.com/skypies/complaints/pkg/complaintdb"
+	"github.com/skypies/complaints/pkg/flightid"
 )
 // {{{ kActivities = []string
 
@@ -43,14 +42,14 @@ var (
 
 // /add-complaint?loudness=timestamp_epoch=1441214141&flight=UA123
 
-func form2Complaint(r *http.Request) types.Complaint {
-	c := types.Complaint{
+func form2Complaint(r *http.Request) complaintdb.Complaint {
+	c := complaintdb.Complaint{
 		Description: r.FormValue("content"),
 		Timestamp:   time.Now(), // No point setting a timezone, it gets reset to UTC
 		HeardSpeedbreaks: widget.FormValueCheckbox(r, "speedbrakes"),
 		Loudness:  int(widget.FormValueInt64(r, "loudness")),
 		Activity:  r.FormValue("activity"),
-		Browser: types.Browser{
+		Browser: complaintdb.Browser{
 			UUID: r.FormValue("browser_uuid"),
 			Name: r.FormValue("browser_name"),
 			Version: r.FormValue("browser_version"),
@@ -86,7 +85,7 @@ func buttonHandler(w http.ResponseWriter, r *http.Request) {
 	resp := "OK"
 	cc := r.FormValue("c")
 
-	complaint := types.Complaint{
+	complaint := complaintdb.Complaint{
 		Timestamp:   time.Now(), // No point setting a timezone, it gets reset to UTC
 	}
 	

@@ -10,9 +10,8 @@ import(
 
 	"github.com/skypies/util/date"
 
-	"github.com/skypies/complaints/complaintdb"
-	"github.com/skypies/complaints/complaintdb/types"
-	"github.com/skypies/complaints/config"
+	"github.com/skypies/complaints/pkg/complaintdb"
+	"github.com/skypies/complaints/pkg/config"
 )
 
 var(
@@ -58,14 +57,14 @@ func sendEmailsForTimeRange(r *http.Request, s,e time.Time) (error, string) {
 	for _,p := range profiles {
 		if p.SendDailyEmailOK() == false { continue }
 
-		var complaints = []types.Complaint{}
+		var complaints = []complaintdb.Complaint{}
 		complaints, err = cdb.LookupAll(cdb.CQByEmail(p.EmailAddress).ByTimespan(s,e))
 		if err != nil {
 			cdb.Errorf("Could not get complaints [%v->%v] for <%s>: %v", s,e, p.EmailAddress, err)
 		}
 		if len(complaints) == 0 { continue }
 
-		cap := types.ComplaintsAndProfile{
+		cap := complaintdb.ComplaintsAndProfile{
 			Profile: p,
 			Complaints: complaints,
 		}
@@ -83,7 +82,7 @@ func sendEmailsForTimeRange(r *http.Request, s,e time.Time) (error, string) {
 // }}}
 // {{{ sendEmail
 
-func sendEmail(cap types.ComplaintsAndProfile) error {
+func sendEmail(cap complaintdb.ComplaintsAndProfile) error {
 	buf := new(bytes.Buffer)	
 
 	if err := templates.ExecuteTemplate(buf, "email-bundle", cap); err != nil {
@@ -120,8 +119,8 @@ func sendEmail(cap types.ComplaintsAndProfile) error {
 // {{{ templateTestHandler
 
 func templateTestHandler(w http.ResponseWriter, r *http.Request) {
-	cap := types.ComplaintsAndProfile{
-		Complaints: []types.Complaint{},
+	cap := complaintdb.ComplaintsAndProfile{
+		Complaints: []complaintdb.Complaint{},
 	}
 
 	str := ""

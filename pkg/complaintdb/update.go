@@ -9,14 +9,12 @@ import (
 	"github.com/skypies/pi/airspace"
 	"github.com/skypies/flightdb/fr24"
 
-	"github.com/skypies/complaints/complaintdb/types"
-
-	"github.com/skypies/complaints/flightid"
+	"github.com/skypies/complaints/pkg/flightid"
 )
 
 // {{{ cdb.complainByProfile
 
-func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Complaint) error {
+func (cdb ComplaintDB) complainByProfile(cp ComplainerProfile, c *Complaint) error {
 	client := cdb.HTTPClient()
 	overhead := flightid.Aircraft{}
 
@@ -106,8 +104,8 @@ func (cdb ComplaintDB) complainByProfile(cp types.ComplainerProfile, c *types.Co
 
 // {{{ cdb.ComplainByEmailAddress
 
-func (cdb ComplaintDB) ComplainByEmailAddress(ea string, c *types.Complaint) error {
-	var cp *types.ComplainerProfile
+func (cdb ComplaintDB) ComplainByEmailAddress(ea string, c *Complaint) error {
+	var cp *ComplainerProfile
 	var err error
 
 	cdb.Debugf("cbe_001", "ComplainByEmailAddress starting")
@@ -121,7 +119,7 @@ func (cdb ComplaintDB) ComplainByEmailAddress(ea string, c *types.Complaint) err
 // }}}
 // {{{ cdb.ComplainByCallerCode
 
-func (cdb ComplaintDB) ComplainByCallerCode(cc string, c *types.Complaint) error {
+func (cdb ComplaintDB) ComplainByCallerCode(cc string, c *Complaint) error {
 	if profiles, err := cdb.LookupAllProfiles(cdb.NewProfileQuery().ByCallerCode(cc)); err != nil {
 		return err
 	} else if len(profiles) != 1 {
@@ -134,7 +132,7 @@ func (cdb ComplaintDB) ComplainByCallerCode(cc string, c *types.Complaint) error
 // }}}
 // {{{ cdb.ComplainByButtonId
 
-func (cdb ComplaintDB) ComplainByButtonId(id string, c *types.Complaint) error {
+func (cdb ComplaintDB) ComplainByButtonId(id string, c *Complaint) error {
 	if profiles, err := cdb.LookupAllProfiles(cdb.NewProfileQuery().ByButton(id)); err != nil {
 		return err
 	} else if len(profiles) != 1 {
@@ -147,8 +145,8 @@ func (cdb ComplaintDB) ComplainByButtonId(id string, c *types.Complaint) error {
 // }}}
 // {{{ cdb.AddHistoricalComplaintByEmailAddress
 
-func (cdb ComplaintDB) AddHistoricalComplaintByEmailAddress(ea string, c *types.Complaint) error {
-	var cp *types.ComplainerProfile
+func (cdb ComplaintDB) AddHistoricalComplaintByEmailAddress(ea string, c *Complaint) error {
+	var cp *ComplainerProfile
 	var err error
 
 	cp, err = cdb.MustLookupProfile(ea)
@@ -164,7 +162,7 @@ func (cdb ComplaintDB) AddHistoricalComplaintByEmailAddress(ea string, c *types.
 // {{{ cdb.UpdateComplaint
 
 // If owner is not nil, then complaint must be owned by it
-func (cdb ComplaintDB) UpdateComplaint(c types.Complaint, owner string) error {
+func (cdb ComplaintDB) UpdateComplaint(c Complaint, owner string) error {
 	keyer,err := cdb.Provider.DecodeKey(c.DatastoreKey)
 	if err != nil { return fmt.Errorf("UpdateComplaint/DecodeKey: %v", err) }
 

@@ -15,7 +15,7 @@ import (
 	"github.com/skypies/util/gcp/tasks"
 	"github.com/skypies/util/widget"
 
-	"github.com/skypies/complaints/complaintdb"
+	"github.com/skypies/complaints/pkg/complaintdb"
 )
 
 var(

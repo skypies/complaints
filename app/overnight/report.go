@@ -8,7 +8,7 @@ import(
 	"github.com/skypies/util/date"
 	"github.com/skypies/util/widget"
 	
-	"github.com/skypies/complaints/complaintdb"
+	"github.com/skypies/complaints/pkg/complaintdb"
 )
 
 // {{{ summaryReportHandler

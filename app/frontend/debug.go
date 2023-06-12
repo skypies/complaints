@@ -11,8 +11,7 @@ import (
 	"github.com/skypies/util/date"
 	hw "github.com/skypies/util/handlerware"
 
-	"github.com/skypies/complaints/complaintdb"
-	"github.com/skypies/complaints/complaintdb/types"
+	"github.com/skypies/complaints/pkg/complaintdb"
 )
 
 // {{{ debHandler
@@ -87,7 +86,7 @@ func perftesterHandler(w http.ResponseWriter, r *http.Request) {
 
 	stats := map[string]*complaintdb.DailyCount{}
 	dailys := []complaintdb.DailyCount{}
-	counts := []types.CountItem{}
+	counts := []complaintdb.CountItem{}
 
 	debugf("pt_002", "populating")
 	t := time.Now().AddDate(0,-6,0)
@@ -115,7 +114,7 @@ func perftesterHandler(w http.ResponseWriter, r *http.Request) {
 	for _,daily := range dailys {
 		// cdb.C.Infof(" -- we have a daily: %#v", daily)
 		//key := datestring2MidnightPdt(daily.Datestring).Format("Jan 02")
-		item := types.CountItem{
+		item := complaintdb.CountItem{
 			//Key: key, //fmt.Sprintf("Jan %02d", j+1), //daily.Timestamp().Format("Jan 02"),
 			Key: daily.Timestamp().Format("Jan 02"),
 			Count: daily.NumComplaints,

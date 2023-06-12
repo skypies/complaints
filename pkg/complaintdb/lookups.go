@@ -6,8 +6,6 @@ import (
 	"github.com/skypies/geo"
 	"github.com/skypies/util/date"
 	"github.com/skypies/util/gcp/ds"
-
-	"github.com/skypies/complaints/complaintdb/types"
 )
 
 // {{{ cdb.GetComplaintPositionsInSpanByIcao
@@ -102,7 +100,7 @@ func (cdb ComplaintDB)GetProfileLocations() ([]geo.Latlong, error) {
 
 // {{{ cdb.getDailyCountsByEmailAdress
 
-func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem, error) {
+func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]CountItem, error) {
 	cdb.Debugf("gDCBEA_001", "starting")
 	gs,_ := cdb.LoadGlobalStats()
 	cdb.Debugf("gDCBEA_002", "global stats loaded")
@@ -119,15 +117,15 @@ func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem
 	
 	dailys,err := cdb.GetDailyCounts(ea)
 	if err != nil {
-		return []types.CountItem{}, err
+		return []CountItem{}, err
 	}
 
-	counts := []types.CountItem{}
+	counts := []CountItem{}
 
 	cdb.Debugf("gDCBEA_004", "daily stats loaded (%d dailys, %d stats)", len(dailys), len(stats))
 	for i,daily := range dailys {
 		if i >= maxDays { break }
-		item := types.CountItem{
+		item := CountItem{
 			Key: daily.Timestamp().Format("Jan 02"),
 			Count: daily.NumComplaints,
 		}
@@ -147,8 +145,8 @@ func (cdb ComplaintDB) getDailyCountsByEmailAdress(ea string) ([]types.CountItem
 // }}}
 // {{{ cdb.GetAllByEmailAddress
 
-func (cdb ComplaintDB) GetAllByEmailAddress(ea string, everything bool) (*types.ComplaintsAndProfile, error) {
-	var cap types.ComplaintsAndProfile
+func (cdb ComplaintDB) GetAllByEmailAddress(ea string, everything bool) (*ComplaintsAndProfile, error) {
+	var cap ComplaintsAndProfile
 
 	cdb.Debugf("GABEA_001", "cdb.GetAllByEmailAddress starting (everything=%v)", everything)
 	

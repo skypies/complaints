@@ -7,8 +7,7 @@ import(
 	"time"
 
 	"github.com/skypies/util/widget"
-	"github.com/skypies/complaints/complaintdb"
-	"github.com/skypies/complaints/complaintdb/types"
+	"github.com/skypies/complaints/pkg/complaintdb"
 )
 
 // {{{ SubmissionsDebugHandler
@@ -26,7 +25,7 @@ func SubmissionsDebugHandler(w http.ResponseWriter, r *http.Request) {
 	q := cdb.NewComplaintQuery().ByTimespan(start,end)
 
 	if r.FormValue("rejects") != "" {
-		q = q.BySubmissionOutcome(int(types.SubmissionRejected))
+		q = q.BySubmissionOutcome(int(complaintdb.SubmissionRejected))
 	}
 	
 	if r.FormValue("csv") == "1" {
@@ -42,8 +41,8 @@ func SubmissionsDebugHandler(w http.ResponseWriter, r *http.Request) {
 
 	max_good,max_problems := 5,4000
 	counts := map[string]int{}
-	good := []types.Complaint{}
-	problems := []types.Complaint{}
+	good := []complaintdb.Complaint{}
+	problems := []complaintdb.Complaint{}
 	
 	for _,keyer := range keyers {
 		c,err := cdb.LookupKey(keyer.Encode(), "")
@@ -62,7 +61,7 @@ func SubmissionsDebugHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if c.Submission.Outcome == types.SubmissionAccepted {
+		if c.Submission.Outcome == complaintdb.SubmissionAccepted {
 			counts[fmt.Sprintf("[C] AttemptsToSucceed: %02d", c.Submission.Attempts)]++
 			counts[fmt.Sprintf("[D] SecondsForSuccess: %02d", int(c.D.Seconds()))]++
 
@@ -123,7 +122,7 @@ func submissionDebugCSV(cdb complaintdb.ComplaintDB, w http.ResponseWriter, q *c
 		// These are additional columns, for the error report
 	}
 
-	f := func(c *types.Complaint) []string {
+	f := func(c *complaintdb.Complaint) []string {
 		srr,errtxt := c.Submission.ClassifyRejection()
 
 		r := []string{

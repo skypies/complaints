@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/skypies/complaints/complaintdb"
+	"github.com/skypies/complaints/pkg/complaintdb"
 	"github.com/skypies/util/date"
 	"github.com/skypies/util/widget"
 )

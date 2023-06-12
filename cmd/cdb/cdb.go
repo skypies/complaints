@@ -14,8 +14,7 @@ import(
 	"github.com/skypies/util/gcp/ds"
 	"github.com/skypies/util/gcp/gcs"
 
-	"github.com/skypies/complaints/complaintdb"
-	"github.com/skypies/complaints/complaintdb/types"
+	"github.com/skypies/complaints/pkg/complaintdb"
 )
 
 const(
@@ -129,7 +128,7 @@ func runQuery(cq *complaintdb.CQuery) {
 	fmt.Printf("%d complaints to work through\n", iter.Remaining())
 
 	n := 0
-	toWrite := []types.Complaint{}
+	toWrite := []complaintdb.Complaint{}
 	for iter.Iterate(ctx) {
 		n++
 		c := iter.Complaint()
@@ -214,6 +213,7 @@ func runUserReport() {
 }
 
 // }}}
+
 // {{{ archiveComplaints
 
 // -archivefrom=2015.01.01                        :  does just that day (first of Jan)
@@ -321,7 +321,7 @@ func archiveComplaints() {
 // }}}
 // {{{ verifyArchiveComplaints
 
-func verifyArchiveComplaints(bucketname, filename string, origComplaints []types.Complaint) error {
+func verifyArchiveComplaints(bucketname, filename string, origComplaints []complaintdb.Complaint) error {
 	
 	if exists,_ := gcs.Exists(ctx, bucketname, filename); !exists {
 		return fmt.Errorf("can not find existing file %s/%s", bucketname, filename)

@@ -9,7 +9,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/skypies/util/gcp/ds"
-	"github.com/skypies/complaints/complaintdb/types"
 )
 
 const appid = "mytestapp"
@@ -42,8 +41,8 @@ func newConsistentContext() (context.Context, func(), error) {
 // }}}
 // {{{ makeProfile
 
-func makeProfile(email string) types.ComplainerProfile {
-	return types.ComplainerProfile{
+func makeProfile(email string) ComplainerProfile {
+	return ComplainerProfile{
 		EmailAddress: email,
 		FullName: "A Tester",
 		Address: "1 Some St",
@@ -53,10 +52,10 @@ func makeProfile(email string) types.ComplainerProfile {
 // }}}
 // {{{ makeComplaints
 
-func makeComplaints(n int, p types.ComplainerProfile) []types.Complaint {
-	ret := []types.Complaint{}
+func makeComplaints(n int, p ComplainerProfile) []Complaint {
+	ret := []Complaint{}
 	for i:=0; i<n; i++ {
-		ret = append(ret, types.Complaint{
+		ret = append(ret, Complaint{
 			Timestamp: time.Now().Add(-1 * time.Minute * time.Duration(i)),
 			Description: fmt.Sprintf("This is complaint %d of %d", i+1, n),
 			Profile: p,
@@ -113,7 +112,7 @@ func TestCoreAPI(t *testing.T) {
 		if err := cdb.PersistComplaint(c); err != nil { t.Fatal(err) }
 	}
 	
-	runC := func(expected int, q *CQuery) []types.Complaint {
+	runC := func(expected int, q *CQuery) []Complaint {
 		if results,err := cdb.LookupAll(q); err != nil {
 			t.Fatal(err)
 		} else if len(results) != expected {

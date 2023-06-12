@@ -16,8 +16,7 @@ import (
 	hw "github.com/skypies/util/handlerware"
 	"github.com/skypies/util/login"	
 
-	"github.com/skypies/complaints/complaintdb"
-	"github.com/skypies/complaints/complaintdb/types"
+	"github.com/skypies/complaints/pkg/complaintdb"
 )
 
 // This is loopy. Need a real logging system.
@@ -31,13 +30,13 @@ func logPrintf(r *http.Request, fmtstr string, varargs ...interface{}) {
 
 // A complaint, plus hints about how to render it
 type HintedComplaint struct {
-	C types.Complaint
+	C complaintdb.Complaint
 	BestIdent string
 	Notes []string
 	Omit bool
 }
 
-func hintComplaints(in []types.Complaint, isSuperHinter bool) []HintedComplaint {
+func hintComplaints(in []complaintdb.Complaint, isSuperHinter bool) []HintedComplaint {
 	out := []HintedComplaint{}
 	
 	for _,c := range in {
