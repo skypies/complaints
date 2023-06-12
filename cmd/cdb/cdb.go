@@ -34,6 +34,7 @@ var(
 	fListUsers      bool
 	fArchiveComplaints bool
 	fArchiveFrom, fArchiveTo string
+	fSearchArchive  bool
 )
 
 // {{{ init()
@@ -49,13 +50,14 @@ func init() {
 	flag.StringVar(&fArchiveFrom, "archivefrom", "", "2015.01.01")
 	flag.StringVar(&fArchiveTo, "archiveto", "", "2015.01.02")
 	//flag.BoolVar(&fPurgeFlights, "purge", false, "remove flightnumber from random() complaints")
-
-	var s,e timeType
+	flag.BoolVar(&fSearchArchive, "archivesearch", false, "run queries against archive VERY SLOWLY")
+	
+	var s, e timeType
 	flag.Var(&s, "s", "start time in PT (2006-01-02T15:04:05)")
 	flag.Var(&e, "e", "end time in PT   (2006-01-02T15:04:05)")	
 	flag.Parse()
 
-	for _,e := range []string{"GOOGLE_APPLICATION_CREDENTIALS"} {
+	for _, e := range []string{"GOOGLE_APPLICATION_CREDENTIALS"} {
 		if os.Getenv(e) == "" {
 			log.Fatal("You're gonna need $"+e)
 		}
@@ -66,13 +68,6 @@ func init() {
 
 	cdb = complaintdb.NewDB(ctx)
 	cdb.Logger = log.New(os.Stderr,"", log.Ldate|log.Ltime)//|log.Lshortfile)	
-	/*
-	if p,err := ds.NewCloudDSProvider(ctx,"serfr0-1000"); err != nil {
-		log.Fatalf("coud not get a clouddsprovider: %v\n", err)
-	} else {
-		cdb.Provider = p
-	}
-*/
 }
 
 // }}}
@@ -210,6 +205,75 @@ func runUserReport() {
 		fmt.Printf("%s\n", p.EmailAddress)
 	}
 	fmt.Printf("(%d profiles found)\n", len(profiles))
+}
+
+// }}}
+// {{{ runArchiveQuery
+
+// -archivesearch                                                 : all archives (v slow !!)
+// -archivesearch -archivefrom=2015.08.10 -archiveto=2015.08.11   : days 2 & 3
+
+func runArchiveQuery() {
+	if fUser == "" {
+		fmt.Printf("Need a user to run archive query, aborting\n")
+		return
+	}
+
+	
+	fmt.Printf("Running archive query - SLOW\n")
+	fmt.Printf("-- user = %s\n", fUser)
+
+	s := date.Datestring2MidnightPdt("2015.08.09")  // Day of the first complaints
+	e := date.TruncateToLocalDay(date.NowInPdt())   // Today
+	if fArchiveFrom != "" {
+		s = date.Datestring2MidnightPdt(fArchiveFrom)
+	}
+	if fArchiveTo != "" {
+		e = date.Datestring2MidnightPdt(fArchiveTo)
+	}
+	fmt.Printf("-- tStart = %s\n-- tEnd   = %s\n", s, e)
+
+	csvFilename := s.Format("archive-20060102") + e.Format("-20060102.csv")
+
+	writer, err := os.Create(csvFilename)
+	defer writer.Close()
+	if err != nil {
+		fmt.Printf("open+w '%s': %v\n", csvFilename, err)
+		return
+	}
+	fmt.Printf("-- output file: %s\n\n", csvFilename)
+	cdb.AddHeadersToCSV(writer)
+	
+	// Nudge a second either way, else IntermediateMidnights will skip them
+	s = s.Add(-1 * time.Second)
+	e = e.Add(1 * time.Second)
+	midnights := date.IntermediateMidnights(s, e)
+	for _, m := range midnights {
+		gcsFilename := m.Format("2006-01-02-archived-complaints")
+		gcsFileExists,_ := gcs.Exists(ctx, ArchiveGCSBucketName, gcsFilename)
+		if !gcsFileExists {
+			fmt.Printf("- %s: not found, skipping\n", gcsFilename)
+			continue
+		}
+
+		complaints, error := searchArchiveComplaints(ArchiveGCSBucketName, gcsFilename, fUser)
+		if error != nil {
+			fmt.Printf("Loading %s: err %v\n", gcsFilename, error)
+			continue
+		}
+		if len(complaints) == 0 {
+			fmt.Printf("- %s: none found\n", gcsFilename)
+			continue
+		}
+
+		if err := cdb.AddComplaintSliceToCSV(complaints, writer); err != nil {
+			fmt.Printf("error writing %d complaints to %s: %v\n", len(complaints), csvFilename, err)
+			continue
+		}
+
+		fmt.Printf("- %s: wrote %d\n", gcsFilename, len(complaints))
+	}
+
 }
 
 // }}}
@@ -363,20 +427,57 @@ func verifyArchiveComplaints(bucketname, filename string, origComplaints []compl
 }
 
 // }}}
+// {{{ searchArchiveComplaints
+
+func searchArchiveComplaints(bucketname, filename string, username string) ([]complaintdb.Complaint, error) {
+	ret := []complaintdb.Complaint{}
+
+	filehandle, err := gcs.OpenR(ctx, bucketname, filename)
+	if err != nil {
+		return ret, err
+	}
+	defer filehandle.Close()
+
+	rdr, err := filehandle.ToReader(ctx, bucketname, filename)
+	if err != nil {
+		return ret, err
+	}
+
+	archivedComplaints, err := cdb.UnmarshalComplaintSlice(rdr)
+	if err != nil {
+		return ret, err
+	}
+
+	for _, c := range archivedComplaints {
+		if c.Profile.EmailAddress != username {
+			continue
+		}
+
+		ret = append(ret, c)
+	}
+	
+	return ret, nil
+}
+
+// }}}
 
 // {{{ main()
 
 func main() {
-	if fSummary == true {
+	if fSummary {
 		runSummaryReport()
 		return
 
-	} else if fListUsers == true {
+	} else if fListUsers {
 		runUserReport()
 		return
 
-	} else if fArchiveComplaints == true {
+	} else if fArchiveComplaints {
 		archiveComplaints()
+		return
+
+	} else if fSearchArchive {
+		runArchiveQuery()
 		return
 	}
 
@@ -386,7 +487,7 @@ func main() {
 
 	// Bare args are individual complaint keys
 	for _,k := range flag.Args() {
-		c,err := cdb.LookupKey(k,"")
+		c, err := cdb.LookupKey(k,"")
 		if err != nil { log.Fatal(err) }
 		fmt.Printf(" * [exp] %s\n", c)
 

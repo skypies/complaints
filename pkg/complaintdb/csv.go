@@ -7,20 +7,18 @@ import (
 	"time"
 )
 
-// {{{ WriteCQueryToCSV
+// {{{ CSVHeaders
 
-func (cdb ComplaintDB)WriteCQueryToCSV(cq *CQuery, w io.Writer, headers bool) (int, error) {
-	cols := []string{}
-
-	if headers {
-		cols = []string{
-			"CallerCode", "Name", "Address", "Zip", "Email",
-			"HomeLat", "HomeLong", "UnixEpoch", "Date", "Time(PDT)",
-			"Notes", "Flightnumber", "ActivityDisturbed", "Loudness", "HeardSpeedbrakes",
-		}
+func (cdb ComplaintDB)CSVHeaders() []string {
+	return []string{
+		"CallerCode", "Name", "Address", "Zip", "Email",
+		"HomeLat", "HomeLong", "UnixEpoch", "Date", "Time(PDT)",
+		"Notes", "Flightnumber", "ActivityDisturbed", "Loudness", "HeardSpeedbrakes",
 	}
+}
 
-	f := func(c *Complaint) []string {
+func (cdb ComplaintDB)ComplaintToCSVFunc() func(c *Complaint) []string {
+	return func(c *Complaint) []string {
 		r := []string{
 			c.Profile.CallerCode,
 			c.Profile.FullName,
@@ -42,6 +40,20 @@ func (cdb ComplaintDB)WriteCQueryToCSV(cq *CQuery, w io.Writer, headers bool) (i
 		}
 		return r
 	}
+}
+
+// }}}
+
+// {{{ WriteCQueryToCSV
+
+func (cdb ComplaintDB)WriteCQueryToCSV(cq *CQuery, w io.Writer, headers bool) (int, error) {
+	cols := []string{}
+
+	if headers {
+		cols = cdb.CSVHeaders()
+	}
+
+	f := cdb.ComplaintToCSVFunc()
 
 	return cdb.FormattedWriteCQueryToCSV(cq, w, cols, f)
 }
@@ -78,6 +90,36 @@ func (cdb ComplaintDB)FormattedWriteCQueryToCSV(cq *CQuery, w io.Writer, headers
 	csvWriter.Flush()
 
 	return n,nil
+}
+
+// }}}
+
+// {{{ AddHeadersToCSV
+
+func (cdb ComplaintDB)AddHeadersToCSV(w io.Writer) {
+	csvWriter := csv.NewWriter(w)
+	csvWriter.Write(cdb.CSVHeaders())
+	csvWriter.Flush()
+}
+
+// }}}
+// {{{ AddComplaintSliceToCSV
+
+func (cdb ComplaintDB)AddComplaintSliceToCSV(complaints []Complaint, w io.Writer) error {
+	csvWriter := csv.NewWriter(w)
+
+	for _, c := range complaints {
+		f := cdb.ComplaintToCSVFunc()
+		r := f(&c)
+
+		if err := csvWriter.Write(r); err != nil {
+			return err
+		}
+	}
+
+	csvWriter.Flush()
+
+	return nil
 }
 
 // }}}
