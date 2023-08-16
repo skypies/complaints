@@ -75,8 +75,6 @@ func (cdb ComplaintDB) complainByProfile(cp ComplainerProfile, c *Complaint) err
 		c.Debug = headline + newdebug
 	}
 	
-	c.Version = kComplaintVersion // Kill this off ?
-
 	c.Profile = cp // Copy the profile fields into every complaint
 	
 	// Too much like the last complaint by this user ? Just update that one.
@@ -84,7 +82,7 @@ func (cdb ComplaintDB) complainByProfile(cp ComplainerProfile, c *Complaint) err
 
 	if prev, err := cdb.LookupFirst(cdb.CQByEmail(cp.EmailAddress).Order("-Timestamp")); err != nil {
 		cdb.Errorf("complainByProfile/GetNewest: %v", err)
-	} else if prev != nil && ComplaintsAreEquivalent(*prev, *c) {
+	} else if prev != nil && ComplaintsShouldBeMerged(*prev, *c) {
 		cdb.Debugf("cbe_031", "returned, equiv; about to UpdateComlaint()")
 		// The two complaints are in fact one complaint. Overwrite the old one with data from new one.
 		Overwrite(prev, c)
@@ -173,8 +171,6 @@ func (cdb ComplaintDB) UpdateComplaint(c Complaint, owner string) error {
 		return fmt.Errorf("UpdateComplaint: key <%v> owned by %s, not %s",
 			keyer, cdb.Provider.KeyName(parentKeyer), owner)
 	}
-
-	c.Version = kComplaintVersion // DIE
 
 	return cdb.PersistComplaint(c)
 }

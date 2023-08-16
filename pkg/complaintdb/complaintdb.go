@@ -367,7 +367,7 @@ func (cdb ComplaintDB)LookupAllProfiles(cq *CQuery) ([]ComplainerProfile, error)
 8. globalstats.go: rename to "sitesummary" ? Add something for monthly totals ? (unqiue users:/)
 
 10. Kill off the address inference stuff ?
-11. Kill off kComplaintVersion
+
 12. Make use of that __datastorekey__ trick ?
 13. Remove cdb.Ctx() ?
 14. Kill off any memoization magic that is YAGNI

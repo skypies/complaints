@@ -50,12 +50,16 @@ func PopulateForm(c complaintdb.Complaint, submitkey string) url.Values {
 		browser_version = browser_version[0:49]
 	}
 
-	getLoudVal := func(in int) string {
+	getEventDescription := func(in int, brakes bool) string {
 		loudVals := map[int]string{1: "Loud", 2:"Very Loud", 3:"Excessively Loud"}
-		if val, exists := loudVals[in]; exists {
-			return val
+		val := "Loud"
+		if thisVal, exists := loudVals[in]; exists {
+			val = thisVal
 		}
-		return "Loud"
+		if brakes {
+			val += "+Speedbrakes"
+		}
+		return val
 	}
 
 	vals := url.Values{
@@ -85,7 +89,7 @@ func PopulateForm(c complaintdb.Complaint, submitkey string) url.Values {
 		"aircrafttype":     {"J"},
 		"aircraftcategory": {"J"},
 		"activity_type":    {"Other"}, // perhaps map c.Activity to something ?
-		"event_type":       {getLoudVal(c.Loudness)},  // as per 2023.03.16
+		"event_type":       {getEventDescription(c.Loudness, c.HeardSpeedbreaks)},  // as per 2023.03.16, 2023.08.08
 		"adflag":           {"U"},
 		"comments":         {c.Description},
 		"responserequired": {"N"},

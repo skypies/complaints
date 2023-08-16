@@ -4,57 +4,46 @@ import (
 	"time"
 
 	"github.com/skypies/util/date"
-
 	"github.com/skypies/geo"
 )
 
 const (
-	kComplaintVersion = 2 // Obsolete concept
-	kComplaintCoalesceThreshold = 45
+	kComplaintMergeThreshold     =  45 * time.Second
+	kComplaintWideMergeThreshold = 300 * time.Second
 )
 
-// {{{ ComplaintsAreEquivalent
+var(
+	mergeHappyAddrs = map[string]int{ // Some users should be merged less conservatively
+		"syco1234@gmail.com": 1,
+		"test@example.com": 1,
+	}
+)
 
-// Some users should be coalesced less conservatively *cough*
-var rateLimitAddrs = map[string]int{
-	"syco1234@gmail.com": 1,
-	"test@example.com": 1,
-}
+// {{{ ComplaintsShouldBeMerged
 
-func ComplaintsAreEquivalent(this, next Complaint) bool {
+// ComplaintsShouldBeMerged decides whether two complaint objects
+// relate to the same underlying action by a user. Sometimes a user
+// will mash the button; some users try to automate sending as many
+// complaints as they can.
+func ComplaintsShouldBeMerged(this, next Complaint) bool {
+	thresh := kComplaintMergeThreshold
+
+	// Check to see if the user is suspected to automate, if so give them less benefit of the doubt
+	if _, exists := mergeHappyAddrs[this.Profile.EmailAddress]; exists {
+		thresh = kComplaintWideMergeThreshold
+	}
+
+	// If same (non-empty) flightnumber, merge (regardless of gap between them)
 	fn1 := this.AircraftOverhead.FlightNumber
 	fn2 := next.AircraftOverhead.FlightNumber
-	d1 := this.Description
-	d2 := next.Description
-
-	_,rateLimit := rateLimitAddrs[this.Profile.EmailAddress]
-
-	thresh := kComplaintCoalesceThreshold
-	if rateLimit {
-		thresh = 5*60
-	}
-	
-	if !rateLimit {
-		// If there are different and non-empty descriptions, *never* coaleasce
-		if d1 != "" && d2 != "" && d1 != d2 { return false }
-	}
-
-	// Else - if same (non-empty) flightnumber, coalesce (regardless of gap between them)
-	if fn1 == fn2 && fn1 != "" { return true }
-	
-	// Else, if time has passed, do not coalesce
-	if next.Timestamp.Sub(this.Timestamp) > (time.Duration(thresh)*time.Second) {
-		return false
-	}
-
-	if rateLimit {
+	if fn1 == fn2 && fn1 != "" {
 		return true
 	}
-	
-	// So: not much time has passed; the descrips weren't explicitly distinct; and flights differ.
-	if d1 != d2 { return false }  // one is empty, but that's enough reason not to coalesce
-	if fn1 == fn2 { return true } // identical descriptions & flights; coalesce
-	if fn1 == "" { return true }  // identical descriptions, but new has non-empty flight; coalesce
+
+	// If they are too close together in time, merge
+	if next.Timestamp.Sub(this.Timestamp) <= thresh {
+		return true
+	}
 
 	return false
 }
