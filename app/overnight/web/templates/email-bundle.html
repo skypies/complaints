@@ -47,11 +47,9 @@
         <tr><td colspan="2">
         {{if .Description}}Personal notes: {{.Description}}<br/>{{end}}
 
-        {{if ge .Version 2}}        
         {{if .Activity}}"{{.Activity}}" was disturbed.<br/> {{end}}
         {{if ge .Loudness 2}}Volume was "{{if eq .Loudness 1}}loud{{else if eq .Loudness 2}}very loud{{else}}TOO LOUD{{end}}".{{end}}
         {{if .HeardSpeedbreaks}} <b>Speedbrakes</b> were heard !<br/>{{end}}
-        {{end}}
         </td></tr>
 
         

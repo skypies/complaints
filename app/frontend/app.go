@@ -42,6 +42,7 @@ func init() {
 		return nil
 	}
 	login.Host                  = "https://stop.jetnoise.net"
+	//login.Host                  = "http://localhost:8080"  // To run locally with full oauth2
 	login.RedirectUrlStem       = "/login" // oauth2 callbacks will register  under here
 	login.AfterLoginRelativeUrl = "/" // where the user finally ends up, after being logged in
 	login.GoogleClientID        = config.Get("google.oauth2.appid")

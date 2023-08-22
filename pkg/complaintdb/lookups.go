@@ -184,7 +184,7 @@ func (cdb ComplaintDB) GetAllByEmailAddress(ea string, everything bool) (*Compla
 		cdb.Debugf("GABEA_005", "counts retrieved")
 		cap.Counts = counts
 	}
-	
+
 	return &cap, nil
 }
 

@@ -49,13 +49,12 @@ func hintComplaints(in []complaintdb.Complaint, isSuperHinter bool) []HintedComp
 		if c.Description != "" {
 				hc.Notes = append(hc.Notes,fmt.Sprintf("Your notes: %s", c.Description))
 		}
-		if c.Version >= 2 {
-			if c.HeardSpeedbreaks {hc.Notes = append(hc.Notes, "Flight used speedbrakes")}
-			if c.Loudness == 2 {hc.Notes = append(hc.Notes, "Flight was LOUD")}
-			if c.Loudness == 3 {hc.Notes = append(hc.Notes, "Flight was INSANELY LOUD")}
-			if c.Activity != "" {
-				hc.Notes = append(hc.Notes,fmt.Sprintf("Activity disturbed: %s", c.Activity))
-			}	
+
+		if c.HeardSpeedbreaks {hc.Notes = append(hc.Notes, "Flight used speedbrakes")}
+		if c.Loudness == 2 {hc.Notes = append(hc.Notes, "Flight was LOUD")}
+		if c.Loudness == 3 {hc.Notes = append(hc.Notes, "Flight was INSANELY LOUD")}
+		if c.Activity != "" {
+			hc.Notes = append(hc.Notes,fmt.Sprintf("Activity disturbed: %s", c.Activity))
 		}
 
 		out = append(out, hc)
