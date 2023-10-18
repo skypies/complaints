@@ -32,7 +32,7 @@ func AirspaceHandler(w http.ResponseWriter, r *http.Request) {
 
 	} else {
 		// TODO: also fetch from fdb ? It has the memcache entries for schedule/airframe backfill.
-		as,err = fr24.FetchAirspace(client, pos.Box(60,60))
+		as,err = fr24.GRPCFetchAirspace(pos.Box(60,60))
 	}
 	
 	if err != nil {

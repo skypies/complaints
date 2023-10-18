@@ -182,6 +182,8 @@ func rootHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
 			"<p> Without this data, your complaints won't be counted, so please "+
 			"<a href=\"/profile\"><b>update your profile</b></a> before submitting any more complaints !</p>", message)
 	}
+
+	//info := "<p>Flight identification shoudl be working again - let me know if it isn't.</p>"
 	
 	var params = map[string]interface{}{
 		//"Message": template.HTML("Hi!"),
@@ -191,7 +193,7 @@ func rootHandler (ctx context.Context, w http.ResponseWriter, r *http.Request) {
 		"Modes": modes,
 		"ComplaintDefaults": complaintDefaults,
 		"Message": template.HTML(message),
-		//"Info": template.HTML("Hi!"),
+		//"Info": template.HTML(info),
 		"DisableReporting": disableReporting,
 	}
 	

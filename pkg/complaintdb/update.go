@@ -37,7 +37,7 @@ func (cdb ComplaintDB) complainByProfile(cp ComplainerProfile, c *Complaint) err
 	if (c.Description == "ANYANY") { algoName = "random" }
 	algo := flightid.NewSelector(algoName)
 
-	if as,err := fr24.FetchAirspace(client, pos.Box(64,64)); err != nil {
+	if as,err := fr24.GRPCFetchAirspace(pos.Box(64,64)); err != nil {
 		cdb.Errorf("FindOverhead failed for %s: %v", cp.EmailAddress, err)
 	} else {
 		oh,deb := flightid.IdentifyOverhead(as,pos,elev,algo)

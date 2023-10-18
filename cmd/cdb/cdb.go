@@ -14,6 +14,9 @@ import(
 	"github.com/skypies/util/gcp/ds"
 	"github.com/skypies/util/gcp/gcs"
 
+	"github.com/skypies/flightdb/fr24"
+	"github.com/skypies/geo"
+
 	"github.com/skypies/complaints/pkg/complaintdb"
 )
 
@@ -32,6 +35,7 @@ var(
 	fPurgeFlights   bool
 	fSummary        bool
 	fListUsers      bool
+	fShowAirspace   bool
 	fArchiveComplaints bool
 	fArchiveFrom, fArchiveTo string
 	fSearchArchive  bool
@@ -45,6 +49,7 @@ func init() {
 	flag.StringVar(&fUser, "user", "", "email address of user")
 	flag.BoolVar(&fDesc, "desc", false, "descending order of timestamp")
 	flag.BoolVar(&fSummary, "summary", false, "generate a summary report over the time period")
+	flag.BoolVar(&fShowAirspace, "airspace", false, "show the current airspace")
 	flag.BoolVar(&fListUsers, "users", false, "report users (not complaints)")
 	flag.BoolVar(&fArchiveComplaints, "archive", false, "archive complaints in timewindow to GCS freezefiles")
 	flag.StringVar(&fArchiveFrom, "archivefrom", "", "2015.01.01")
@@ -172,6 +177,19 @@ func runQuery(cq *complaintdb.CQuery) {
 	}
 
 	fmt.Printf("\n")
+}
+
+// }}}
+// {{{ runShowAirspace
+
+func runShowAirspace() {
+	fmt.Printf("(fetching current airspace)\n")
+
+	area := geo.Latlong{37.060312,-121.990814}.Box(60,60)
+	as, err := fr24.GRPCFetchAirspace(area)
+
+	fmt.Printf("fr24 airspace, err: %v\n", err)
+	fmt.Printf("AS: %s\n", as)
 }
 
 // }}}
@@ -470,6 +488,10 @@ func main() {
 
 	} else if fListUsers {
 		runUserReport()
+		return
+
+	} else if fShowAirspace {
+		runShowAirspace()
 		return
 
 	} else if fArchiveComplaints {
