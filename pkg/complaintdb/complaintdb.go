@@ -4,6 +4,7 @@ import (
 	"fmt"
 	pkglog "log"
 	"net/http"
+	"os"
 	"sort"
 	"time"
 
@@ -48,6 +49,7 @@ func NewDB(ctx context.Context) ComplaintDB {
 			StartTime: time.Now(),
 			admin: (propsOk && props.IsAdmin==true),
 			Provider: p,
+			Logger: pkglog.New(os.Stderr, "", pkglog.Ldate|pkglog.Ltime), //|log.Lshortfile)
 		}
 	}
 }
@@ -58,12 +60,15 @@ func NewDB(ctx context.Context) ComplaintDB {
 
 // Debugf is has a 'step' arg, and adds its own latency timings
 func (cdb ComplaintDB)Debugf(step string, fmtstr string, varargs ...interface{}) {
+
+	return // THIS IS WHY ... DebugF is sinkholed
+
 	payload := fmt.Sprintf(fmtstr, varargs...)
 	str := fmt.Sprintf("[%s] %9.6f %s", step, time.Since(cdb.StartTime).Seconds(), payload)
 	if cdb.Logger != nil {
 		cdb.Logger.Print(str)
 	} else {
-		// aelog.Debugf(cdb.Ctx(), str)
+		fmt.Printf(fmtstr, varargs...)
 	}
 }
 
@@ -71,7 +76,7 @@ func (cdb ComplaintDB)Infof(fmtstr string, varargs ...interface{}) {
 	if cdb.Logger != nil {
 		cdb.Logger.Printf(fmtstr, varargs...)
 	} else {
-		// aelog.Infof(cdb.Ctx(), fmtstr, varargs...)
+		fmt.Printf(fmtstr, varargs...)
 	}
 }
 
@@ -79,7 +84,7 @@ func (cdb ComplaintDB)Errorf(fmtstr string, varargs ...interface{}) {
 	if cdb.Logger != nil {
 		cdb.Logger.Printf("ERROR: "+fmtstr, varargs...)
 	} else {
-		// aelog.Errorf(cdb.Ctx(), fmtstr, varargs...)
+		fmt.Printf(fmtstr, varargs...)
 	}
 }
 
