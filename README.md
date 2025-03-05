@@ -18,8 +18,19 @@ gcloud datastore --project=$YOURPROJECT create-indexes app/index.yaml
 gcloud app deploy --project=$YOURPROJECT app/dispatch.yaml
 gcloud app deploy --project=$YOURPROJECT app/queue.yaml
 gcloud app deploy --project=$YOURPROJECT app/cron.yaml
-gcloud app deploy --project=$YOURPROJECT --version=1 app/frontend
-gcloud app deploy --project=$YOURPROJECT --version=1 app/overnight
+
+
+// old and deprecated
+// gcloud app deploy --project=$YOURPROJECT --version=1 app/frontend
+// gcloud app deploy --project=$YOURPROJECT --version=1 app/overnight
+
+// the New Way, as of 2025.03 (need to tick/tock names, can't overwrite the running one)
+cd $GOPATH/github.com/skypies/complaints
+cd app/frontend  && gcloud app deploy --project=$YOURPROJECT --version=1tock --appyaml=app.yaml
+
+cd $GOPATH/github.com/skypies/complaints
+cd app/overnight && gcloud app deploy --project=$YOURPROJECT --version=1tock --appyaml=app.yaml
+
 ```
 
 The `test-values.go.sample` sample file has no passwords in, so

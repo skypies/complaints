@@ -3,9 +3,9 @@ env: flex
 
 instance_class: F1
 
-#runtime_config:
-#  operating_system: "ubuntu22"
-#  runtime_version: "1.23"
+runtime_config:
+  operating_system: "ubuntu22"
+  runtime_version: "1.23"
 
 service: default
 
