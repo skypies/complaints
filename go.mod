@@ -1,7 +1,7 @@
 module github.com/skypies/complaints
 
 go 1.21
-toolchain go1.23.4
+toolchain go1.24.1
 
 require (
 	cloud.google.com/go/bigquery v1.57.1
@@ -10,7 +10,7 @@ require (
 	github.com/skypies/geo v0.0.0-20180901233721-9d4f211f3066
 	github.com/skypies/pi v0.1.2
 	github.com/skypies/util v0.1.33
-	golang.org/x/net v0.36.0
+	golang.org/x/net v0.38.0
 	googlemaps.github.io/maps v0.0.0-20191014172202-ce2e58e026c5
 )
 
@@ -58,12 +58,12 @@ require (
 	go.opentelemetry.io/otel v1.21.0 // indirect
 	go.opentelemetry.io/otel/metric v1.21.0 // indirect
 	go.opentelemetry.io/otel/trace v1.21.0 // indirect
-	golang.org/x/crypto v0.35.0 // indirect
+	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/oauth2 v0.15.0 // indirect
-	golang.org/x/sync v0.11.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/sync v0.12.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
